@@ -40,6 +40,13 @@ export default function IndexScreen() {
       setErrorMsg("");
     });
 
+    socket.on("room_joined", ({ roomCode, playerCount }) => {
+      setRoomCode(roomCode);
+      setPlayerCount(playerCount);
+      setIsInRoom(true);
+      setErrorMsg("");
+    });
+
     socket.on("room_updated", ({ playerCount }) => {
       setPlayerCount(playerCount);
     });

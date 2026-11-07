@@ -83,6 +83,10 @@ io.on("connection", (socket) => {
     socket.join(roomCode);
 
     console.log(`Jogador ${socket.id} entrou na sala ${roomCode}`);
+    socket.emit("room_joined", {
+      roomCode,
+      playerCount: room.players.length,
+    });
     io.to(roomCode).emit("room_updated", {
       roomCode,
       playerCount: room.players.length,
