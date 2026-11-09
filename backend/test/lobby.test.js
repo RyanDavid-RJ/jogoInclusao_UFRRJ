@@ -69,16 +69,16 @@ class FakeIo {
   }
 }
 
-const createLobby = () => {
+const createLobby = (randomInt) => {
   const io = new FakeIo();
   const rooms = new Map();
-  attachLobbyHandlers(io, rooms);
+  const completeObstaclePause = attachLobbyHandlers(io, rooms, { randomInt });
 
   const host = io.connect("player-1");
   host.clientEmit("create_room");
   const { roomCode } = host.eventsFor("room_created")[0].payload;
 
-  return { io, rooms, roomCode, host, players: [host] };
+  return { io, rooms, roomCode, host, players: [host], completeObstaclePause };
 };
 
 const addPlayers = (lobby, count) => {
@@ -95,6 +95,14 @@ const setSchoolStage = (socket, roomCode, schoolStage) => {
 
 const startGame = (socket, roomCode) => {
   socket.clientEmit("start_game", { roomCode });
+};
+
+const startLobbyGame = (randomInt) => {
+  const lobby = createLobby(randomInt);
+  addPlayers(lobby, 4);
+  setSchoolStage(lobby.host, lobby.roomCode, "Fundamental");
+  startGame(lobby.host, lobby.roomCode);
+  return lobby;
 };
 
 test("supports a 4-player minimum, with no automatic start at four", () => {
@@ -194,6 +202,137 @@ test("rejects duplicate starts and sends only each player's private role", () =>
     const [event] = player.eventsFor("game_started");
     assert.deepEqual(Object.keys(event.payload), ["condition"]);
   }
+  const publicStateEvents = lobby.io.emissions.filter(
+    ({ eventName }) =>
+      eventName === "game_state_updated" || eventName === "obstacle_pending",
+  );
+  assert.ok(publicStateEvents.length > 0);
+  for (const { payload } of publicStateEvents) {
+    assert.equal("condition" in payload, false);
+    assert.equal("playerConditions" in payload, false);
+  }
+});
+
+test("roll_dice authorizes only the current player in a valid started room", () => {
+  const values = [3, 2, 1, 1, 1];
+  const randomInt = (_minimum, _maximum) => values.shift();
+  const lobby = startLobbyGame(randomInt);
+  const { turnOrder } = lobby.rooms.get(lobby.roomCode).gameState;
+  const currentPlayer = lobby.io.sockets.get(turnOrder[0]);
+  const otherPlayer = lobby.io.sockets.get(turnOrder[1]);
+
+  otherPlayer.clientEmit("roll_dice", { roomCode: lobby.roomCode, dice: 6 });
+  assert.match(otherPlayer.eventsFor("room_error")[0].payload.message, /turno/);
+  assert.equal(lobby.rooms.get(lobby.roomCode).gameState.diceResult, null);
+
+  currentPlayer.clientEmit("roll_dice", {
+    dice: 6,
+    position: 20,
+    playerId: otherPlayer.id,
+    condition: "cego",
+    points: 999,
+  });
+  assert.equal(lobby.rooms.get(lobby.roomCode).gameState.positions[currentPlayer.id], 1);
+  assert.equal(lobby.rooms.get(lobby.roomCode).gameState.diceResult, 1);
+});
+
+test("roll_dice rejects missing, invalid, unstarted, paused, and finished games", () => {
+  const lobby = createLobby();
+  lobby.host.clientEmit("roll_dice", { roomCode: lobby.roomCode });
+  assert.match(lobby.host.eventsFor("room_error")[0].payload.message, /iniciada/);
+
+  const outsider = lobby.io.connect("outsider");
+  outsider.clientEmit("roll_dice", { roomCode: lobby.roomCode });
+  assert.match(outsider.eventsFor("room_error")[0].payload.message, /não pertence/);
+  outsider.clientEmit("roll_dice", { roomCode: "" });
+  assert.match(outsider.eventsFor("room_error").at(-1).payload.message, /não pertence/);
+  outsider.clientEmit("roll_dice", { roomCode: "XXXX" });
+  assert.match(outsider.eventsFor("room_error").at(-1).payload.message, /Sala não encontrada/);
+
+  const values = [3, 2, 1, 4, 1];
+  const started = startLobbyGame((_minimum, _maximum) => values.shift());
+  const gameState = started.rooms.get(started.roomCode).gameState;
+  const currentPlayer = started.io.sockets.get(
+    gameState.turnOrder[gameState.currentTurnIndex],
+  );
+  currentPlayer.clientEmit("roll_dice", { roomCode: started.roomCode });
+  assert.equal(gameState.status, "paused");
+  currentPlayer.clientEmit("roll_dice", { roomCode: started.roomCode });
+  assert.match(currentPlayer.eventsFor("room_error").at(-1).payload.message, /pausada/);
+  assert.equal(started.completeObstaclePause(started.roomCode), true);
+
+  for (const playerId of gameState.turnOrder) {
+    gameState.positions[playerId] = 19;
+  }
+  const nextPlayer = started.io.sockets.get(
+    gameState.turnOrder[gameState.currentTurnIndex],
+  );
+  nextPlayer.clientEmit("roll_dice", { roomCode: started.roomCode });
+  assert.equal(gameState.status, "finished");
+  nextPlayer.clientEmit("roll_dice", { roomCode: started.roomCode });
+  assert.match(nextPlayer.eventsFor("room_error").at(-1).payload.message, /encerrada/);
+});
+
+test("initializes turn state after the existing start validations and emits a winner", () => {
+  const values = [3, 2, 1, 1, 1];
+  const lobby = startLobbyGame((_minimum, _maximum) => values.shift());
+  const room = lobby.rooms.get(lobby.roomCode);
+  const [initialState] = lobby.host.eventsFor("game_state_updated");
+
+  assert.deepEqual(Object.keys(initialState.payload), [
+    "positions",
+    "currentPlayerId",
+    "round",
+    "diceResult",
+    "status",
+  ]);
+  assert.equal(initialState.payload.status, "active");
+  assert.deepEqual(room.gameState.turnOrder.slice().sort(), room.players.slice().sort());
+
+  const winner = lobby.io.sockets.get(room.gameState.turnOrder[0]);
+  room.gameState.positions[winner.id] = 19;
+  winner.clientEmit("roll_dice", { roomCode: lobby.roomCode, dice: 1 });
+
+  assert.deepEqual(lobby.io.emissions.at(-2).payload.positions, {
+    ...room.gameState.positions,
+  });
+  assert.equal(lobby.io.emissions.at(-1).eventName, "game_over");
+  assert.deepEqual(lobby.io.emissions.at(-1).payload.winners, [winner.id]);
+});
+
+test("server-side obstacle completion advances the turn without a client event", () => {
+  const values = [3, 2, 1, 4, 1];
+  const lobby = startLobbyGame((_minimum, _maximum) => values.shift());
+  const room = lobby.rooms.get(lobby.roomCode);
+  const currentPlayer = lobby.io.sockets.get(room.gameState.turnOrder[0]);
+  currentPlayer.clientEmit("roll_dice", { roomCode: lobby.roomCode });
+
+  assert.equal(room.gameState.status, "paused");
+  assert.equal(
+    lobby.io.emissions.some(({ eventName }) => eventName === "obstacle_pending"),
+    true,
+  );
+  const obstacleEvent = lobby.io.emissions.find(
+    ({ eventName }) => eventName === "obstacle_pending",
+  );
+  assert.deepEqual(Object.keys(obstacleEvent.payload), [
+    "playerId",
+    "position",
+    "round",
+  ]);
+  assert.equal(
+    [...lobby.io.sockets.values()].some((socket) =>
+      socket.handlers.has("ignore_obstacle"),
+    ),
+    false,
+  );
+
+  assert.equal(lobby.completeObstaclePause(lobby.roomCode), true);
+  assert.equal(room.gameState.status, "active");
+  assert.equal(
+    room.gameState.turnOrder[room.gameState.currentTurnIndex],
+    lobby.players[1].id,
+  );
 });
 
 test("preserves room_joined and transfers host when the host disconnects", () => {

@@ -1,3 +1,11 @@
+const { randomInt: secureRandomInt } = require("node:crypto");
+const {
+  completeObstaclePause,
+  createGameState,
+  getPublicGameState,
+  rollDice,
+} = require("./gameEngine");
+
 const MIN_PLAYERS = 4;
 const MAX_PLAYERS = 8;
 const CONDITIONS = ["cadeirante", "cego", "surdo", "neuroatipico"];
@@ -21,7 +29,7 @@ const emitRoomUpdated = (io, roomCode, room) => {
   });
 };
 
-function attachLobbyHandlers(io, rooms) {
+function attachLobbyHandlers(io, rooms, { randomInt = secureRandomInt } = {}) {
   const generateRoomCode = () => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     let code = "";
@@ -167,6 +175,7 @@ function attachLobbyHandlers(io, rooms) {
         });
       }
 
+      room.gameState = createGameState(room.players, randomInt);
       room.started = true;
       emitRoomUpdated(io, roomCode, room);
       const assignedConditions = shuffleArray([...CONDITIONS]);
@@ -181,6 +190,80 @@ function attachLobbyHandlers(io, rooms) {
           condition: playerConditions[index],
         });
       });
+      io.to(roomCode).emit(
+        "game_state_updated",
+        getPublicGameState(room.gameState),
+      );
+    });
+
+    socket.on("roll_dice", (payload) => {
+      const hasRoomCode = Object.prototype.hasOwnProperty.call(
+        payload || {},
+        "roomCode",
+      );
+      const requestedRoomCode =
+        typeof payload?.roomCode === "string"
+          ? payload.roomCode.trim().toUpperCase()
+          : "";
+      const roomEntry = hasRoomCode
+        ? [requestedRoomCode, rooms.get(requestedRoomCode)]
+        : [...rooms.entries()].find(([, room]) =>
+            room.players.includes(socket.id),
+          );
+      const [roomCode, room] = roomEntry || [];
+
+      if (!room || !room.players.includes(socket.id)) {
+        return socket.emit("room_error", {
+          message: "Sala não encontrada ou jogador não pertence à sala.",
+        });
+      }
+
+      if (!room.started || !room.gameState) {
+        return socket.emit("room_error", {
+          message: "A partida ainda não foi iniciada.",
+        });
+      }
+
+      if (room.gameState.status === "finished") {
+        return socket.emit("room_error", {
+          message: "A partida já foi encerrada.",
+        });
+      }
+
+      if (room.gameState.status === "paused") {
+        return socket.emit("room_error", {
+          message: "A partida está pausada em um obstáculo.",
+        });
+      }
+
+      const currentPlayerId =
+        room.gameState.turnOrder[room.gameState.currentTurnIndex];
+      if (currentPlayerId !== socket.id) {
+        return socket.emit("room_error", {
+          message: "Não é o seu turno.",
+        });
+      }
+
+      const result = rollDice(room.gameState, randomInt);
+      io.to(roomCode).emit(
+        "game_state_updated",
+        getPublicGameState(room.gameState),
+      );
+
+      if (result.landedOnObstacle) {
+        io.to(roomCode).emit("obstacle_pending", {
+          playerId: result.playerId,
+          position: room.gameState.positions[result.playerId],
+          round: room.gameState.round,
+        });
+      }
+
+      if (result.gameOver) {
+        io.to(roomCode).emit("game_over", {
+          winners: [...room.gameState.winners],
+          reason: room.gameState.endReason,
+        });
+      }
     });
 
     socket.on("disconnect", () => {
@@ -206,6 +289,27 @@ function attachLobbyHandlers(io, rooms) {
       }
     });
   });
+
+  return (roomCode) => {
+    const normalizedRoomCode =
+      typeof roomCode === "string" ? roomCode.trim().toUpperCase() : "";
+    const room = rooms.get(normalizedRoomCode);
+    if (!room?.gameState || !completeObstaclePause(room.gameState)) {
+      return false;
+    }
+
+    io.to(normalizedRoomCode).emit(
+      "game_state_updated",
+      getPublicGameState(room.gameState),
+    );
+    if (room.gameState.status === "finished") {
+      io.to(normalizedRoomCode).emit("game_over", {
+        winners: [...room.gameState.winners],
+        reason: room.gameState.endReason,
+      });
+    }
+    return true;
+  };
 }
 
 module.exports = { attachLobbyHandlers, MAX_PLAYERS, MIN_PLAYERS };
