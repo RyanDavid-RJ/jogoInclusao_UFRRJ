@@ -1,15 +1,22 @@
-const { randomInt: secureRandomInt } = require("node:crypto");
 const {
+  randomInt: secureRandomInt,
+  randomUUID,
+} = require("node:crypto");
+const {
+  addQuizPoints,
   completeObstaclePause,
   createGameState,
   getPublicGameState,
+  removePlayerFromGame,
   rollDice,
 } = require("./gameEngine");
+const { QuizQuestionsUnavailableError } = require("./quizService");
 
 const MIN_PLAYERS = 4;
 const MAX_PLAYERS = 8;
 const CONDITIONS = ["cadeirante", "cego", "surdo", "neuroatipico"];
 const SCHOOL_STAGES = ["Fundamental", "Médio", "Superior"];
+const QUIZ_DURATION_MS = 30_000;
 
 const shuffleArray = (array) => {
   for (let i = array.length - 1; i > 0; i--) {
@@ -29,7 +36,18 @@ const emitRoomUpdated = (io, roomCode, room) => {
   });
 };
 
-function attachLobbyHandlers(io, rooms, { randomInt = secureRandomInt } = {}) {
+function attachLobbyHandlers(
+  io,
+  rooms,
+  {
+    randomInt = secureRandomInt,
+    quizService,
+    now = Date.now,
+    setTimeoutFn = setTimeout,
+    clearTimeoutFn = clearTimeout,
+    createQuizId = randomUUID,
+  } = {},
+) {
   const generateRoomCode = () => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     let code = "";
@@ -50,6 +68,8 @@ function attachLobbyHandlers(io, rooms, { randomInt = secureRandomInt } = {}) {
         hostId: socket.id,
         schoolStage: null,
         started: false,
+        playerConditions: null,
+        quizRound: null,
       };
       rooms.set(roomCode, room);
       socket.join(roomCode);
@@ -184,6 +204,9 @@ function attachLobbyHandlers(io, rooms, { randomInt = secureRandomInt } = {}) {
           ? assignedConditions[index]
           : CONDITIONS[Math.floor(Math.random() * CONDITIONS.length)],
       );
+      room.playerConditions = Object.fromEntries(
+        room.players.map((playerId, index) => [playerId, playerConditions[index]]),
+      );
 
       room.players.forEach((playerId, index) => {
         io.to(playerId).emit("game_started", {
@@ -196,7 +219,7 @@ function attachLobbyHandlers(io, rooms, { randomInt = secureRandomInt } = {}) {
       );
     });
 
-    socket.on("roll_dice", (payload) => {
+    socket.on("roll_dice", async (payload) => {
       const hasRoomCode = Object.prototype.hasOwnProperty.call(
         payload || {},
         "roomCode",
@@ -256,6 +279,7 @@ function attachLobbyHandlers(io, rooms, { randomInt = secureRandomInt } = {}) {
           position: room.gameState.positions[result.playerId],
           round: room.gameState.round,
         });
+        await beginQuizRound(roomCode, room, result);
       }
 
       if (result.gameOver) {
@@ -263,6 +287,50 @@ function attachLobbyHandlers(io, rooms, { randomInt = secureRandomInt } = {}) {
           winners: [...room.gameState.winners],
           reason: room.gameState.endReason,
         });
+      }
+    });
+
+    socket.on("submit_quiz_answer", (payload, acknowledge) => {
+      const respond = (response) => {
+        if (typeof acknowledge === "function") {
+          acknowledge(response);
+        }
+      };
+      const roomEntry = [...rooms.entries()].find(([, candidate]) =>
+        candidate.players.includes(socket.id),
+      );
+      const [roomCode, room] = roomEntry || [];
+      const round = room?.quizRound;
+
+      if (!round || round.status !== "active" || payload?.quizId !== round.quizId) {
+        return respond({ success: false, code: "INVALID_QUIZ" });
+      }
+
+      if (!round.participants.includes(socket.id) || round.disconnected.has(socket.id)) {
+        return respond({ success: false, code: "NOT_PARTICIPANT" });
+      }
+
+      if (!["A", "B", "C", "D"].includes(payload?.alternativa)) {
+        return respond({ success: false, code: "INVALID_ANSWER" });
+      }
+
+      if (now() >= round.deadlineAt) {
+        finishQuizRound(roomCode, room, round, "timeout", true);
+        return respond({ success: false, code: "DEADLINE_EXPIRED" });
+      }
+
+      if (round.answers.has(socket.id)) {
+        return respond({ success: false, code: "ALREADY_ANSWERED" });
+      }
+
+      round.answers.set(socket.id, {
+        alternativa: payload.alternativa,
+        receivedOrder: round.nextAnswerOrder++,
+      });
+      respond({ success: true });
+
+      if (allConnectedParticipantsAnswered(room, round)) {
+        finishQuizRound(roomCode, room, round, "all_answered", true);
       }
     });
 
@@ -276,7 +344,32 @@ function attachLobbyHandlers(io, rooms, { randomInt = secureRandomInt } = {}) {
         }
 
         room.players.splice(playerIndex, 1);
+        if (room.quizRound) {
+          room.quizRound.disconnected.add(socket.id);
+        }
+
+        if (
+          room.gameState &&
+          room.gameState.status !== "finished" &&
+          room.players.length > 0 &&
+          !room.quizRound
+        ) {
+          removePlayerFromGame(room.gameState, socket.id);
+          io.to(roomCode).emit(
+            "game_state_updated",
+            getPublicGameState(room.gameState),
+          );
+          if (room.gameState.status === "finished") {
+            io.to(roomCode).emit("game_over", {
+              winners: [...room.gameState.winners],
+              reason: room.gameState.endReason,
+            });
+          }
+        }
+
         if (room.players.length === 0) {
+          clearQuizRound(room.quizRound, clearTimeoutFn);
+          room.quizRound = null;
           rooms.delete(roomCode);
           console.log(`Sala ${roomCode} deletada por estar vazia.`);
         } else {
@@ -284,6 +377,18 @@ function attachLobbyHandlers(io, rooms, { randomInt = secureRandomInt } = {}) {
             room.hostId = room.players[0];
           }
           emitRoomUpdated(io, roomCode, room);
+          if (
+            room.quizRound?.status === "active" &&
+            allConnectedParticipantsAnswered(room, room.quizRound)
+          ) {
+            finishQuizRound(
+              roomCode,
+              room,
+              room.quizRound,
+              "all_answered",
+              true,
+            );
+          }
         }
         break;
       }
@@ -294,7 +399,11 @@ function attachLobbyHandlers(io, rooms, { randomInt = secureRandomInt } = {}) {
     const normalizedRoomCode =
       typeof roomCode === "string" ? roomCode.trim().toUpperCase() : "";
     const room = rooms.get(normalizedRoomCode);
-    if (!room?.gameState || !completeObstaclePause(room.gameState)) {
+    if (
+      !room?.gameState ||
+      room.quizRound ||
+      !completeObstaclePause(room.gameState)
+    ) {
       return false;
     }
 
@@ -310,6 +419,215 @@ function attachLobbyHandlers(io, rooms, { randomInt = secureRandomInt } = {}) {
     }
     return true;
   };
+
+  function beginQuizRound(roomCode, room, result) {
+    const round = {
+      quizId: createQuizId(),
+      status: "preparing",
+      participants: [...room.players],
+      participantCount: room.players.length,
+      answers: new Map(),
+      disconnected: new Set(),
+      questions: null,
+      deadlineAt: null,
+      timer: null,
+      nextAnswerOrder: 0,
+    };
+    room.quizRound = round;
+
+    if (!quizService || typeof quizService.prepareQuestions !== "function") {
+      console.error("Quiz service is not configured.");
+      return finishQuizRound(
+        roomCode,
+        room,
+        round,
+        "quiz_unavailable",
+        false,
+        "QUIZ_UNAVAILABLE",
+      );
+    }
+
+    return Promise.resolve()
+      .then(() =>
+        quizService.prepareQuestions({
+          schoolStage: room.schoolStage,
+          position: room.gameState.positions[result.playerId],
+          participantIds: round.participants,
+          playerConditions: room.playerConditions,
+        }),
+      )
+      .then((questions) => {
+        if (rooms.get(roomCode) !== room || room.quizRound !== round) {
+          return;
+        }
+
+        round.questions = questions;
+        round.deadlineAt = now() + QUIZ_DURATION_MS;
+        round.status = "active";
+        round.timer = setTimeoutFn(() => {
+          if (room.quizRound === round) {
+            finishQuizRound(roomCode, room, round, "timeout", true);
+          }
+        }, QUIZ_DURATION_MS);
+
+        for (const playerId of round.participants) {
+          if (!room.players.includes(playerId)) {
+            continue;
+          }
+
+          const question = questions.get(playerId);
+          io.to(playerId).emit("quiz_question", {
+            quizId: round.quizId,
+            enunciado: question.enunciado,
+            alternativas: {
+              A: question.opcao_a,
+              B: question.opcao_b,
+              C: question.opcao_c,
+              D: question.opcao_d,
+            },
+            deadlineAt: round.deadlineAt,
+          });
+        }
+
+        if (allConnectedParticipantsAnswered(room, round)) {
+          finishQuizRound(roomCode, room, round, "all_answered", true);
+        }
+      },
+      (error) => {
+        if (rooms.get(roomCode) !== room || room.quizRound !== round) {
+          return;
+        }
+
+        if (error instanceof QuizQuestionsUnavailableError) {
+          finishQuizRound(
+            roomCode,
+            room,
+            round,
+            "questions_unavailable",
+            false,
+            "QUESTIONS_UNAVAILABLE",
+          );
+          return;
+        }
+
+        console.error("Quiz question lookup failed.");
+        finishQuizRound(
+          roomCode,
+          room,
+          round,
+          "quiz_unavailable",
+          false,
+          "QUIZ_UNAVAILABLE",
+        );
+      },
+      );
+  }
+
+  function finishQuizRound(
+    roomCode,
+    room,
+    round,
+    reason,
+    scoreAnswers,
+    errorCode = null,
+  ) {
+    if (room.quizRound !== round || round.status === "finished") {
+      return false;
+    }
+
+    round.status = "finished";
+    clearQuizRound(round, clearTimeoutFn);
+
+    if (errorCode) {
+      io.to(roomCode).emit("quiz_error", {
+        quizId: round.quizId,
+        code: errorCode,
+      });
+    } else {
+      const pointsByPlayer = new Map();
+      if (scoreAnswers) {
+        const correctAnswers = [...round.answers.entries()]
+          .filter(
+            ([playerId, answer]) =>
+              room.players.includes(playerId) &&
+              answer.alternativa ===
+                round.questions.get(playerId).resposta_correta,
+          )
+          .map(([playerId, answer]) => ({ playerId, ...answer }))
+          .sort((left, right) => left.receivedOrder - right.receivedOrder);
+
+        correctAnswers.forEach(({ playerId }, index) => {
+          const points = round.participantCount - index;
+          pointsByPlayer.set(playerId, points);
+          addQuizPoints(room.gameState, playerId, points);
+        });
+      }
+
+      for (const playerId of round.participants) {
+        if (!room.players.includes(playerId)) {
+          continue;
+        }
+
+        const question = round.questions.get(playerId);
+        const answer = round.answers.get(playerId);
+        const points = pointsByPlayer.get(playerId) || 0;
+        io.to(playerId).emit("quiz_result", {
+          quizId: round.quizId,
+          alternativa: answer?.alternativa ?? null,
+          correta: answer?.alternativa === question.resposta_correta,
+          pontos: points,
+          respostaCorreta: question.resposta_correta,
+          ...(question.explicacao !== null
+            ? { explicacao: question.explicacao }
+            : {}),
+        });
+      }
+    }
+
+    io.to(roomCode).emit("quiz_round_ended", {
+      quizId: round.quizId,
+      placar: Object.fromEntries(
+        round.participants.map((playerId) => [
+          playerId,
+          room.gameState.quizPoints[playerId] || 0,
+        ]),
+      ),
+      motivo: reason,
+    });
+    room.quizRound = null;
+
+    for (const playerId of round.disconnected) {
+      removePlayerFromGame(room.gameState, playerId);
+    }
+    if (room.gameState.status === "paused") {
+      completeObstaclePause(room.gameState);
+    }
+
+    io.to(roomCode).emit(
+      "game_state_updated",
+      getPublicGameState(room.gameState),
+    );
+    if (room.gameState.status === "finished") {
+      io.to(roomCode).emit("game_over", {
+        winners: [...room.gameState.winners],
+        reason: room.gameState.endReason,
+      });
+    }
+    return true;
+  }
 }
+
+const allConnectedParticipantsAnswered = (room, round) =>
+  round.participants.every(
+    (playerId) =>
+      !room.players.includes(playerId) || round.answers.has(playerId),
+  );
+
+const clearQuizRound = (round, clearTimeoutFn) => {
+  if (round?.timer !== null && round?.timer !== undefined) {
+    clearTimeoutFn(round.timer);
+    round.timer = null;
+  }
+};
 
 module.exports = { attachLobbyHandlers, MAX_PLAYERS, MIN_PLAYERS };

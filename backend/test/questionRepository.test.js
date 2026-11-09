@@ -22,6 +22,8 @@ test("passes valid filters as execute parameters", async () => {
   });
 
   assert.deepEqual(call.parameters, ["Médio", 2]);
+  assert.match(call.sql, /FROM\s+perguntas/i);
+  assert.doesNotMatch(call.sql, /ludo_equidade\./i);
   assert.match(call.sql, /WHERE etapa_escolar = \? AND nivel_estrutural = \?/);
   assert.match(call.sql, /ORDER BY RAND\(\)\s+LIMIT 1/);
   assert.doesNotMatch(call.sql, /SELECT\s+\*/i);

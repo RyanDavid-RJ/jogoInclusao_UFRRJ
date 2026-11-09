@@ -33,7 +33,7 @@ function createQuestionRepository(pool) {
     // ORDER BY RAND() is suitable for the MVP's small question bank, not necessarily a large one.
     const [rows] = await pool.execute(
       `SELECT ${QUESTION_COLUMNS.join(", ")}
-       FROM ludo_equidade.perguntas
+       FROM perguntas
        WHERE etapa_escolar = ? AND nivel_estrutural = ?
        ORDER BY RAND()
        LIMIT 1`,

@@ -6,6 +6,8 @@ const { Server } = require("socket.io");
 const cors = require("cors");
 const pool = require("./config/db");
 const { attachLobbyHandlers } = require("./lobby");
+const { createQuestionRepository } = require("./repositories/questionRepository");
+const { createQuizService } = require("./quizService");
 
 const app = express();
 app.use(cors());
@@ -29,7 +31,8 @@ const io = new Server(server, {
 });
 
 const rooms = new Map();
-attachLobbyHandlers(io, rooms);
+const quizService = createQuizService(createQuestionRepository(pool));
+attachLobbyHandlers(io, rooms, { quizService });
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {

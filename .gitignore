@@ -1,4 +1,11 @@
 node_modules/
 .env
+.env.*
+!.env.example
 .expo/
-ca.pem
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+database/backup*.sql

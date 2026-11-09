@@ -112,6 +112,64 @@ const completeObstaclePause = (gameState) => {
   return true;
 };
 
+const addQuizPoints = (gameState, playerId, points) => {
+  if (
+    !gameState.turnOrder.includes(playerId) ||
+    !Number.isSafeInteger(points) ||
+    points < 0
+  ) {
+    return false;
+  }
+
+  gameState.quizPoints[playerId] += points;
+  return true;
+};
+
+const removePlayerFromGame = (gameState, playerId) => {
+  const playerIndex = gameState.turnOrder.indexOf(playerId);
+  if (playerIndex === -1) {
+    return false;
+  }
+
+  const wasFinished = gameState.status === "finished";
+  const wasCurrentPlayer =
+    !wasFinished && gameState.currentTurnIndex === playerIndex;
+  const wasLastPlayer = playerIndex === gameState.turnOrder.length - 1;
+  const wasPendingPlayer = gameState.obstaclePending?.playerId === playerId;
+
+  gameState.turnOrder.splice(playerIndex, 1);
+  delete gameState.positions[playerId];
+  delete gameState.quizPoints[playerId];
+
+  if (wasFinished) {
+    return true;
+  }
+
+  if (wasPendingPlayer) {
+    gameState.status = "active";
+    gameState.obstaclePending = null;
+  }
+
+  if (playerIndex < gameState.currentTurnIndex) {
+    gameState.currentTurnIndex--;
+  }
+
+  if (wasCurrentPlayer) {
+    if (wasLastPlayer) {
+      if (gameState.round >= MAX_ROUNDS) {
+        finishByTieBreak(gameState);
+      } else {
+        gameState.currentTurnIndex = 0;
+        gameState.round++;
+      }
+    } else {
+      gameState.currentTurnIndex = playerIndex;
+    }
+  }
+
+  return true;
+};
+
 const getPublicGameState = (gameState) => ({
   positions: { ...gameState.positions },
   currentPlayerId:
@@ -124,8 +182,10 @@ const getPublicGameState = (gameState) => ({
 });
 
 module.exports = {
+  addQuizPoints,
   completeObstaclePause,
   createGameState,
   getPublicGameState,
+  removePlayerFromGame,
   rollDice,
 };

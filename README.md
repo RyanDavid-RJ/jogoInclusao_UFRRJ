@@ -41,30 +41,24 @@ npm install
 
 ### 2. Configure o backend
 
-Crie `backend/.env` (esse arquivo é ignorado pelo Git) e preencha com os dados do seu banco:
+Copie `backend/.env.example` para `backend/.env` e ajuste as configurações de conexão com o seu banco.
 
-```env
-PORT=3000
-DB_HOST=seu-host
-DB_PORT=3306
-DB_USER=seu-usuario
-DB_PASSWORD=sua-senha
-DB_NAME=ludo_equidade
-DB_SSL=false
-```
-
-Não publique senhas, certificados ou outros segredos no repositório. Para bancos que exigem TLS, configure `DB_SSL=true` e `DB_CA_PATH=ca.pem`; disponibilize o certificado CA em `backend/ca.pem` por um meio seguro. Certificados também são ignorados pelo Git.
+`backend/.env` é ignorado pelo Git. Não publique senhas, certificados ou outros segredos. Para bancos que exigem TLS, configure `DB_SSL=true` e disponibilize o certificado CA em `backend/ca.pem` por um meio seguro; arquivos de certificado também são ignorados pelo Git.
 
 O endpoint `GET http://localhost:3000/api/status` verifica a conexão com o banco e retorna o status da aplicação.
 
 ### 3. Configure o endereço do backend no frontend
 
-O endereço do servidor está definido em `frontend/src/app/index.tsx`, na constante `SERVER_URL`. Altere-o para o endereço correto antes de executar:
+Copie `frontend/.env.example` para `frontend/.env`. Configure `EXPO_PUBLIC_SERVER_URL` com o endereço do backend:
 
 - **Navegador no mesmo computador:** `http://localhost:3000`
 - **Celular na mesma rede Wi-Fi:** `http://<IP-LOCAL-DO-COMPUTADOR>:3000`
 
-No Windows, descubra o IP local executando `ipconfig`. O IP precisa ser alcançável pelo dispositivo; confira também as regras do firewall se a conexão falhar.
+No Windows, descubra o IP local executando `ipconfig`. O IP precisa ser alcançável pelo dispositivo; confira também as regras do firewall se a conexão falhar. Reinicie o Expo após alterar o arquivo `.env`.
+
+Variáveis `EXPO_PUBLIC_*` são incluídas no aplicativo e podem ser vistas por quem o utiliza. Use-as somente para configurações públicas, nunca para senhas ou outros segredos.
+
+Backups locais de banco de dados não devem ser enviados ao Git: podem conter dados pessoais ou informações de acesso. Os arquivos `database/backup*.sql` são ignorados.
 
 ## Executar localmente
 

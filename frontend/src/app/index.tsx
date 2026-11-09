@@ -66,8 +66,8 @@ const getPlayerMarker = (
   return `J${playerIds.indexOf(playerId) + 1}`;
 };
 
-// AVISO: Substitua "SEU_IP_LOCAL" pelo IP da sua máquina na rede Wi-Fi (ex: 192.168.1.5)
-const SERVER_URL = "http://192.168.0.2:3000";
+const SERVER_URL =
+  process.env.EXPO_PUBLIC_SERVER_URL || "http://localhost:3000";
 
 export default function IndexScreen() {
   const socketRef = useRef<Socket | null>(null);
