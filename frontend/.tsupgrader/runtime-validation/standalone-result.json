@@ -1,0 +1,124 @@
+{
+  "planHash": "36887950e6e27725ab6ae61471b38078fae8c7aa039684899700a87518a13055",
+  "phase": "standalone",
+  "recordedAtUtc": "2026-11-09T23:02:56.9932361Z",
+  "retryCount": 0,
+  "resetBaseline": false,
+  "complete": true,
+  "result": {
+    "setupSucceeded": true,
+    "setupDurationMs": 0,
+    "setupFailureOutput": null,
+    "assertions": [
+      {
+        "name": "tsc-no-emit",
+        "kind": "process",
+        "verificationMethod": "exit-code",
+        "passed": true,
+        "timedOut": false,
+        "skipped": false,
+        "skippedReason": null,
+        "exitCode": 0,
+        "outputSample": "",
+        "durationMs": 3843
+      },
+      {
+        "name": "frontend-lint",
+        "kind": "process",
+        "verificationMethod": "exit-code",
+        "passed": true,
+        "timedOut": false,
+        "skipped": false,
+        "skippedReason": null,
+        "exitCode": 0,
+        "outputSample": "\r\n\u003E frontend@1.0.0 lint\r\n\u003E expo lint\r\n\r\n\r\nC:\\Users\\ryand\\Desktop\\jogoInclusao_UFRRJ\\frontend\\src\\app\\index.tsx\r\n  10:8  warning  Using exported name \u0027io\u0027 as identifier for default import  import/no-named-as-default\r\n\r\n\u2716 1 problem (0 errors, 1 warning)\r\n\r\n",
+        "durationMs": 7083
+      },
+      {
+        "name": "tests-pass",
+        "kind": "process",
+        "verificationMethod": "test-results",
+        "passed": true,
+        "timedOut": false,
+        "skipped": false,
+        "skippedReason": null,
+        "exitCode": 0,
+        "outputSample": "\r\n\u003E backend@1.0.0 test\r\n\u003E node --test\r\n\r\n\u2714 initializes positions, scores, and one shuffled turn order without changing players (3.224ms)\r\n\u2714 moves normally and advances the current turn (0.5954ms)\r\n\u2714 caps movement at 20 and declares the winner immediately (0.3445ms)\r\n\u2714 pauses only when a roll lands exactly on an obstacle (0.3895ms)\r\n\u2714 completes an obstacle pause internally and advances the turn (0.3338ms)\r\n\u2714 ends after eight complete rounds and shares an unresolved tie (0.6003ms)\r\n\u2714 breaks an eight-round tie by position and then quiz points (0.3288ms)\r\n\u2714 publishes only the public game state (0.3037ms)\r\nSala 2D8B criada pelo jogador player-1\r\nJogador player-2 entrou na sala 2D8B\r\nJogador player-3 entrou na sala 2D8B\r\nJogador player-4 entrou na sala 2D8B\r\nSala O6TW criada pelo jogador player-1\r\nJogador player-2 entrou na sala O6TW\r\nJogador player-3 entrou na sala O6TW\r\nJogador player-4 entrou na sala O6TW\r\nJogador player-5 entrou na sala O6TW\r\nJogador player-6 entrou na sala O6TW\r\nJogador player-7 entrou na sala O6TW\r\nJogador player-8 entrou na sala O6TW\r\nSala OMCP criada pelo jogador player-1\r\nJogador player-2 entrou na sala OMCP\r\nJogador player-3 entrou na sala OMCP\r\nJogador player-4 entrou na sala OMCP\r\nJogador player-5 entrou na sala OMCP\r\nJogador player-6 entrou na sala OMCP\r\nJogador player-7 entrou na sala OMCP\r\nJogador player-8 entrou na sala OMCP\r\nSala RBY0 criada pelo jogador player-1\r\nJogador player-2 entrou na sala RBY0\r\nJogador player-3 entrou na sala RBY0\r\nJogador player-4 entrou na sala RBY0\r\nSala HSOM criada pelo jogador player-1\r\nJogador player-2 entrou na sala HSOM\r\nJogador player-3 entrou na sala HSOM\r\nJogador player-4 entrou na sala HSOM\r\nSala UZWD criada pelo jogador player-1\r\nJogador player-2 entrou na sala UZWD\r\nJogador player-3 entrou na sala UZWD\r\nJogador player-4 entrou na sala UZWD\r\nSala 17T6 criada pelo jogador player-1\r\nSala MULC criada pelo jogador player-1\r\nJogador player-2 entrou na sala MULC\r\nJogador player-3 entrou na sala MULC\r\nJogador player-4 entrou na sala MULC\r\nSala SMVT criada pelo jogador player-1\r\nJogador player-2 entrou na sala SMVT\r\nJogador player-3 entrou na sala SMVT\r\nJogador player-4 entrou na sala SMVT\r\nSala K5GW criada pelo jogador player-1\r\nJogador player-2 entrou na sala K5GW\r\nJogador player-3 entrou na sala K5GW\r\nJogador player-4 entrou na sala K5GW\r\nSala RD2S criada pelo jogador player-1\r\nJogador player-2 entrou na sala RD2S\r\nJogador player-3 entrou na sala RD2S\r\nJogador player-4 entrou na sala RD2S\r\nSala WAJO criada pelo jogador player-1\r\nJogador player-2 entrou na sala WAJO\r\nJogador player-3 entrou na sala WAJO\r\nJogador player-4 entrou na sala WAJO\r\nSala FN3U criada pelo jogador player-1\r\nJogador player-2 entrou na sala FN3U\r\nJogador player-3 entrou na sala FN3U\r\nJogador player-4 entrou na sala FN3U\r\nSala 7RSH criada pelo jogador player-1\r\nJogador player-2 entrou na sala 7RSH\r\nJogador player-3 entrou na sala 7RSH\r\nJogador player-4 entrou na sala 7RSH\r\nSala 08B8 criada pelo jogador player-1\r\nJogador player-2 entrou na sala 08B8\r\nJogador player-3 entrou na sala 08B8\r\nJogador player-4 entrou na sala 08B8\r\nSala UVGC criada pelo jogador player-1\r\nJogador player-2 entrou na sala UVGC\r\nJogador player-3 entrou na sala UVGC\r\nJogador player-4 entrou na sala UVGC\r\nSala 7N9H criada pelo jogador player-1\r\nJogador player-2 entrou na sala 7N9H\r\nJogador player-3 entrou na sala 7N9H\r\nJogador player-4 entrou na sala 7N9H\r\nSala RBM7 criada pelo jogador player-1\r\nJogador player-2 entrou na sala RBM7\r\nJogador player-3 entrou na sala RBM7\r\nJogador player-4 entrou na sala RBM7\r\nSala 9P0P criada pelo jogador player-1\r\nJogador player-2 entrou na sala 9P0P\r\nJogador player-3 entrou na sala 9P0P\r\nJogador player-4 entrou na sala 9P0P\r\nSala 6FZI criada pelo jogador player-1\r\nJogador player-2 entrou na sala 6FZI\r\nJogador player-3 entrou na sala 6FZI\r\nJogador player-4 entrou na sala 6FZI\r\nSala MIAG criada pelo jogador player-1\r\nJogador player-2 entrou na sala MIAG\r\nJogador player-3 entrou na sala MIAG\r\nJogador player-4 entrou na sala MIAG\r\nSala L2X8 criada pelo jogador player-1\r\nJogador player-2 entrou\n\u2026[truncated]",
+        "durationMs": 1382,
+        "testResults": {
+          "testFramework": "unknown",
+          "runnerDetectedFrom": "none",
+          "testsTotal": 0,
+          "testsPassed": 0,
+          "testsFailed": 0,
+          "testsSkipped": 0,
+          "parseFailed": true
+        }
+      },
+      {
+        "name": "expo-web-home-200",
+        "kind": "http-probe",
+        "verificationMethod": "http-status",
+        "passed": true,
+        "timedOut": false,
+        "skipped": false,
+        "skippedReason": null,
+        "exitCode": null,
+        "outputSample": "HTTP 200\n\u003C!DOCTYPE html\u003E\u003Chtml  lang=\u0022en\u0022\u003E\u003Chead\u003E\u003Ctitle data-rh=\u0022true\u0022\u003E\u003C/title\u003E\u003Cmeta charSet=\u0022utf-8\u0022/\u003E\u003Cmeta name=\u0022viewport\u0022 content=\u0022width=device-width, initial-scale=1, shrink-to-fit=no\u0022/\u003E\u003Cmeta http-equiv=\u0022X-UA-Compatible\u0022 content=\u0022IE=edge\u0022/\u003E\u003Cstyle id=\u0022expo-reset\u0022\u003E#root,body,html{height:100%}body{overflow:hidden}#root{display:flex}\u003C/style\u003E\u003Cstyle id=\u0022react-native-stylesheet\u0022\u003E[stylesheet-group=\u00220\u0022]{}\nbody{margin:0;}\nbutton::-moz-focus-inner,input::-moz-focus-inner{border:0;padding:0;}\nhtml{-ms-text-size-adjust:100%;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:rgba(0,0,0,0);}\ninput::-webkit-search-cancel-button,input::-webkit-search-decoration,input::-webkit-search-results-button,input::-webkit-search-results-decoration{display:none;}\n[stylesheet-group=\u00221\u0022]{}\n.css-accessibilityImage-9pa8cd{bottom:0px;height:100%;left:0px;opacity:0;position:absolute;right:0px;top:0px;width:100%;z-index:-1;}\n.css-text-146c3p1{background-color:rgba(0,0,0,0.00);border:0 solid black;box-sizing:border-box;color:rgba(0,0,0,1.00);display:inline;font:14px -apple-system,BlinkMacSystemFont,\u0022Segoe UI\u0022,Roboto,Helvetica,Arial,sans-serif;list-style:none;margin:0px;padding:0px;position:relative;text-align:start;text-decoration:none;white-space:pre-wrap;word-wrap:break-word;}\n.css-textHasAncestor-1jxf684{background-color:rgba(0,0,0,0.00);border:0 solid black;box-sizing:border-box;color:inherit;display:inline;font:inherit;list-style:none;margin:0px;padding:0px;position:relative;text-align:inherit;text-decoration:none;white-space:inherit;word-wrap:break-word;}\n.css-textinput-11aywtz{-moz-appearance:textfield;-webkit-appearance:none;background-color:rgba(0,0,0,0.00);border-bottom-left-radius:0px;border-bottom-right-radius:0px;border-top-left-radius:0px;border-top-right-radius:0px;border:0 solid black;box-sizing:border-box;font:14px -apple-system,BlinkMacSystemFont,\u0022Segoe UI\u0022,Roboto,Helvetica,Arial,sans-serif;margin:0px;padding:0px;resize:none;}\n.css-view-g5y9jx{align-content:flex-start;align-items:stretch;background-color:rgba(0,0,0,0.00);border:0 solid black;box-sizing:border-box;display:flex;flex-basis:auto;flex-direction:column;flex-shrink:0;list-style:none;margin:0px;min-height:0px;min-width:0px;padding:0px;position:relative;text-decoration:none;z-index:0;}\n[stylesheet-group=\u00222\u0022]{}\n.r-borderColor-11mg6pl{border-bottom-color:rgba(255,255,255,1.00);border-left-color:rgba(255,255,255,1.00);border-right-color:rgba(255,255,255,1.00);border-top-color:rgba(255,255,255,1.00);}\n.r-borderColor-11u4nky{border-bottom-color:rgba(221,221,221,1.00);border-left-color:rgba(221,221,221,1.00);border-right-color:rgba(221,221,221,1.00);border-top-color:rgba(221,221,221,1.00);}\n.r-borderColor-13lodsr{border-bottom-color:rgba(251,140,0,1.00);border-left-color:rgba(251,140,0,1.00);border-right-color:rgba(251,140,0,1.00);border-top-color:rgba(251,140,0,1.00);}\n.r-borderColor-1awa8pu{border-bottom-color:rgba(101,119,134,1.00);border-left-color:rgba(101,119,134,1.00);border-right-color:rgba(101,119,134,1.00);border-top-color:rgba(101,119,134,1.00);}\n.r-borderColor-1d4xg89{border-bottom-color:rgba(170,184,194,1.00);border-left-color:rgba(170,184,194,1.00);border-right-color:rgba(170,184,194,1.00);border-top-color:rgba(170,184,194,1.00);}\n.r-borderColor-1jyn79y{border-bottom-color:rgba(0,150,136,1.00);border-left-color:rgba(0,150,136,1.00);border-right-color:rgba(0,150,136,1.00);border-top-color:rgba(0,150,136,1.00);}\n.r-borderColor-1rvyss1{border-bottom-color:rgba(255,255,255,0.20);border-left-color:rgba(255,255,255,0.20);border-right-color:rgba(255,255,255,0.20);border-top-color:rgba(255,255,255,0.20);}\n.r-borderColor-4a18lf{border-bottom-color:rgba(255,0,0,1.00);border-left-color:rgba(255,0,0,1.00);border-right-color:rgba(255,0,0,1.00);border-top-color:rgba(255,0,0,1.00);}\n.r-borderColor-60ke3l{border-bottom-color:rgba(0,128,0,1.00);border-left-color:rgba(0,128,0,1.00);border-right-color:rgba(0,128,0,1.00);border-top-color:rgba(0,128,0,1.00);}\n.r-borderColor-9kiihx{border-bottom-color:rgba(216,222,232,1.00);border-left-color:rgba(216,222,232,1.00);border-right-color:rgb\n\u2026[truncated]",
+        "durationMs": 14808
+      }
+    ],
+    "executions": [
+      {
+        "source": "tsc-no-emit",
+        "resolvedExecutable": "C:\\Program Files\\nodejs\\npx.CMD",
+        "args": [
+          "tsc",
+          "--noEmit"
+        ],
+        "cwd": "C:\\Users\\ryand\\Desktop\\jogoInclusao_UFRRJ\\frontend",
+        "env": {},
+        "prependPath": [],
+        "platform": "win32"
+      },
+      {
+        "source": "frontend-lint",
+        "resolvedExecutable": "C:\\Program Files\\nodejs\\npm.CMD",
+        "args": [
+          "run",
+          "lint"
+        ],
+        "cwd": "C:\\Users\\ryand\\Desktop\\jogoInclusao_UFRRJ\\frontend",
+        "env": {},
+        "prependPath": [],
+        "platform": "win32"
+      },
+      {
+        "source": "tests-pass",
+        "resolvedExecutable": "C:\\Program Files\\nodejs\\npm.CMD",
+        "args": [
+          "test"
+        ],
+        "cwd": "C:\\Users\\ryand\\Desktop\\jogoInclusao_UFRRJ\\backend",
+        "env": {},
+        "prependPath": [],
+        "platform": "win32"
+      },
+      {
+        "source": "expo-web-home-200",
+        "resolvedExecutable": "C:\\Program Files\\nodejs\\npm.CMD",
+        "args": [
+          "run",
+          "web",
+          "--",
+          "--port",
+          "8081"
+        ],
+        "cwd": "C:\\Users\\ryand\\Desktop\\jogoInclusao_UFRRJ\\frontend",
+        "env": {},
+        "prependPath": [],
+        "platform": "win32"
+      }
+    ]
+  }
+}

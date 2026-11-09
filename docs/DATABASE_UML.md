@@ -31,7 +31,7 @@ Os diagramas são propostas de trabalho até que as decisões correspondentes se
 ## Pendências
 
 - Decidir se perguntas devem ser únicas dentro da mesma partida ou se podem se repetir.
-- Validar o fluxo multiplayer com clientes Socket.IO reais. A integração atual foi testada com mocks/doubles; o teste de repositório usa pool simulado, embora uma consulta real em `defaultdb` tenha sido reportada.
+- Completar validação do cliente para resposta após o prazo, feedback visual de `quiz_error`, questão sem explicação, troca de sala durante partida e fim de jogo; testar também no Expo Go antes do piloto. Os testes de backend já cobrem timeout, questão ausente/erro do repositório e desconexão individual durante o quiz. Em validação manual no Expo Web, quatro clientes jogaram com um quinto fora da sala; o prazo expirou naturalmente e resultados privados foram observados. A perda do servidor durante outra rodada limpou a UI e devolveu as abas ao lobby.
 - Antes da publicação, criar credencial de serviço do app com privilégios mínimos; nunca versionar credenciais nem dumps pessoais.
 
 ## Plano de trabalho
@@ -119,7 +119,8 @@ Esperado: `defaultdb` como banco ativo, tabela com as colunas e restrições pre
 - [x]  Versionar `database/schema_e_seed.sql` com criação da tabela e seeds para as nove combinações; ajustar o repositório para `FROM perguntas` e cobrir a query em teste. Testes automatizados aprovados conforme relatório do Executor.
 - [x]  Selecionar `defaultdb` na configuração privada e confirmar o destino antes da escrita, conforme relatório do Executor.
 - [x]  Aplicar `database/schema_e_seed.sql` em `defaultdb`; validar a estrutura, cobertura das nove combinações e consulta real do repositório, que retornou projeção pública sem gabarito/explicação. O Executor reportou sucesso em 2026-11-09.
-- [x]  Integrar repositório e quiz ao fluxo disparado por obstáculo; suíte backend aprovada em 52/52 testes, incluindo questões com explicação nula. Pendente validar com clientes Socket.IO reais.
+- [x]  Integrar repositório e quiz ao fluxo disparado por obstáculo; suíte backend aprovada em 53/53 testes, incluindo questões com explicação nula e integração Socket.IO com clientes reais para o fluxo normal.
+- [ ]  Ampliar integração Socket.IO para timeout, indisponibilidade/falha de questão, desconexão e encerramento de partida; o teste atual usa perguntas em memória.
 
 ### Decisão de arquitetura para o MVP
 
@@ -140,7 +141,7 @@ Esperado: `defaultdb` como banco ativo, tabela com as colunas e restrições pre
 - O servidor controla uma janela comum de 30 segundos e aceita no máximo uma resposta por jogador.
 - O gabarito permanece no servidor durante a rodada. Após validar/encerrar o quiz, o servidor informa o resultado. `explicacao` é nullable no schema e deve ser omitida do payload quando nula; sua ausência não torna a questão inválida.
 - Para N participantes, respostas corretas pontuam N, N−1, ... até 1 pela ordem de recebimento do servidor. Erro ou tempo esgotado vale zero; com 4 participantes o resultado é 4, 3, 2, 1, e com 7 é 7 até 1. [[1]](https://app.notion.com/chat?t=40cc1da9eec68082b1f200a9fe207e32)
-- **Status:** aprovada por Ryan e implementada no backend conforme relato do Executor em 2026-11-09. Os testes usam mocks/doubles; ainda falta smoke test com clientes Socket.IO reais. Foi identificada divergência: o validador atual exige `explicacao` não vazia apesar de a coluna permitir `NULL`; corrigir essa regra antes da validação ponta a ponta. [[1]](https://app.notion.com/chat?t=40cc1da9eec68082b1f200a9fe207e32)
+- **Status:** aprovada por Ryan e implementada no backend conforme relato do Executor em 2026-11-09. A explicação opcional é aceita e omitida quando nula. A suíte backend passou 58/58 testes e inclui clientes Socket.IO reais para fluxo normal, timeout, questão ausente, falha do repositório e desconexão individual. Teste manual no Expo Web verificou a expiração natural do prazo. Permanecem pendentes validação visual de erro/explicação nula, envio após deadline, troca de sala e fim de partida. [[1]](https://app.notion.com/chat?t=40cc1da9eec68082b1f200a9fe207e32)
 
 ## Fluxo de trabalho do código
 
@@ -174,6 +175,8 @@ A regra de jogo já aprovada é: de 4 a 8 perguntas individuais, entrega simult�
 - **Validação e fim:** aceitar no máximo uma resposta antes do prazo; o relógio do servidor é autoritativo. Congelar o conjunto de N participantes no início. Desconexão durante a rodada equivale a resposta ausente/zero e não altera N; encerrar quando todos os participantes ainda conectados tiverem respondido ou quando os 30 segundos terminarem. Calcular correção e pontos no servidor pela ordem de recebimento das respostas corretas.
 - **Servidor → cada jogador:** após encerrar a rodada, `quiz_result` privado com resultado da própria resposta, pontos, gabarito e explicação quando disponível. Questões com `explicacao: null` são válidas; o campo é omitido do resultado. **Servidor → sala:** `quiz_round_ended` com placar público e motivo do encerramento, sem revelar respostas individuais.
 - **Progressão:** a partida permanece pausada durante a rodada. Ao encerrar o quiz, acumular os pontos no estado da partida, emitir os resultados e liberar a pausa para avançar o turno; não permitir rolagem enquanto a rodada estiver pendente.
+- **Integração automatizada:** `backend/test/socket.integration.test.js` usa clientes Socket.IO reais em servidor local/porta efêmera e perguntas em memória. Verifica pouso no obstáculo, filtro etapa/nível, perguntas e resultados privados, acknowledgement, explicação opcional, placar/estado e avanço de turno. Cenários adicionais cobrem timeout com respostas ausentes, questão ausente, erro do repositório sem emissão parcial e desconexão individual, preservando N e sem pontuar a pessoa desconectada. O teste não acessa `.env` nem Aiven; `npm test` passou 58/58.
+- **Interface integrada e exercício manual:** `frontend/src/app/index.tsx` trata `quiz_question`, `quiz_error`, `quiz_result`, `quiz_round_ended` e desconexão; mostra pergunta, alternativas, prazo, estado após resposta e feedback privado. TypeScript passou; lint sem erros com um aviso preexistente de importação. Em quatro abas do Expo Web e um cliente fora da sala, o caminho normal, expiração natural, privacidade e progresso de turno foram observados. A queda do servidor durante outra rodada retornou as abas ao lobby e limpou estado/timers. A home retornou HTTP 200 e a validação standalone reportou 4/4 verificações. Ainda não foram exercitados visualmente envio tardio, `quiz_error`, explicação nula, troca de sala e fim de partida; o app nativo segue pendente.
 - **Compatibilidade:** verificar a convenção real de salas, sockets e estado em `server.js`, `lobby.js` e `gameEngine.js`. Não buscar/enviar perguntas no início da partida; o gatilho é o pouso em obstáculo.
 - **Falha de acesso ao banco:** se a consulta falhar, não enviar perguntas parciais nem pontuar; registrar a falha no servidor sem credenciais/SQL sensível, emitir `quiz_error` com código seguro `QUIZ_UNAVAILABLE`, liberar a pausa e avançar para evitar travamento.
 
@@ -251,5 +254,7 @@ Os achados acima foram reportados após revisão somente de leitura, sem execuç
 - [x]  Verificar a integração do repositório contra `defaultdb.perguntas`, sem compartilhar credenciais; consulta real reportada como aprovada pelo Executor em 2026-11-09.
 - [x]  Definir baseline do percurso: ordem sorteada, dado de seis lados, trilha compartilhada de 0 a 20, obstáculos em 4/8/12/16, excesso limitado à chegada, limite de oito rodadas e desempates por posição/pontos. Validar ritmo e layout em playtest.
 - [x]  Implementar estado autoritativo em memória para turno, movimento, obstáculos, quiz e fim de partida no backend, com testes; integração reportada em 2026-11-09 com 49 testes aprovados.
-- [ ]  Validar o fluxo atualizado com clientes Socket.IO reais (preparação, pergunta privada, resposta, resultado, prazo e desconexão); os testes existentes usam mocks/doubles.
+- [x]  Validar com clientes Socket.IO reais o fluxo normal: preparar rodada, pergunta individual, resposta, resultado privado e progressão de turno; teste local usa perguntas em memória.
+- [x]  Ampliar testes Socket.IO para timeout, questão ausente, falha do repositório e desconexão durante quiz; `npm test`: 58/58. Os testes usam perguntas em memória e não acessam Aiven.
+- [ ]  Validar visualmente no cliente envio tardio, feedback de erro e explicação nula, troca de sala e fim da partida; testar no Expo Go.
 - [ ]  Planejar a tela final com métricas observadas de sorte/movimento, obstáculos e níveis enfrentados e desempenho matemático, sem afirmar causalidade ou generalizar experiências.
