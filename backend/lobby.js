@@ -17,6 +17,45 @@ const MAX_PLAYERS = 8;
 const CONDITIONS = ["cadeirante", "cego", "surdo", "neuroatipico"];
 const SCHOOL_STAGES = ["Fundamental", "Médio", "Superior"];
 const QUIZ_DURATION_MS = 30_000;
+const AVATAR_IDS = [
+  "coelho",
+  "gato",
+  "urso",
+  "raposa",
+  "pinguim",
+  "coruja",
+  "sapo",
+  "leao",
+];
+const DEFAULT_AVATAR_ID = AVATAR_IDS[0];
+
+const normalizePlayerProfile = (payload, playerIndex) => {
+  const hasName = Object.prototype.hasOwnProperty.call(payload || {}, "name");
+  const hasAvatar = Object.prototype.hasOwnProperty.call(
+    payload || {},
+    "avatarId",
+  );
+  const name =
+    typeof payload?.name === "string" ? payload.name.trim() : undefined;
+  const avatarId =
+    typeof payload?.avatarId === "string"
+      ? payload.avatarId.trim().toLowerCase()
+      : undefined;
+
+  if (hasName && (!name || name.length > 16)) {
+    return { error: "O nome deve ter entre 1 e 16 caracteres." };
+  }
+  if (hasAvatar && !AVATAR_IDS.includes(avatarId)) {
+    return { error: "Avatar inválido." };
+  }
+
+  return {
+    profile: {
+      name: name || `Jogador ${playerIndex + 1}`,
+      avatarId: avatarId || DEFAULT_AVATAR_ID,
+    },
+  };
+};
 
 const shuffleArray = (array) => {
   for (let i = array.length - 1; i > 0; i--) {
@@ -33,6 +72,10 @@ const emitRoomUpdated = (io, roomCode, room) => {
     hostId: room.hostId,
     schoolStage: room.schoolStage,
     started: room.started,
+    players: room.players.map((playerId) => ({
+      playerId,
+      ...room.playerProfiles[playerId],
+    })),
   });
 };
 
@@ -43,6 +86,13 @@ const emitGameOver = (io, roomCode, room) => {
     roles: room.players.map((playerId) => ({
       playerId,
       condition: room.playerConditions[playerId],
+    })),
+    reveal: room.players.map((playerId) => ({
+      playerId,
+      ...room.playerProfiles[playerId],
+      condition: room.playerConditions[playerId],
+      position: room.gameState.positions[playerId],
+      quizPoints: room.gameState.quizPoints[playerId] || 0,
     })),
   });
 };
@@ -79,6 +129,7 @@ function attachLobbyHandlers(
       }
 
       room.players.splice(playerIndex, 1);
+      delete room.playerProfiles[socket.id];
       if (room.quizRound) {
         room.quizRound.disconnected.add(socket.id);
       }
@@ -130,7 +181,11 @@ function attachLobbyHandlers(
   };
 
   io.on("connection", (socket) => {
-    socket.on("create_room", () => {
+    socket.on("create_room", (payload) => {
+      const profileResult = normalizePlayerProfile(payload, 0);
+      if (profileResult.error) {
+        return socket.emit("room_error", { message: profileResult.error });
+      }
       removeSocketFromRoom(socket);
       const roomCode = generateRoomCode();
       const room = {
@@ -140,6 +195,9 @@ function attachLobbyHandlers(
         started: false,
         playerConditions: null,
         quizRound: null,
+        playerProfiles: {
+          [socket.id]: profileResult.profile,
+        },
       };
       rooms.set(roomCode, room);
       socket.join(roomCode);
@@ -151,6 +209,7 @@ function attachLobbyHandlers(
         hostId: socket.id,
         schoolStage: room.schoolStage,
         started: room.started,
+        players: [{ playerId: socket.id, ...room.playerProfiles[socket.id] }],
       });
     });
 
@@ -183,7 +242,13 @@ function attachLobbyHandlers(
         });
       }
 
+      const profileResult = normalizePlayerProfile(payload, room.players.length);
+      if (profileResult.error) {
+        return socket.emit("room_error", { message: profileResult.error });
+      }
+
       room.players.push(socket.id);
+      room.playerProfiles[socket.id] = profileResult.profile;
       socket.join(roomCode);
 
       console.log(`Jogador ${socket.id} entrou na sala ${roomCode}`);

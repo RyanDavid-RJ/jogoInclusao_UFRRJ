@@ -221,6 +221,37 @@ const answerAllPlayers = (lobby, alternativa = "A") => {
   }
 };
 
+test("normalizes profiles, applies deterministic fallbacks, and rejects invalid values", () => {
+  const lobby = createLobby();
+  const room = lobby.rooms.get(lobby.roomCode);
+  assert.deepEqual(room.playerProfiles[lobby.host.id], {
+    name: "Jogador 1",
+    avatarId: "coelho",
+  });
+
+  const player = lobby.io.connect("profile-player");
+  player.clientEmit("join_room", {
+    roomCode: lobby.roomCode,
+    name: "  Ana  ",
+    avatarId: "GATO",
+  });
+  assert.deepEqual(room.playerProfiles[player.id], {
+    name: "Ana",
+    avatarId: "gato",
+  });
+
+  for (const payload of [
+    { name: "", avatarId: "coelho" },
+    { name: "a".repeat(17), avatarId: "coelho" },
+    { name: "Valido", avatarId: "invalido" },
+  ]) {
+    const invalidPlayer = lobby.io.connect(`invalid-${payload.name.length}`);
+    invalidPlayer.clientEmit("join_room", { roomCode: lobby.roomCode, ...payload });
+    assert.equal(invalidPlayer.eventsFor("room_joined").length, 0);
+    assert.equal(invalidPlayer.eventsFor("room_error").length, 1);
+  }
+});
+
 test("supports a 4-player minimum, with no automatic start at four", () => {
   assert.equal(MIN_PLAYERS, 4);
   const lobby = createLobby();
@@ -423,8 +454,20 @@ test("initializes turn state after the existing start validations and emits a wi
       condition: room.playerConditions[playerId],
     })),
   );
+  assert.deepEqual(
+    lobby.io.emissions.at(-1).payload.reveal,
+    room.players.map((playerId) => ({
+      playerId,
+      name: room.playerProfiles[playerId].name,
+      avatarId: room.playerProfiles[playerId].avatarId,
+      condition: room.playerConditions[playerId],
+      position: room.gameState.positions[playerId],
+      quizPoints: room.gameState.quizPoints[playerId],
+    })),
+  );
   assert.deepEqual(Object.keys(lobby.io.emissions.at(-1).payload).sort(), [
     "reason",
+    "reveal",
     "roles",
     "winners",
   ]);

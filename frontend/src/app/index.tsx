@@ -22,6 +22,35 @@ const PLAYER_COLORS = [
   "#D4AC0D",
   "#34495E",
 ];
+const AVATAR_IDS = ["coelho", "gato", "urso", "raposa", "pinguim", "coruja", "sapo", "leao"];
+const AVATAR_META: Record<string, { label: string; emoji: string; color: string }> = {
+  coelho: { label: "Coelho", emoji: "🐰", color: "#1CB0F6" },
+  gato: { label: "Gato", emoji: "🐱", color: "#FF9600" },
+  urso: { label: "Urso", emoji: "🐻", color: "#A559D9" },
+  raposa: { label: "Raposa", emoji: "🦊", color: "#FF4B4B" },
+  pinguim: { label: "Pinguim", emoji: "🐧", color: "#2B70C9" },
+  coruja: { label: "Coruja", emoji: "🦉", color: "#58CC02" },
+  sapo: { label: "Sapo", emoji: "🐸", color: "#46A302" },
+  leao: { label: "Leão", emoji: "🦁", color: "#FFC800" },
+};
+const OBSTACLE_META: Record<number, { title: string; domain: string; icon: string }> = {
+  4: { title: "Escada", domain: "Mobilidade", icon: "🪜" },
+  8: { title: "Alerta Sonoro", domain: "Audição", icon: "🔔" },
+  12: { title: "Multidão e Barulho", domain: "Sensorial", icon: "📢" },
+  16: { title: "Placa Ilegível", domain: "Visão", icon: "🪧" },
+};
+const CONDITION_META: Record<string, { label: string; personaIcon: string; summary: string }> = {
+  cadeirante: { label: "Pessoa Cadeirante", personaIcon: "🧑‍🦽", summary: "Perspectiva de mobilidade física diante de barreiras arquitetônicas." },
+  cego: { label: "Pessoa com Deficiência Visual", personaIcon: "🧑‍🦯", summary: "Perspectiva de orientação espacial e leitura diante de barreiras visuais." },
+  surdo: { label: "Pessoa Surda", personaIcon: "🤟", summary: "Perspectiva de comunicação visual diante de barreiras sonoras." },
+  neuroatipico: { label: "Pessoa Neuroatípica", personaIcon: "🧠", summary: "Perspectiva de processamento sensorial diante de ambientes sobrecarregados." },
+};
+
+type PlayerProfile = {
+  playerId: string;
+  name: string;
+  avatarId: string;
+};
 
 type PublicGameState = {
   positions: Record<string, number>;
@@ -43,6 +72,15 @@ type GameOver = {
   roles: {
     playerId: string;
     condition: string;
+  }[];
+  reveal?: {
+    playerId: string;
+    name: string;
+    avatarId: string;
+    condition: string;
+    position: number;
+    quizPoints: number;
+    summary?: string;
   }[];
 };
 
@@ -101,12 +139,16 @@ const getPlayerLabel = (
   playerId: string,
   playerIds: string[],
   ownPlayerId: string | undefined,
+  profiles: PlayerProfile[] = [],
 ) => {
   if (playerId === ownPlayerId) {
     return "Você";
   }
 
-  return `Jogador ${playerIds.indexOf(playerId) + 1}`;
+  return (
+    profiles.find((profile) => profile.playerId === playerId)?.name ||
+    `Jogador ${playerIds.indexOf(playerId) + 1}`
+  );
 };
 
 const getPlayerMarker = (
@@ -132,7 +174,10 @@ export default function IndexScreen() {
   const [isInRoom, setIsInRoom] = useState(false);
   const [roomCode, setRoomCode] = useState("");
   const [inputCode, setInputCode] = useState("");
+  const [playerName, setPlayerName] = useState("");
+  const [avatarId, setAvatarId] = useState("coelho");
   const [playerCount, setPlayerCount] = useState(0);
+  const [playerProfiles, setPlayerProfiles] = useState<PlayerProfile[]>([]);
   const [isHost, setIsHost] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [isStarted, setIsStarted] = useState(false);
@@ -187,7 +232,7 @@ export default function IndexScreen() {
       setErrorMsg("Conexão perdida com o servidor. Entre na sala novamente.");
     });
 
-    socket.on("room_created", ({ roomCode, playerCount, hostId, schoolStage }) => {
+    socket.on("room_created", ({ roomCode, playerCount, hostId, schoolStage, players }) => {
       setRoomCode(roomCode);
       setPlayerCount(playerCount);
       setIsHost(hostId === socket.id);
@@ -208,6 +253,9 @@ export default function IndexScreen() {
       quizSubmissionLockRef.current = false;
       setIsInRoom(true);
       setErrorMsg("");
+      if (Array.isArray(players)) {
+        setPlayerProfiles(players);
+      }
     });
 
     socket.on("room_joined", ({ roomCode, playerCount, hostId, schoolStage }) => {
@@ -233,11 +281,14 @@ export default function IndexScreen() {
       setErrorMsg("");
     });
 
-    socket.on("room_updated", ({ playerCount, hostId, schoolStage, started }) => {
+    socket.on("room_updated", ({ playerCount, hostId, schoolStage, started, players }) => {
       setPlayerCount(playerCount);
       setIsHost(hostId === socket.id);
       setSchoolStage(schoolStage);
       setIsStarted(started);
+      if (Array.isArray(players)) {
+        setPlayerProfiles(players);
+      }
     });
 
     socket.on("game_started", ({ condition }) => {
@@ -340,15 +391,23 @@ export default function IndexScreen() {
   }, [quizQuestion]);
 
   const handleCreateRoom = () => {
+    if (!playerName.trim() || playerName.trim().length > 16) {
+      setErrorMsg("O nome deve ter entre 1 e 16 caracteres.");
+      return;
+    }
     setErrorMsg("");
-    socketRef.current?.emit("create_room");
+    socketRef.current?.emit("create_room", { name: playerName, avatarId });
   };
 
   const handleJoinRoom = () => {
-    if (inputCode.trim().length > 0) {
+    if (!playerName.trim() || playerName.trim().length > 16) {
+      setErrorMsg("O nome deve ter entre 1 e 16 caracteres.");
+    } else if (inputCode.trim().length > 0) {
       setErrorMsg("");
       socketRef.current?.emit("join_room", {
         roomCode: inputCode.trim().toUpperCase(),
+        name: playerName,
+        avatarId,
       });
     } else {
       setErrorMsg("Por favor, digite um código válido.");
@@ -431,6 +490,10 @@ export default function IndexScreen() {
       gameOver?.reason === "finish"
         ? "Um jogador alcançou a posição 20."
         : "O limite de 8 rodadas foi atingido.";
+    const boardRows = Array.from({ length: 7 }, (_, row) => {
+      const positions = [row * 3, row * 3 + 1, row * 3 + 2];
+      return row % 2 === 0 ? positions : positions.reverse();
+    });
 
     return (
       <ScrollView
@@ -442,48 +505,76 @@ export default function IndexScreen() {
         {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
 
         <View style={styles.gameSummary}>
-          <Text style={styles.gameSummaryText}>
-            Rodada: {gameState.round}
-          </Text>
+          <View style={styles.summaryHeader}>
+            <Text style={styles.summaryEyebrow}>TABULEIRO DUO-EQUIDADE</Text>
+            <Text style={styles.roundBadge}>RODADA {gameState.round}</Text>
+          </View>
           <Text style={styles.gameSummaryText}>
             Turno atual:{" "}
             {gameState.currentPlayerId
-              ? getPlayerLabel(gameState.currentPlayerId, playerIds, ownPlayerId)
+              ? getPlayerLabel(gameState.currentPlayerId, playerIds, ownPlayerId, playerProfiles)
               : "partida encerrada"}
           </Text>
           <Text style={styles.gameSummaryText}>
             Último dado: {gameState.diceResult ?? "ainda não lançado"}
           </Text>
+          <Text style={styles.turnStatus} accessibilityLiveRegion="polite">
+            {isPaused
+              ? "Movimento pausado no obstáculo"
+              : isMyTurn
+                ? "É a sua vez de jogar"
+                : "Aguardando o próximo movimento"}
+          </Text>
         </View>
 
         <View style={styles.board}>
-          {Array.from({ length: 21 }, (_, position) => {
-            const playersAtPosition = playerIds.filter(
-              (playerId) => gameState.positions[playerId] === position,
-            );
+          {boardRows.map((positions, row) => (
+            <View key={row} style={styles.boardRow}>
+              {positions.map((position) => {
+                const playersAtPosition = playerIds.filter(
+                  (playerId) => gameState.positions[playerId] === position,
+                );
+                const obstacle = OBSTACLE_META[position];
+                const isStart = position === 0;
+                const isFinish = position === 20;
 
-            return (
-              <View key={position} style={styles.boardCell}>
-                <Text style={styles.boardPosition}>{position}</Text>
-                <View style={styles.boardTokens}>
-                  {playersAtPosition.map((playerId) => (
-                    <Text
-                      key={playerId}
-                      style={[
-                        styles.playerToken,
-                        {
-                          backgroundColor:
-                            PLAYER_COLORS[playerIds.indexOf(playerId) % PLAYER_COLORS.length],
-                        },
-                      ]}
-                    >
-                      {getPlayerMarker(playerId, playerIds, ownPlayerId)}
+                return (
+                  <View key={position} style={[
+                    styles.boardCell,
+                    obstacle && styles.obstacleCell,
+                    isStart && styles.startCell,
+                    isFinish && styles.finishCell,
+                  ]}>
+                    <Text style={styles.boardPosition}>
+                      {isStart ? "INÍCIO 🏁" : isFinish ? "CHEGADA 🏆" : position}
                     </Text>
-                  ))}
-                </View>
-              </View>
-            );
-          })}
+                    {obstacle ? (
+                      <Text style={styles.obstacleLabel}>{obstacle.icon} {obstacle.title}</Text>
+                    ) : null}
+                    <View style={styles.boardTokens}>
+                      {playersAtPosition.map((playerId) => {
+                        const profile = playerProfiles.find(
+                          (candidate) => candidate.playerId === playerId,
+                        );
+                        const avatar = AVATAR_META[profile?.avatarId || "coelho"];
+                        return (
+                          <View
+                            key={playerId}
+                            style={[styles.playerBadge, { backgroundColor: avatar.color }]}
+                          >
+                            <Text style={styles.playerToken}>{avatar.emoji}</Text>
+                            <Text style={styles.playerMarker}>
+                              {getPlayerMarker(playerId, playerIds, ownPlayerId)}
+                            </Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          ))}
         </View>
 
         <View style={styles.playerList}>
@@ -499,7 +590,9 @@ export default function IndexScreen() {
                 {getPlayerMarker(playerId, playerIds, ownPlayerId)}
               </Text>
               {"  "}
-              {getPlayerLabel(playerId, playerIds, ownPlayerId)}:{" "}
+              {AVATAR_META[playerProfiles.find((profile) => profile.playerId === playerId)?.avatarId || "coelho"].emoji}{" "}
+              {AVATAR_META[playerProfiles.find((profile) => profile.playerId === playerId)?.avatarId || "coelho"].label}{"  "}
+              {getPlayerLabel(playerId, playerIds, ownPlayerId, playerProfiles)}:{" "}
               {gameState.positions[playerId]}/20
             </Text>
           ))}
@@ -531,6 +624,15 @@ export default function IndexScreen() {
                 <Text style={styles.quizQuestionText}>
                   {quizQuestion.enunciado}
                 </Text>
+                <View style={styles.quizProgressTrack} accessibilityLiveRegion="polite">
+                  <View style={[
+                    styles.quizProgressFill,
+                    {
+                      width: `${Math.min(100, (quizRemainingSeconds / 30) * 100)}%`,
+                      backgroundColor: quizRemainingSeconds > 15 ? "#58CC02" : quizRemainingSeconds > 5 ? "#FFC800" : "#FF4B4B",
+                    },
+                  ]} />
+                </View>
                 <View accessibilityRole="radiogroup">
                   {QUIZ_ANSWERS.map((answer) => {
                     const isSelected = quizSelectedAnswer === answer;
@@ -619,7 +721,7 @@ export default function IndexScreen() {
             )}
             {obstaclePending ? (
               <Text style={styles.gameNotice}>
-                {getPlayerLabel(obstaclePending.playerId, playerIds, ownPlayerId)}{" "}
+                {getPlayerLabel(obstaclePending.playerId, playerIds, ownPlayerId, playerProfiles)}{" "}
                 parou na posição {obstaclePending.position} na rodada{" "}
                 {obstaclePending.round}.
               </Text>
@@ -663,23 +765,48 @@ export default function IndexScreen() {
 
         {gameOver ? (
           <View style={styles.gameOverNotice}>
-            <Text style={styles.sectionTitle}>Partida encerrada</Text>
-            <Text style={styles.gameNotice}>{endReason}</Text>
-            <Text style={styles.gameNotice}>
+            <Text style={styles.championBanner}>
               {gameOver.winners.length > 1 ? "Vencedores: " : "Campeão: "}
               {gameOver.winners
                 .map((winnerId) =>
-                  getPlayerLabel(winnerId, playerIds, ownPlayerId),
+                  getPlayerLabel(winnerId, playerIds, ownPlayerId, playerProfiles),
                 )
                 .join(", ")}
             </Text>
-            <Text style={styles.sectionTitle}>Papéis dos jogadores</Text>
-            {gameOver.roles.map(({ playerId, condition }) => (
-              <Text key={playerId} style={styles.gameNotice}>
-                {getPlayerLabel(playerId, playerIds, ownPlayerId)}:{" "}
-                {condition.toUpperCase()}
-              </Text>
-            ))}
+            <Text style={styles.gameNotice}>{endReason}</Text>
+            <Text style={styles.revealTitle}>Virada da Equidade: Quem era quem?</Text>
+            {(gameOver.reveal || gameOver.roles.map((role) => ({
+              ...role,
+              name: getPlayerLabel(role.playerId, playerIds, ownPlayerId, playerProfiles),
+              avatarId:
+                playerProfiles.find((profile) => profile.playerId === role.playerId)
+                  ?.avatarId || "coelho",
+              position: gameState.positions[role.playerId] || 0,
+              quizPoints: 0,
+              summary: undefined,
+            }))).map(({ playerId, name, avatarId: playerAvatar, condition, position, quizPoints, summary }) => {
+              const avatar = AVATAR_META[playerAvatar] || AVATAR_META.coelho;
+              const conditionMeta = CONDITION_META[condition] || { label: condition, personaIcon: "🧑", summary: "Perspectiva vivenciada durante a partida." };
+              return (
+              <View key={playerId} style={styles.revealCard}>
+                <Text style={styles.revealTransition}>
+                  {avatar.emoji} {name} ➔ {conditionMeta.personaIcon} {conditionMeta.label}
+                </Text>
+                <View style={styles.chipRow}>
+                  <Text style={styles.chip}>Posição: {position}/20</Text>
+                  <Text style={styles.chip}>Pontos no Quiz: {quizPoints}</Text>
+                </View>
+                <Text style={styles.supportText}>{summary || conditionMeta.summary}</Text>
+              </View>
+              );
+            })}
+            <View style={styles.reflectionCard}>
+              <Text style={styles.sectionTitle}>Para Debater com o Grupo</Text>
+              <Text style={styles.gameNotice}>• Como a sorte nos dados influenciou a caminhada de cada pessoa?</Text>
+              <Text style={styles.gameNotice}>• Como o obstáculo encontrado e o tempo no quiz mudaram as decisões do grupo?</Text>
+              <Text style={styles.gameNotice}>• O desempenho matemático explica sozinho o resultado? O que mais pesou?</Text>
+              <Text style={styles.gameNotice}>• Que apoios tornariam o caminho mais equitativo para todas as pessoas?</Text>
+            </View>
             <TouchableOpacity style={styles.button} onPress={handleCreateRoom}>
               <Text style={styles.buttonText}>Criar nova sala</Text>
             </TouchableOpacity>
@@ -709,6 +836,14 @@ export default function IndexScreen() {
       <View style={styles.container}>
         <Text style={styles.title}>Sala: {roomCode}</Text>
         <Text style={styles.subtitle}>Jogadores: {playerCount} / 8</Text>
+        <View style={styles.playerList}>
+          <Text style={styles.sectionTitle}>Jogadores</Text>
+          {playerProfiles.map((profile) => (
+            <Text key={profile.playerId} style={styles.playerPosition}>
+              {AVATAR_META[profile.avatarId]?.emoji} {AVATAR_META[profile.avatarId]?.label} — {profile.name}
+            </Text>
+          ))}
+        </View>
         <Text style={styles.schoolStageText}>
           Etapa escolar: {schoolStage ?? "não selecionada"}
         </Text>
@@ -789,6 +924,30 @@ export default function IndexScreen() {
 
       {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
 
+      <TextInput
+        style={styles.input}
+        placeholder="Seu nome (1 a 16 caracteres)"
+        value={playerName}
+        onChangeText={setPlayerName}
+        maxLength={16}
+        autoCorrect={false}
+      />
+      <Text style={styles.avatarLabel}>Escolha seu avatar</Text>
+      <View style={styles.avatarSelector}>
+        {AVATAR_IDS.map((avatar) => (
+          <TouchableOpacity
+            key={avatar}
+            style={[
+              styles.avatarButton,
+              avatarId === avatar && styles.selectedAvatarButton,
+            ]}
+            onPress={() => setAvatarId(avatar)}
+          >
+            <Text style={styles.avatarButtonText}>{AVATAR_META[avatar].emoji} {AVATAR_META[avatar].label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
       <TouchableOpacity style={styles.button} onPress={handleCreateRoom}>
         <Text style={styles.buttonText}>Criar Nova Sala</Text>
       </TouchableOpacity>
@@ -809,7 +968,7 @@ export default function IndexScreen() {
         autoCorrect={false}
       />
 
-      <TouchableOpacity style={styles.button} onPress={handleJoinRoom}>
+      <TouchableOpacity style={styles.secondaryButton} onPress={handleJoinRoom}>
         <Text style={styles.buttonText}>Entrar na Sala</Text>
       </TouchableOpacity>
     </View>
@@ -819,14 +978,14 @@ export default function IndexScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F5F7FA",
+    backgroundColor: "#F7F9FA",
     alignItems: "center",
     justifyContent: "center",
     padding: 20,
   },
   gameScrollView: {
     flex: 1,
-    backgroundColor: "#F5F7FA",
+    backgroundColor: "#F7F9FA",
   },
   gameContainer: {
     alignItems: "center",
@@ -835,13 +994,14 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 32,
-    fontWeight: "bold",
-    color: "#333",
+    fontWeight: "800",
+    color: "#3C3C3C",
     marginBottom: 10,
   },
   subtitle: {
     fontSize: 18,
-    color: "#555",
+    color: "#777",
+    fontWeight: "600",
     marginBottom: 12,
   },
   schoolStageText: {
@@ -852,38 +1012,92 @@ const styles = StyleSheet.create({
   gameSummary: {
     width: "100%",
     maxWidth: 420,
-    backgroundColor: "#FFF",
-    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    borderColor: "#E5E5E5",
+    borderWidth: 2,
+    borderBottomWidth: 5,
+    borderRadius: 20,
     padding: 14,
     marginBottom: 16,
   },
   gameSummaryText: {
-    color: "#333",
+    color: "#3C3C3C",
     fontSize: 16,
     fontWeight: "600",
     marginVertical: 3,
   },
+  summaryHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  summaryEyebrow: {
+    color: "#1CB0F6",
+    fontSize: 12,
+    fontWeight: "900",
+    letterSpacing: 0.8,
+  },
+  roundBadge: {
+    backgroundColor: "#E9F9DF",
+    borderRadius: 10,
+    color: "#46A302",
+    fontSize: 11,
+    fontWeight: "900",
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  turnStatus: {
+    color: "#7B2CBF",
+    fontSize: 14,
+    fontWeight: "800",
+    marginTop: 8,
+  },
   board: {
     width: "100%",
     maxWidth: 420,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
+    backgroundColor: "#EAF7FC",
+    borderColor: "#B8E6F7",
+    borderRadius: 24,
+    borderWidth: 2,
+    padding: 8,
     marginBottom: 16,
   },
+  boardRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
   boardCell: {
-    width: "18%",
-    minHeight: 62,
-    backgroundColor: "#FFF",
-    borderColor: "#D8DEE8",
-    borderWidth: 1,
-    borderRadius: 8,
+    width: "32%",
+    minHeight: 78,
+    backgroundColor: "#FFFFFF",
+    borderColor: "#E5E5E5",
+    borderWidth: 2,
+    borderBottomWidth: 5,
+    borderRadius: 20,
     alignItems: "center",
     paddingVertical: 5,
-    marginBottom: 5,
+    marginBottom: 6,
+  },
+  obstacleCell: {
+    backgroundColor: "#FFF9DB",
+    borderColor: "#FFC800",
+  },
+  startCell: {
+    borderColor: "#1CB0F6",
+  },
+  finishCell: {
+    backgroundColor: "#E9F9DF",
+    borderColor: "#46A302",
+  },
+  obstacleLabel: {
+    color: "#B28900",
+    fontSize: 10,
+    fontWeight: "800",
+    textAlign: "center",
   },
   boardPosition: {
-    color: "#555",
+    color: "#3C3C3C",
     fontSize: 12,
     fontWeight: "700",
   },
@@ -893,107 +1107,132 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   playerToken: {
-    overflow: "hidden",
-    borderRadius: 9,
-    color: "#FFF",
-    fontSize: 8,
-    fontWeight: "700",
-    textAlign: "center",
-    minWidth: 18,
-    height: 18,
-    lineHeight: 18,
+    fontSize: 15,
+  },
+  playerBadge: {
+    borderRadius: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 3,
     margin: 1,
+  },
+  playerMarker: {
+    color: "#FFFFFF",
+    fontSize: 8,
+    fontWeight: "800",
   },
   playerList: {
     width: "100%",
     maxWidth: 420,
-    backgroundColor: "#FFF",
-    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    borderColor: "#E5E5E5",
+    borderWidth: 2,
+    borderBottomWidth: 5,
+    borderRadius: 20,
     padding: 14,
     marginBottom: 16,
   },
   sectionTitle: {
-    color: "#333",
+    color: "#3C3C3C",
     fontSize: 18,
     fontWeight: "700",
     marginBottom: 8,
   },
   playerPosition: {
-    color: "#444",
+    color: "#777",
+    fontWeight: "600",
     fontSize: 15,
     marginVertical: 3,
   },
   privateCondition: {
     width: "100%",
     maxWidth: 420,
-    backgroundColor: "#E8F5E9",
-    borderColor: "#4CAF50",
-    borderRadius: 12,
-    borderWidth: 1,
+    backgroundColor: "#F8EEFF",
+    borderColor: "#CE82FF",
+    borderRadius: 16,
+    borderWidth: 2,
+    borderBottomWidth: 5,
     padding: 14,
     marginBottom: 16,
     alignItems: "center",
   },
   privateConditionLabel: {
-    color: "#2E7D32",
+    color: "#7B2CBF",
     fontSize: 15,
     marginBottom: 4,
   },
   privateConditionText: {
-    color: "#1B5E20",
+    color: "#7B2CBF",
     fontSize: 20,
     fontWeight: "900",
   },
   pausedNotice: {
     width: "100%",
     maxWidth: 420,
-    backgroundColor: "#FFF3E0",
-    borderColor: "#FB8C00",
-    borderRadius: 12,
-    borderWidth: 1,
+    backgroundColor: "#FFF9DB",
+    borderColor: "#FFC800",
+    borderRadius: 20,
+    borderWidth: 2,
+    borderBottomWidth: 5,
     padding: 14,
     marginBottom: 16,
   },
   quizQuestionText: {
-    color: "#333",
+    color: "#3C3C3C",
     fontSize: 17,
     fontWeight: "600",
     lineHeight: 24,
     marginVertical: 12,
   },
-  quizAnswerButton: {
-    backgroundColor: "#FFF",
-    borderColor: "#8A96A8",
+  quizProgressTrack: {
+    width: "100%",
+    height: 10,
+    backgroundColor: "#E5E5E5",
     borderRadius: 8,
-    borderWidth: 1,
+    overflow: "hidden",
+    marginBottom: 12,
+  },
+  quizProgressFill: {
+    height: "100%",
+    borderRadius: 8,
+  },
+  quizAnswerButton: {
+    backgroundColor: "#FFFFFF",
+    borderColor: "#E5E5E5",
+    borderRadius: 16,
+    borderWidth: 2,
+    borderBottomWidth: 5,
     marginBottom: 8,
     padding: 12,
   },
   selectedQuizAnswerButton: {
-    backgroundColor: "#E8F2FD",
-    borderColor: "#208AEF",
+    backgroundColor: "#1CB0F6",
+    borderColor: "#1899D6",
     borderWidth: 2,
   },
   quizAnswerText: {
-    color: "#333",
+    color: "#3C3C3C",
     fontSize: 15,
     lineHeight: 21,
   },
   selectedQuizAnswerText: {
-    color: "#155A9C",
+    color: "#FFFFFF",
     fontWeight: "700",
   },
   quizSubmitButton: {
     width: "100%",
     minHeight: 48,
-    backgroundColor: "#208AEF",
-    borderRadius: 8,
+    backgroundColor: "#58CC02",
+    borderColor: "#46A302",
+    borderRadius: 16,
+    borderWidth: 2,
+    borderBottomWidth: 5,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 4,
   },
   quizStatusText: {
-    color: "#555",
+    color: "#777",
     fontSize: 15,
     fontWeight: "600",
     marginTop: 10,
@@ -1001,42 +1240,112 @@ const styles = StyleSheet.create({
   quizErrorNotice: {
     width: "100%",
     maxWidth: 420,
-    backgroundColor: "#FFF3E0",
-    borderColor: "#FB8C00",
-    borderRadius: 12,
-    borderWidth: 1,
+    backgroundColor: "#FFEAEA",
+    borderColor: "#FF4B4B",
+    borderRadius: 16,
+    borderWidth: 2,
+    borderBottomWidth: 5,
     padding: 14,
     marginBottom: 16,
   },
   quizErrorText: {
-    color: "#8A4B08",
+    color: "#D92626",
     fontSize: 15,
     lineHeight: 22,
   },
   quizResultNotice: {
     width: "100%",
     maxWidth: 420,
-    backgroundColor: "#E8F5E9",
-    borderColor: "#4CAF50",
-    borderRadius: 12,
-    borderWidth: 1,
+    backgroundColor: "#FFFFFF",
+    borderColor: "#E5E5E5",
+    borderRadius: 20,
+    borderWidth: 2,
+    borderBottomWidth: 5,
     padding: 14,
     marginBottom: 16,
   },
   gameOverNotice: {
     width: "100%",
     maxWidth: 420,
-    backgroundColor: "#E8F5E9",
-    borderColor: "#4CAF50",
-    borderRadius: 12,
-    borderWidth: 1,
+    backgroundColor: "#FFFFFF",
+    borderColor: "#E5E5E5",
+    borderRadius: 20,
+    borderWidth: 2,
+    borderBottomWidth: 5,
     padding: 14,
     marginBottom: 16,
   },
+  championBanner: {
+    backgroundColor: "#E9F9DF",
+    borderColor: "#46A302",
+    borderWidth: 2,
+    borderBottomWidth: 5,
+    borderRadius: 16,
+    color: "#3C3C3C",
+    fontSize: 20,
+    fontWeight: "800",
+    padding: 12,
+    marginBottom: 10,
+    textAlign: "center",
+  },
   gameNotice: {
-    color: "#444",
+    color: "#777",
+    fontWeight: "600",
     fontSize: 15,
     marginVertical: 3,
+  },
+  revealTitle: {
+    color: "#3C3C3C",
+    fontSize: 20,
+    fontWeight: "800",
+    marginBottom: 10,
+  },
+  revealCard: {
+    backgroundColor: "#FFFFFF",
+    borderColor: "#E5E5E5",
+    borderWidth: 2,
+    borderBottomWidth: 5,
+    borderRadius: 20,
+    padding: 14,
+    marginBottom: 10,
+  },
+  revealTransition: {
+    color: "#3C3C3C",
+    fontSize: 16,
+    fontWeight: "800",
+    marginBottom: 10,
+  },
+  chipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginBottom: 8,
+  },
+  chip: {
+    backgroundColor: "#F8EEFF",
+    color: "#7B2CBF",
+    borderColor: "#CE82FF",
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  supportText: {
+    color: "#777777",
+    fontSize: 14,
+    fontWeight: "600",
+    lineHeight: 20,
+  },
+  reflectionCard: {
+    backgroundColor: "#FFF9DB",
+    borderColor: "#FFC800",
+    borderWidth: 2,
+    borderBottomWidth: 5,
+    borderRadius: 20,
+    padding: 14,
+    marginBottom: 12,
   },
   stageSelector: {
     width: "100%",
@@ -1052,18 +1361,20 @@ const styles = StyleSheet.create({
   },
   stageButton: {
     backgroundColor: "#FFF",
-    borderColor: "#208AEF",
-    borderRadius: 8,
-    borderWidth: 1,
+    borderColor: "#1899D6",
+    borderRadius: 16,
+    borderWidth: 2,
+    borderBottomWidth: 5,
     marginBottom: 8,
     padding: 12,
     alignItems: "center",
   },
   selectedStageButton: {
-    backgroundColor: "#208AEF",
+    backgroundColor: "#1CB0F6",
+    borderColor: "#1899D6",
   },
   stageButtonText: {
-    color: "#208AEF",
+    color: "#1CB0F6",
     fontSize: 16,
     fontWeight: "600",
   },
@@ -1083,12 +1394,58 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 15,
   },
+  avatarLabel: {
+    color: "#333",
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+  avatarSelector: {
+    width: "100%",
+    maxWidth: 320,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    marginBottom: 15,
+  },
+  avatarButton: {
+    backgroundColor: "#FFF",
+    borderColor: "#1899D6",
+    borderRadius: 16,
+    borderWidth: 2,
+    borderBottomWidth: 5,
+    margin: 3,
+    padding: 8,
+  },
+  selectedAvatarButton: {
+    backgroundColor: "#1CB0F6",
+  },
+  avatarButtonText: {
+    color: "#333",
+    fontSize: 13,
+  },
   button: {
     width: "100%",
     maxWidth: 300,
     height: 50,
-    backgroundColor: "#208AEF",
-    borderRadius: 8,
+    backgroundColor: "#58CC02",
+    borderColor: "#46A302",
+    borderRadius: 16,
+    borderWidth: 2,
+    borderBottomWidth: 5,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 15,
+  },
+  secondaryButton: {
+    width: "100%",
+    maxWidth: 300,
+    height: 50,
+    backgroundColor: "#1CB0F6",
+    borderColor: "#1899D6",
+    borderRadius: 16,
+    borderWidth: 2,
+    borderBottomWidth: 5,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 15,
@@ -1119,7 +1476,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   errorText: {
-    color: "#D32F2F",
+    color: "#D92626",
     marginBottom: 15,
     fontSize: 16,
     fontWeight: "500",

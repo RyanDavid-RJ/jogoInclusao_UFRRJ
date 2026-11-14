@@ -505,7 +505,12 @@ test("keeps roles private during play and reveals them only after game over", as
   const results = await Promise.all(gameOverEvents);
 
   for (const result of results) {
-    assert.deepEqual(Object.keys(result).sort(), ["reason", "roles", "winners"]);
+    assert.deepEqual(Object.keys(result).sort(), [
+      "reason",
+      "reveal",
+      "roles",
+      "winners",
+    ]);
     assert.deepEqual(
       result.roles,
       fixture.players.map((player) => ({

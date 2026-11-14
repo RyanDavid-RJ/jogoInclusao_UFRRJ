@@ -10,7 +10,7 @@ Jogo multiplayer de tabuleiro sobre inclusão e acessibilidade, desenvolvido com
 - Condição atribuída individualmente a cada participante.
 - Pausa coletiva quando alguém para nas casas-obstáculo 4, 8, 12 ou 16.
 
-**Estado atual:** a interface e o motor do jogo implementam sala, turnos, movimento e pausa nos obstáculos. A pausa ainda aguarda a futura integração do quiz; a partida não é retomada automaticamente após uma pergunta.
+**Estado atual:** a interface e o motor do jogo implementam sala, turnos, movimento, obstáculos, quiz integrado e encerramento da partida.
 
 ## Tecnologias
 
@@ -64,7 +64,7 @@ Backups locais de banco de dados não devem ser enviados ao Git: podem conter da
 
 Mantenha os dois processos em execução, cada um no seu terminal:
 
-**Terminal 1 — backend**
+### Terminal 1 — backend
 
 ```bash
 cd backend
@@ -73,7 +73,7 @@ node server.js
 
 O servidor usa a porta `3000` por padrão (ou o valor de `PORT`).
 
-**Terminal 2 — frontend**
+### Terminal 2 — frontend
 
 ```bash
 cd frontend
@@ -85,21 +85,21 @@ npx expo start
 
 ## Testes e validações
 
-**Testes do backend**
+### Testes do backend
 
 ```bash
 cd backend
 npm test
 ```
 
-**Verificação de tipos do frontend**
+### Verificação de tipos do frontend
 
 ```bash
 cd frontend
 npx tsc --noEmit
 ```
 
-**Lint do frontend**
+### Lint do frontend
 
 ```bash
 cd frontend
@@ -117,4 +117,4 @@ npm run lint
 
 ## Banco de perguntas
 
-O repositório inclui um `questionRepository` para consultar perguntas aleatórias em `ludo_equidade.perguntas`, filtradas por `etapa_escolar` e `nivel_estrutural`. A integração do fluxo de quiz com a partida ainda está pendente. Não inclua dados de acesso ao banco ou certificados no GitHub.
+O repositório inclui um `questionRepository` para consultar perguntas aleatórias em `ludo_equidade.perguntas`, filtradas por `etapa_escolar` e `nivel_estrutural`. O fluxo de quiz está integrado à partida, com perguntas individuais, prazo controlado pelo servidor, pontuação e retomada do turno. Não inclua dados de acesso ao banco ou certificados no GitHub.

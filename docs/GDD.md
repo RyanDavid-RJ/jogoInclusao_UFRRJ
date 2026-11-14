@@ -17,6 +17,14 @@
 
 A condição sorteada representa uma perspectiva de jogo; não define a capacidade, inteligência ou dificuldade de aprendizagem de uma pessoa real. A matriz é uma abstração de barreiras ambientais para fins pedagógicos e deve ser validada com pessoas com deficiência, educadores e especialistas. O jogo deve oferecer acessibilidade para todos, sem transformar uma deficiência em estereótipo.
 
+### Guia visual — Duo-Equidade
+
+- **Direção:** geometria arredondada, minimalismo estrutural, cartões com hierarquia clara e microinterações leves; a interface deve parecer acolhedora e tátil sem competir com a leitura do jogo.
+- **Paleta principal:** verde `#58CC02`, azul `#1CB0F6`, amarelo `#FFC800`, roxo `#CE82FF` e vermelho `#FF4B4B`.
+- **Superfícies:** usar `#F7F9FA` e outros tons pastéis/off-white no lugar de cinza puro; reservar cores vibrantes para ações, estados, progresso e destaque.
+- **Profundidade e interação:** priorizar sombras planas com borda inferior tátil em `borderBottomWidth`; usar Reanimated apenas para feedback curto e compreensível, respeitando redução de movimento.
+- **Identidade do jogador:** durante a partida, nome e avatar animal/personagem são a identidade pública; o avatar não deve sugerir a condição secreta. A transformação visual para uma representação humana ilustrativa ocorre somente na revelação pós-jogo.
+
 ## 2. Papéis e Condições
 
 - Papéis possíveis: cadeirante; pessoa com deficiência visual (cegueira/baixa visão); pessoa com deficiência auditiva (surdez); pessoa neuroatípica.
@@ -63,7 +71,7 @@ Os papéis cruzam-se com o obstáculo ativo para selecionar a intensidade do des
 - **Níveis estruturais:** Nível 1 — operações básicas diretas; Nível 2 — problemas de lógica intermediários; Nível 3 — equações mais complexas.
 - **Etapa escolar — implementada conforme relato:** Fundamental, Médio ou Superior é escolhida pelo anfitrião no lobby antes de iniciar a partida. É um filtro separado do nível estrutural; o servidor valida e guarda a escolha no estado da sala, propaga a seleção aos jogadores, exige valor válido para iniciar e bloqueia alterações após o início.
 - **Ranking aprovado:** para N participantes, os acertos recebem N, N−1, ... até 1 ponto pela ordem de recebimento pelo servidor; erro e tempo esgotado valem zero.
-- **Decisões ainda em aberto:** desempate; quantidade de perguntas por partida; política de reconexão durante o quiz.
+- **Decisões ainda em aberto:** quantidade de perguntas por partida; política de reconexão durante o quiz.
 
 ## 6. Acessibilidade e Experiência
 
@@ -76,7 +84,7 @@ Os papéis cruzam-se com o obstáculo ativo para selecionar a intensidade do des
 
 **Stack planejada:** frontend React Native/Expo Router; backend Node.js/Express com Socket.IO; SQL hospedado no Aiven.
 
-**Atualização de validação em 2026-11-14:** o gate final foi aprovado no Expo Web com quatro sessões independentes: entrada na mesma sala, início com quatro jogadores, perguntas privadas distintas, encerramento simultâneo do quiz, retomada do turno, autorização correta de rolagem, revelação dos papéis em `game_over` e limpeza após recarregar uma sessão. Os cenários de deadline, `QUESTIONS_UNAVAILABLE`/`quiz_error`, explicação nula, fim por posição/limite e desconexão continuam cobertos pelos 59 testes automatizados do backend. A validação no Expo Go permanece bloqueada por falta de dispositivo/emulador; TypeScript e lint passaram sem warnings.
+**Atualização de validação em 2026-11-14:** o gate final foi aprovado no Expo Web com quatro sessões independentes: entrada na mesma sala, início com quatro jogadores, perguntas privadas distintas, encerramento simultâneo do quiz, retomada do turno, autorização correta de rolagem, revelação dos papéis em `game_over` e limpeza após recarregar uma sessão. Os cenários de deadline, `QUESTIONS_UNAVAILABLE`/`quiz_error`, explicação nula, fim por posição/limite, desconexão e perfil público/pós-jogo continuam cobertos pelos 61 testes automatizados do backend. A validação no Expo Go permanece bloqueada por falta de dispositivo/emulador; TypeScript e lint passaram sem warnings.
 
 **Estado verificado em 2026-11-09:** lobby, motor de turnos, repositório de perguntas e quiz simultâneo foram implementados no backend. O quiz inicia somente em pouso exato nos obstáculos; mantém papéis e gabaritos no servidor, envia perguntas por socket individual, controla prazo, valida resposta única, calcula pontos, trata indisponibilidade sem rodada parcial e remove jogadores desconectados após a rodada. Questões com `explicacao: null` são aceitas e o campo é omitido do resultado privado. A suíte backend passou 58/58 testes. Os testes Socket.IO automatizados cobrem o fluxo normal, timeout com jogador sem resposta, questão ausente, erro do repositório e desconexão individual, usando clientes reais e perguntas em memória. TypeScript passou e lint não teve erros, com um aviso de importação em `frontend/src/app/index.tsx`. Em validação manual do Expo Web, quatro abas jogaram com um quinto cliente fora da sala: foram verificadas perguntas privadas, resposta única, espera, contagem regressiva e expiração natural com resultados privados, pausa/retomada de turno e limpeza da UI ao perder a conexão do servidor; a home respondeu HTTP 200 e a validação standalone passou 4/4 verificações. Ainda não foram exercitados envio após o prazo, comportamento visual de `quiz_error`, explicação nula no cliente, troca de sala durante partida nem fim de partida. O app nativo segue pendente. Os servidores locais foram encerrados após a validação. A consulta Aiven em `defaultdb` e as nove combinações foram validadas conforme relatório do Executor. [[1]](https://app.notion.com/chat?t=40cc1da9eec68082b1f200a9fe207e32)
 
@@ -97,7 +105,7 @@ Os papéis cruzam-se com o obstáculo ativo para selecionar a intensidade do des
 
 ### Doing
 
-- Nenhuma tarefa em execução no momento.
+- [ ]  **Fase 2 — Interface Duo-Equidade, Trilha Sinuosa de Obstáculos e Tela de Revelação Pós-Jogo no Frontend:** atualizar exclusivamente `frontend/src/app/_layout.tsx` e `frontend/src/app/index.tsx` com a direção visual Duo-Equidade, sem alterar o backend nem o contrato Socket.IO.
 
 ### Done
 
@@ -125,6 +133,7 @@ Os papéis cruzam-se com o obstáculo ativo para selecionar a intensidade do des
 - [x]  Definir tratamento de indisponibilidade e desconexão durante quiz: não iniciar rodada parcial; se faltar pergunta, emitir `QUESTIONS_UNAVAILABLE`, encerrar a pausa sem pontuar e avançar. Congelar os N participantes no início da rodada; desconexões contam como sem resposta/zero, sem recalcular a faixa de pontos. Decisão de Ryan em 2026-11-09.
 - [x]  Gate final do MVP Web (2026-11-14): quatro sessões independentes comprovaram entrada, início, perguntas privadas distintas, encerramento do quiz, retomada de turno, autorização de rolagem e limpeza após recarregar uma sessão. Backend 58/58, TypeScript aprovado e lint aprovado com um aviso. Expo Go permanece pendente por falta de dispositivo/emulador.
 - [x]  **Motor de turnos e quiz backend:** `backend/gameEngine.js` e `backend/lobby.js` implementam movimento, obstáculos, rodada de quiz, pontuação, fallbacks e desconexão. A suíte backend passou 53/53; TypeScript aprovado; lint sem erros e um aviso. O fluxo normal do quiz já foi exercitado com clientes Socket.IO reais; cenários excepcionais continuam pendentes.
+- [x]  **Fase 1 — Perfil de jogador e revelação pública pós-jogo:** o lobby aceita nome de 1 a 16 caracteres e `avatarId` validado, aplica fallbacks compatíveis quando os campos são omitidos, exibe a identidade lúdica durante a partida e inclui no `game_over` o `reveal` público com nome, avatar, condição, posição final e pontos de quiz. A condição permanece privada durante a partida; testes automatizados cobrem normalização, rejeição de valores inválidos e revelação, com 61 testes backend, TypeScript e lint aprovados.
 - [x]  **Aceitar explicação opcional no quiz:** `backend/quizService.js` aceita `explicacao: null`; `backend/lobby.js` omite a explicação nula no resultado privado. Testes cobrem preparação e conclusão da rodada preservando envio privado, pontuação e campos obrigatórios. Backend `npm test`: 52/52 na entrega dessa correção; a integração Socket.IO posterior elevou a suíte a 53/53.
 
 ## 9. Esquema de Banco de Dados (Aiven SQL)
