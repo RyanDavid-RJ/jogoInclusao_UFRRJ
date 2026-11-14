@@ -36,6 +36,17 @@ const emitRoomUpdated = (io, roomCode, room) => {
   });
 };
 
+const emitGameOver = (io, roomCode, room) => {
+  io.to(roomCode).emit("game_over", {
+    winners: [...room.gameState.winners],
+    reason: room.gameState.endReason,
+    roles: room.players.map((playerId) => ({
+      playerId,
+      condition: room.playerConditions[playerId],
+    })),
+  });
+};
+
 function attachLobbyHandlers(
   io,
   rooms,
@@ -60,8 +71,67 @@ function attachLobbyHandlers(
     return code;
   };
 
+  const removeSocketFromRoom = (socket) => {
+    for (const [roomCode, room] of rooms.entries()) {
+      const playerIndex = room.players.indexOf(socket.id);
+      if (playerIndex === -1) {
+        continue;
+      }
+
+      room.players.splice(playerIndex, 1);
+      if (room.quizRound) {
+        room.quizRound.disconnected.add(socket.id);
+      }
+
+      if (
+        room.gameState &&
+        room.gameState.status !== "finished" &&
+        room.players.length > 0 &&
+        !room.quizRound
+      ) {
+        removePlayerFromGame(room.gameState, socket.id);
+        io.to(roomCode).emit(
+          "game_state_updated",
+          getPublicGameState(room.gameState),
+        );
+        if (room.gameState.status === "finished") {
+          emitGameOver(io, roomCode, room);
+        }
+      }
+
+      if (room.players.length === 0) {
+        clearQuizRound(room.quizRound, clearTimeoutFn);
+        room.quizRound = null;
+        rooms.delete(roomCode);
+        console.log(`Sala ${roomCode} deletada por estar vazia.`);
+      } else {
+        if (room.hostId === socket.id) {
+          room.hostId = room.players[0];
+        }
+        emitRoomUpdated(io, roomCode, room);
+        if (
+          room.quizRound?.status === "active" &&
+          allConnectedParticipantsAnswered(room, room.quizRound)
+        ) {
+          finishQuizRound(
+            roomCode,
+            room,
+            room.quizRound,
+            "all_answered",
+            true,
+          );
+        }
+      }
+      if (typeof socket.leave === "function") {
+        socket.leave(roomCode);
+      }
+      return;
+    }
+  };
+
   io.on("connection", (socket) => {
     socket.on("create_room", () => {
+      removeSocketFromRoom(socket);
       const roomCode = generateRoomCode();
       const room = {
         players: [socket.id],
@@ -283,10 +353,7 @@ function attachLobbyHandlers(
       }
 
       if (result.gameOver) {
-        io.to(roomCode).emit("game_over", {
-          winners: [...room.gameState.winners],
-          reason: room.gameState.endReason,
-        });
+        emitGameOver(io, roomCode, room);
       }
     });
 
@@ -336,62 +403,7 @@ function attachLobbyHandlers(
 
     socket.on("disconnect", () => {
       console.log("Jogador desconectado:", socket.id);
-
-      for (const [roomCode, room] of rooms.entries()) {
-        const playerIndex = room.players.indexOf(socket.id);
-        if (playerIndex === -1) {
-          continue;
-        }
-
-        room.players.splice(playerIndex, 1);
-        if (room.quizRound) {
-          room.quizRound.disconnected.add(socket.id);
-        }
-
-        if (
-          room.gameState &&
-          room.gameState.status !== "finished" &&
-          room.players.length > 0 &&
-          !room.quizRound
-        ) {
-          removePlayerFromGame(room.gameState, socket.id);
-          io.to(roomCode).emit(
-            "game_state_updated",
-            getPublicGameState(room.gameState),
-          );
-          if (room.gameState.status === "finished") {
-            io.to(roomCode).emit("game_over", {
-              winners: [...room.gameState.winners],
-              reason: room.gameState.endReason,
-            });
-          }
-        }
-
-        if (room.players.length === 0) {
-          clearQuizRound(room.quizRound, clearTimeoutFn);
-          room.quizRound = null;
-          rooms.delete(roomCode);
-          console.log(`Sala ${roomCode} deletada por estar vazia.`);
-        } else {
-          if (room.hostId === socket.id) {
-            room.hostId = room.players[0];
-          }
-          emitRoomUpdated(io, roomCode, room);
-          if (
-            room.quizRound?.status === "active" &&
-            allConnectedParticipantsAnswered(room, room.quizRound)
-          ) {
-            finishQuizRound(
-              roomCode,
-              room,
-              room.quizRound,
-              "all_answered",
-              true,
-            );
-          }
-        }
-        break;
-      }
+      removeSocketFromRoom(socket);
     });
   });
 
@@ -412,10 +424,7 @@ function attachLobbyHandlers(
       getPublicGameState(room.gameState),
     );
     if (room.gameState.status === "finished") {
-      io.to(normalizedRoomCode).emit("game_over", {
-        winners: [...room.gameState.winners],
-        reason: room.gameState.endReason,
-      });
+      emitGameOver(io, normalizedRoomCode, room);
     }
     return true;
   };
@@ -608,10 +617,7 @@ function attachLobbyHandlers(
       getPublicGameState(room.gameState),
     );
     if (room.gameState.status === "finished") {
-      io.to(roomCode).emit("game_over", {
-        winners: [...room.gameState.winners],
-        reason: room.gameState.endReason,
-      });
+      emitGameOver(io, roomCode, room);
     }
     return true;
   }

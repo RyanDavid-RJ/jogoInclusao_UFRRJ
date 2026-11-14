@@ -7,7 +7,7 @@ import {
   TextInput,
   TouchableOpacity,
 } from "react-native";
-import io, { Socket } from "socket.io-client";
+import { io, Socket } from "socket.io-client";
 
 type SchoolStage = "Fundamental" | "Médio" | "Superior";
 
@@ -40,6 +40,10 @@ type ObstaclePending = {
 type GameOver = {
   winners: string[];
   reason: "finish" | "round_limit";
+  roles: {
+    playerId: string;
+    condition: string;
+  }[];
 };
 
 type QuizAnswer = "A" | "B" | "C" | "D";
@@ -89,7 +93,7 @@ const getQuizErrorMessage = (code: string) => {
     case "ALREADY_ANSWERED":
       return "Sua resposta já foi registrada. Aguarde os outros jogadores.";
     default:
-      return "O quiz não pôde ser concluído. A partida continuará normalmente.";
+      return `O quiz não pôde ser concluído. A partida continuará normalmente. Código: ${code}.`;
   }
 };
 
@@ -299,6 +303,13 @@ export default function IndexScreen() {
     });
 
     socket.on("game_over", (result: GameOver) => {
+      quizSubmissionLockRef.current = true;
+      setObstaclePending(null);
+      setQuizQuestion(null);
+      setQuizSelectedAnswer(null);
+      setQuizSubmitting(false);
+      setQuizHasAnswered(false);
+      setQuizAnswerRejected(true);
       setGameOver(result);
     });
 
@@ -363,9 +374,20 @@ export default function IndexScreen() {
     if (
       !quizQuestion ||
       !quizSelectedAnswer ||
-      quizRemainingSeconds <= 0 ||
       quizSubmissionLockRef.current
     ) {
+      return;
+    }
+
+    if (Date.now() >= quizQuestion.deadlineAt) {
+      quizSubmissionLockRef.current = true;
+      setQuizRemainingSeconds(0);
+      setQuizSubmitting(false);
+      setQuizAnswerRejected(true);
+      setQuizError({
+        quizId: quizQuestion.quizId,
+        code: "DEADLINE_EXPIRED",
+      });
       return;
     }
 
@@ -402,6 +424,7 @@ export default function IndexScreen() {
     const isMyTurn =
       gameState.status === "active" &&
       gameState.currentPlayerId === ownPlayerId;
+    const isGameFinished = gameOver !== null || gameState.status === "finished";
     const isPaused =
       gameState.status === "paused" || obstaclePending !== null;
     const endReason =
@@ -630,9 +653,9 @@ export default function IndexScreen() {
             <Text style={styles.gameNotice}>
               Pontos recebidos: {quizResult.pontos}.
             </Text>
-            {quizResult.explicacao ? (
+            {quizResult.explicacao?.trim() ? (
               <Text style={styles.gameNotice}>
-                Explicação: {quizResult.explicacao}
+                Explicação: {quizResult.explicacao.trim()}
               </Text>
             ) : null}
           </View>
@@ -650,12 +673,22 @@ export default function IndexScreen() {
                 )
                 .join(", ")}
             </Text>
+            <Text style={styles.sectionTitle}>Papéis dos jogadores</Text>
+            {gameOver.roles.map(({ playerId, condition }) => (
+              <Text key={playerId} style={styles.gameNotice}>
+                {getPlayerLabel(playerId, playerIds, ownPlayerId)}:{" "}
+                {condition.toUpperCase()}
+              </Text>
+            ))}
+            <TouchableOpacity style={styles.button} onPress={handleCreateRoom}>
+              <Text style={styles.buttonText}>Criar nova sala</Text>
+            </TouchableOpacity>
           </View>
         ) : gameState.status === "finished" ? (
           <Text style={styles.gameNotice}>Finalizando a partida...</Text>
         ) : null}
 
-        {!gameOver && !isPaused && isMyTurn ? (
+        {!isGameFinished && !isPaused && isMyTurn ? (
           <TouchableOpacity style={styles.button} onPress={handleRollDice}>
             <Text style={styles.buttonText}>Rolar dado</Text>
           </TouchableOpacity>

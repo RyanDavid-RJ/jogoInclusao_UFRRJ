@@ -171,12 +171,17 @@ const createQuizFixture = async (t, { findRandomQuestion } = {}) => {
       ]),
   );
   const conditions = new Map();
+  const gameOverEvents = new Map();
   for (const player of players) {
     for (const eventName of Object.keys(received)) {
       player.on(eventName, (payload) => received[eventName].get(player.id).push(payload));
     }
     player.on("game_started", ({ condition }) =>
       conditions.set(player.id, condition),
+    );
+    gameOverEvents.set(player.id, []);
+    player.on("game_over", (payload) =>
+      gameOverEvents.get(player.id).push(payload),
     );
   }
 
@@ -214,6 +219,7 @@ const createQuizFixture = async (t, { findRandomQuestion } = {}) => {
 
   return {
     conditions,
+    gameOverEvents,
     currentPlayer,
     host,
     openObstacleRound: async ({ waitForQuestions = true } = {}) => {
@@ -474,6 +480,40 @@ test("runs a private quiz round over real Socket.IO clients", async (t) => {
   assert.equal(finalStates[0].positions[currentPlayer.id], 4);
   assert.equal(finalStates[0].currentPlayerId, nextPlayer.id);
   assert.equal(rooms.get(roomCode).gameState.status, "active");
+});
+
+test("keeps roles private during play and reveals them only after game over", async (t) => {
+  const fixture = await createQuizFixture(t);
+  const room = fixture.rooms.get(fixture.roomCode);
+
+  assert.equal(
+    fixture.players.every((player) => fixture.gameOverEvents.get(player.id).length === 0),
+    true,
+  );
+  assert.equal(
+    fixture.received.game_state_updated.get(fixture.host.id).every(
+      (state) => !Object.hasOwn(state, "roles") && !Object.hasOwn(state, "playerConditions"),
+    ),
+    true,
+  );
+
+  room.gameState.positions[fixture.currentPlayer.id] = 19;
+  const gameOverEvents = fixture.players.map((player) =>
+    waitForEvent(player, "game_over"),
+  );
+  fixture.currentPlayer.emit("roll_dice", { roomCode: fixture.roomCode });
+  const results = await Promise.all(gameOverEvents);
+
+  for (const result of results) {
+    assert.deepEqual(Object.keys(result).sort(), ["reason", "roles", "winners"]);
+    assert.deepEqual(
+      result.roles,
+      fixture.players.map((player) => ({
+        playerId: player.id,
+        condition: fixture.conditions.get(player.id),
+      })),
+    );
+  }
 });
 
 test("finalizes a quiz by deadline when a participant does not answer", async (t) => {

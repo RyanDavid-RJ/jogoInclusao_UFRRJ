@@ -71,6 +71,10 @@ class FakeSocket {
     this.io.rooms.get(roomCode).add(this.id);
   }
 
+  leave(roomCode) {
+    this.io.rooms.get(roomCode)?.delete(this.id);
+  }
+
   clientEmit(eventName, ...args) {
     return this.handlers.get(eventName)?.(...args);
   }
@@ -412,6 +416,36 @@ test("initializes turn state after the existing start validations and emits a wi
   });
   assert.equal(lobby.io.emissions.at(-1).eventName, "game_over");
   assert.deepEqual(lobby.io.emissions.at(-1).payload.winners, [winner.id]);
+  assert.deepEqual(
+    lobby.io.emissions.at(-1).payload.roles,
+    room.players.map((playerId) => ({
+      playerId,
+      condition: room.playerConditions[playerId],
+    })),
+  );
+  assert.deepEqual(Object.keys(lobby.io.emissions.at(-1).payload).sort(), [
+    "reason",
+    "roles",
+    "winners",
+  ]);
+});
+
+test("cleans up the finished room before creating a new room", () => {
+  const lobby = startLobbyGame((_minimum, maximum) => maximum - 1);
+  const room = lobby.rooms.get(lobby.roomCode);
+  const winner = lobby.io.sockets.get(room.gameState.turnOrder[0]);
+  room.gameState.positions[winner.id] = 19;
+  winner.clientEmit("roll_dice", { roomCode: lobby.roomCode });
+
+  winner.clientEmit("create_room");
+  const newRoom = [...lobby.rooms.values()].find((candidate) =>
+    candidate.players.includes(winner.id),
+  );
+
+  assert.ok(newRoom);
+  assert.notEqual(newRoom, room);
+  assert.equal(room.players.includes(winner.id), false);
+  assert.equal(lobby.io.rooms.get(lobby.roomCode).has(winner.id), false);
 });
 
 test("obstacle pause is released only after the simultaneous quiz ends", async () => {
