@@ -24,6 +24,21 @@ const PLAYER_COLORS = [
   "#34495E",
 ];
 const AVATAR_IDS = ["coelho", "gato", "urso", "raposa", "pinguim", "coruja", "sapo", "leao"];
+const RANDOM_PLAYER_NAME_PARTS = [
+  "Sol",
+  "Lua",
+  "Nuvem",
+  "Rio",
+  "Brisa",
+  "Pipa",
+  "Arco",
+];
+const getRandomItem = <T,>(items: T[]) =>
+  items[Math.floor(Math.random() * items.length)];
+const getRandomPlayerName = () =>
+  `Jogador ${getRandomItem(RANDOM_PLAYER_NAME_PARTS)} ${Math.floor(
+    Math.random() * 90 + 10,
+  )}`;
 const AVATAR_META: Record<string, { label: string; emoji: string; color: string }> = {
   coelho: { label: "Coelho", emoji: "🐰", color: "#1CB0F6" },
   gato: { label: "Gato", emoji: "🐱", color: "#FF9600" },
@@ -52,6 +67,15 @@ type PlayerProfile = {
   name: string;
   avatarId: string;
 };
+
+type PublicRoom = {
+  roomCode: string;
+  playerCount: number;
+  hostProfile?: { name: string; avatarId: string };
+  schoolStage: SchoolStage | null;
+};
+
+type LobbyScreen = "home" | "rooms" | "create" | "room";
 
 type PublicGameState = {
   positions: Record<string, number>;
@@ -184,8 +208,8 @@ export default function IndexScreen() {
   const [isInRoom, setIsInRoom] = useState(false);
   const [roomCode, setRoomCode] = useState("");
   const [inputCode, setInputCode] = useState("");
-  const [playerName, setPlayerName] = useState("");
-  const [avatarId, setAvatarId] = useState("coelho");
+  const [playerName, setPlayerName] = useState(getRandomPlayerName);
+  const [avatarId, setAvatarId] = useState(() => getRandomItem(AVATAR_IDS));
   const [playerCount, setPlayerCount] = useState(0);
   const [playerProfiles, setPlayerProfiles] = useState<PlayerProfile[]>([]);
   const [isHost, setIsHost] = useState(false);
@@ -194,6 +218,11 @@ export default function IndexScreen() {
   const [schoolStage, setSchoolStage] = useState<SchoolStage | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [isConnected, setIsConnected] = useState(false);
+  const [isSplashVisible, setIsSplashVisible] = useState(true);
+  const [lobbyScreen, setLobbyScreen] = useState<LobbyScreen>("home");
+  const [publicRooms, setPublicRooms] = useState<PublicRoom[]>([]);
+  const [isPrivateRoom, setIsPrivateRoom] = useState(false);
+  const [roomIsPrivate, setRoomIsPrivate] = useState(false);
 
   // Novo estado: Guarda a condição sorteada para o utilizador atual
   const [myCondition, setMyCondition] = useState<string | null>(null);
@@ -217,6 +246,7 @@ export default function IndexScreen() {
 
     socket.on("connect", () => {
       setIsConnected(true);
+      socket.emit("list_rooms");
       console.log("Ligado ao servidor com sucesso! ID:", socket.id);
     });
 
@@ -245,11 +275,12 @@ export default function IndexScreen() {
       setErrorMsg("Conexão perdida com o servidor. Entre na sala novamente.");
     });
 
-    socket.on("room_created", ({ roomCode, playerCount, hostId, schoolStage, players }) => {
+    socket.on("room_created", ({ roomCode, playerCount, hostId, schoolStage, isPrivate, players }) => {
       setRoomCode(roomCode);
       setPlayerCount(playerCount);
       setIsHost(hostId === socket.id);
       setSchoolStage(schoolStage);
+      setRoomIsPrivate(isPrivate === true);
       setIsStarted(false);
       setIsReady(false);
       setMyCondition(null);
@@ -265,17 +296,19 @@ export default function IndexScreen() {
       setQuizError(null);
       quizSubmissionLockRef.current = false;
       setIsInRoom(true);
+      setLobbyScreen("room");
       setErrorMsg("");
       if (Array.isArray(players)) {
         setPlayerProfiles(players);
       }
     });
 
-    socket.on("room_joined", ({ roomCode, playerCount, hostId, schoolStage }) => {
+    socket.on("room_joined", ({ roomCode, playerCount, hostId, schoolStage, isPrivate }) => {
       setRoomCode(roomCode);
       setPlayerCount(playerCount);
       setIsHost(hostId === socket.id);
       setSchoolStage(schoolStage);
+      setRoomIsPrivate(isPrivate === true);
       setIsStarted(false);
       setIsReady(false);
       setMyCondition(null);
@@ -291,17 +324,39 @@ export default function IndexScreen() {
       setQuizError(null);
       quizSubmissionLockRef.current = false;
       setIsInRoom(true);
+      setLobbyScreen("room");
       setErrorMsg("");
     });
 
-    socket.on("room_updated", ({ playerCount, hostId, schoolStage, started, players }) => {
+    socket.on("room_updated", ({ playerCount, hostId, schoolStage, started, isPrivate, players }) => {
       setPlayerCount(playerCount);
       setIsHost(hostId === socket.id);
       setSchoolStage(schoolStage);
+      setRoomIsPrivate(isPrivate === true);
       setIsStarted(started);
       if (Array.isArray(players)) {
         setPlayerProfiles(players);
       }
+    });
+
+    socket.on("rooms_updated", ({ rooms }: { rooms: PublicRoom[] }) => {
+      setPublicRooms(Array.isArray(rooms) ? rooms : []);
+    });
+
+    socket.on("room_left", () => {
+      setIsInRoom(false);
+      setLobbyScreen("home");
+      setRoomCode("");
+      setPlayerProfiles([]);
+      setErrorMsg("");
+    });
+
+    socket.on("room_closed", () => {
+      setIsInRoom(false);
+      setLobbyScreen("home");
+      setRoomCode("");
+      setPlayerProfiles([]);
+      setErrorMsg("A sala foi fechada pelo anfitrião.");
     });
 
     socket.on("game_started", ({ condition }) => {
@@ -387,6 +442,11 @@ export default function IndexScreen() {
   }, []);
 
   useEffect(() => {
+    const timer = setTimeout(() => setIsSplashVisible(false), 700);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
     Animated.timing(entranceOpacity, {
       toValue: 1,
       duration: 260,
@@ -417,7 +477,11 @@ export default function IndexScreen() {
       return;
     }
     setErrorMsg("");
-    socketRef.current?.emit("create_room", { name: playerName, avatarId });
+    socketRef.current?.emit("create_room", {
+      name: playerName,
+      avatarId,
+      isPrivate: isPrivateRoom,
+    });
   };
 
   const handleJoinRoom = () => {
@@ -438,6 +502,27 @@ export default function IndexScreen() {
   const handleStartGame = () => {
     setErrorMsg("");
     socketRef.current?.emit("start_game", { roomCode });
+  };
+
+  const handleLeaveRoom = () => {
+    socketRef.current?.emit("leave_room");
+  };
+
+  const handleCloseRoom = () => {
+    socketRef.current?.emit("close_room", { roomCode });
+  };
+
+  const handleJoinPublicRoom = (code: string) => {
+    if (!playerName.trim() || playerName.trim().length > 16) {
+      setErrorMsg("O nome deve ter entre 1 e 16 caracteres.");
+      return;
+    }
+    setErrorMsg("");
+    socketRef.current?.emit("join_room", {
+      roomCode: code,
+      name: playerName,
+      avatarId,
+    });
   };
 
   const handleSetSchoolStage = (nextStage: SchoolStage) => {
@@ -946,6 +1031,9 @@ export default function IndexScreen() {
         <Text style={styles.schoolStageText}>
           Etapa escolar: {schoolStage ?? "não selecionada"}
         </Text>
+        <Text style={styles.roomCodeNotice}>
+          {roomIsPrivate ? "Sala privada — compartilhe este código:" : "Código da sala:"} {roomCode}
+        </Text>
 
         {errorMsg ? (
           <View style={styles.errorBanner}>
@@ -1020,12 +1108,84 @@ export default function IndexScreen() {
             )}
           </>
         )}
+        {!isStarted ? (
+          <Pressable style={({ pressed }) => [styles.backButton, pressed && styles.pressedButton]} onPress={isHost ? handleCloseRoom : handleLeaveRoom} accessibilityRole="button">
+            <Text style={styles.backButtonText}>{isHost ? "Fechar sala" : "Sair da sala"}</Text>
+          </Pressable>
+        ) : null}
         </Animated.View>
       </ScrollView>
     );
   }
 
+  if (isSplashVisible) {
+    return (
+      <View style={styles.splash}>
+        <Text style={styles.splashTitle}>🎲 LUDO EQUIDADE</Text>
+        <Text style={styles.splashText}>Carregando sua jornada...</Text>
+      </View>
+    );
+  }
+
   // TELA INICIAL (LOBBY)
+  if (lobbyScreen === "rooms") {
+    return (
+      <ScrollView style={styles.gameScrollView} contentContainerStyle={styles.gameContainer}>
+        <Animated.View style={[styles.mainCard, { opacity: entranceOpacity }]}>
+          <Text style={styles.title}>Salas públicas</Text>
+          <Text style={styles.subtitle}>Escolha uma sala aberta ou use um código privado.</Text>
+          {errorMsg ? <View style={styles.errorBanner}><Text style={styles.errorBannerText}>⚠️ {errorMsg}</Text></View> : null}
+          {publicRooms.length === 0 ? <Text style={styles.waitingText}>Nenhuma sala pública aberta no momento.</Text> : null}
+          {publicRooms.map((room) => {
+            const avatar = AVATAR_META[room.hostProfile?.avatarId || "coelho"];
+            return (
+              <View key={room.roomCode} style={styles.roomCard}>
+                <Text style={styles.sectionTitle}>{avatar.emoji} {room.hostProfile?.name || "Anfitrião"}</Text>
+                <Text style={styles.gameNotice}>Sala {room.roomCode} • {room.playerCount}/8 jogadores</Text>
+                <Text style={styles.gameNotice}>Etapa: {room.schoolStage || "a escolher"}</Text>
+                <Pressable style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressedButton]} onPress={() => handleJoinPublicRoom(room.roomCode)} accessibilityRole="button">
+                  <Text style={styles.buttonText}>Entrar</Text>
+                </Pressable>
+              </View>
+            );
+          })}
+          <TextInput style={styles.input} placeholder="Código da sala privada" value={inputCode} onChangeText={(text) => setInputCode(text.toUpperCase())} maxLength={4} autoCapitalize="characters" autoCorrect={false} />
+          <Pressable style={({ pressed }) => [styles.button, pressed && styles.pressedButton]} onPress={handleJoinRoom} accessibilityRole="button">
+            <Text style={styles.buttonText}>Entrar com código</Text>
+          </Pressable>
+          <Pressable style={({ pressed }) => [styles.backButton, pressed && styles.pressedButton]} onPress={() => { setErrorMsg(""); setLobbyScreen("home"); }} accessibilityRole="button">
+            <Text style={styles.backButtonText}>Voltar</Text>
+          </Pressable>
+        </Animated.View>
+      </ScrollView>
+    );
+  }
+
+  if (lobbyScreen === "create") {
+    return (
+      <ScrollView style={styles.gameScrollView} contentContainerStyle={styles.gameContainer}>
+        <Animated.View style={[styles.mainCard, { opacity: entranceOpacity }]}>
+          <Text style={styles.title}>Criar sala</Text>
+          <Text style={styles.subtitle}>Defina quem poderá encontrar sua sala.</Text>
+          <Pressable style={({ pressed }) => [styles.privacyOption, !isPrivateRoom && styles.selectedPrivacyOption, pressed && styles.pressedButton]} onPress={() => setIsPrivateRoom(false)} accessibilityRole="radio" accessibilityState={{ selected: !isPrivateRoom }}>
+            <Text style={styles.sectionTitle}>🌎 Pública</Text>
+            <Text style={styles.gameNotice}>Aparece na lista de salas abertas.</Text>
+          </Pressable>
+          <Pressable style={({ pressed }) => [styles.privacyOption, isPrivateRoom && styles.selectedPrivacyOption, pressed && styles.pressedButton]} onPress={() => setIsPrivateRoom(true)} accessibilityRole="radio" accessibilityState={{ selected: isPrivateRoom }}>
+            <Text style={styles.sectionTitle}>🔒 Privada</Text>
+            <Text style={styles.gameNotice}>Entre apenas com o código da sala.</Text>
+          </Pressable>
+          <Pressable style={({ pressed }) => [styles.button, pressed && styles.pressedButton]} onPress={handleCreateRoom} accessibilityRole="button">
+            <Text style={styles.buttonText}>Criar sala</Text>
+          </Pressable>
+          <Pressable style={({ pressed }) => [styles.backButton, pressed && styles.pressedButton]} onPress={() => setLobbyScreen("home")} accessibilityRole="button">
+            <Text style={styles.backButtonText}>Voltar</Text>
+          </Pressable>
+        </Animated.View>
+      </ScrollView>
+    );
+  }
+
   return (
     <ScrollView style={styles.gameScrollView} contentContainerStyle={styles.gameContainer}>
       <Animated.View style={[styles.mainCard, { opacity: entranceOpacity }]}>
@@ -1069,28 +1229,11 @@ export default function IndexScreen() {
         ))}
       </View>
 
-      <Pressable style={({ pressed }) => [styles.button, pressed && styles.pressedButton]} onPress={handleCreateRoom} accessibilityRole="button">
-        <Text style={styles.buttonText}>Criar Nova Sala</Text>
+      <Pressable style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressedButton]} onPress={() => setLobbyScreen("rooms")} accessibilityRole="button">
+        <Text style={styles.buttonText}>Salas</Text>
       </Pressable>
-
-      <View style={styles.divider}>
-        <View style={styles.line} />
-        <Text style={styles.orText}>OU</Text>
-        <View style={styles.line} />
-      </View>
-
-      <TextInput
-        style={styles.input}
-        placeholder="Código da Sala (Ex: A1B2)"
-        value={inputCode}
-        onChangeText={(text) => setInputCode(text.toUpperCase())}
-        maxLength={4}
-        autoCapitalize="characters"
-        autoCorrect={false}
-      />
-
-      <Pressable style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressedButton]} onPress={handleJoinRoom} accessibilityRole="button">
-        <Text style={styles.buttonText}>Entrar na Sala</Text>
+      <Pressable style={({ pressed }) => [styles.button, pressed && styles.pressedButton]} onPress={() => setLobbyScreen("create")} accessibilityRole="button">
+        <Text style={styles.buttonText}>Criar sala</Text>
       </Pressable>
       </Animated.View>
     </ScrollView>
@@ -1098,6 +1241,25 @@ export default function IndexScreen() {
 }
 
 const styles = StyleSheet.create({
+  splash: {
+    flex: 1,
+    backgroundColor: "#1CB0F6",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+  },
+  splashTitle: {
+    color: "#FFFFFF",
+    fontSize: 30,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+  splashText: {
+    color: "#EAF7FC",
+    fontSize: 16,
+    fontWeight: "700",
+    marginTop: 12,
+  },
   container: {
     flex: 1,
     backgroundColor: "#F7F9FA",
@@ -1167,6 +1329,42 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#555",
     marginBottom: 24,
+  },
+  roomCodeNotice: {
+    backgroundColor: "#EAF7FC",
+    borderColor: "#B8E6F7",
+    borderRadius: 12,
+    borderWidth: 2,
+    color: "#1C6A8A",
+    fontSize: 16,
+    fontWeight: "800",
+    marginBottom: 16,
+    padding: 10,
+    textAlign: "center",
+  },
+  roomCard: {
+    width: "100%",
+    backgroundColor: "#FFFFFF",
+    borderColor: "#E5E5E5",
+    borderRadius: 16,
+    borderWidth: 2,
+    borderBottomWidth: 5,
+    marginBottom: 12,
+    padding: 14,
+  },
+  privacyOption: {
+    width: "100%",
+    backgroundColor: "#FFFFFF",
+    borderColor: "#E5E5E5",
+    borderRadius: 16,
+    borderWidth: 2,
+    borderBottomWidth: 5,
+    marginBottom: 12,
+    padding: 14,
+  },
+  selectedPrivacyOption: {
+    backgroundColor: "#EAF7FC",
+    borderColor: "#1CB0F6",
   },
   gameSummary: {
     width: "100%",
@@ -1681,6 +1879,24 @@ const styles = StyleSheet.create({
   },
   pressedButton: {
     transform: [{ translateY: 2 }],
+  },
+  backButton: {
+    width: "100%",
+    maxWidth: 300,
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderColor: "#E5E5E5",
+    borderRadius: 16,
+    borderWidth: 2,
+    borderBottomWidth: 4,
+    marginBottom: 15,
+    padding: 10,
+  },
+  backButtonText: {
+    color: "#555555",
+    fontSize: 16,
+    fontWeight: "800",
   },
   buttonText: {
     color: "#FFF",

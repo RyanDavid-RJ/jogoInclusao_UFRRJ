@@ -106,6 +106,61 @@ cd frontend
 npm run lint
 ```
 
+## Deploy de staging
+
+A arquitetura recomendada para este MVP é:
+
+- **Aiven:** MySQL com o schema e seed de `database/schema_e_seed.sql`.
+- **Render:** Web Service Node.js executando o backend Socket.IO.
+- **Vercel:** export estático do frontend web Expo.
+
+### Aiven
+
+Crie um banco MySQL e importe o schema/seed usando um cliente MySQL local. Use os dados exibidos pelo Aiven para preencher `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD` e `DB_NAME`.
+
+No Render, mantenha `DB_SSL=true`. Para não salvar certificado no repositório, informe o CA como variável `DB_CA_CERT`, preservando as quebras de linha como `\n`. `DB_CA_PATH=ca.pem` continua disponível para desenvolvimento local.
+
+### Render
+
+Configure o serviço com:
+
+- **Root Directory:** `backend`
+- **Build Command:** `npm ci`
+- **Start Command:** `npm start`
+- **Health Check Path:** `/api/status`
+
+Variáveis obrigatórias:
+
+```text
+PORT=10000
+DB_HOST=...
+DB_PORT=...
+DB_USER=...
+DB_PASSWORD=...
+DB_NAME=...
+DB_SSL=true
+DB_CA_CERT=...
+CLIENT_ORIGIN=https://SEU-PROJETO.vercel.app
+```
+
+O valor de `CLIENT_ORIGIN` pode conter uma lista separada por vírgulas quando houver mais de um domínio autorizado.
+
+### Vercel
+
+Configure o projeto com:
+
+- **Root Directory:** `frontend`
+- **Build Command:** `npm run build:web`
+- **Output Directory:** `dist`
+
+Variável obrigatória:
+
+```text
+EXPO_PUBLIC_SERVER_URL=https://SEU-BACKEND.onrender.com
+```
+
+Depois do deploy, abra o domínio da Vercel e valide `/api/status` no domínio do Render antes de testar uma partida multiplayer com quatro sessões.
+
 ## Teste manual multiplayer
 
 1. Inicie o backend e o frontend.

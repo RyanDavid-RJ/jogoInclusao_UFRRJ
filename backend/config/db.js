@@ -19,17 +19,23 @@ if (
 let ssl;
 
 if (sslEnabled) {
-  const configuredCaPath = process.env.DB_CA_PATH;
-  if (!configuredCaPath || configuredCaPath.trim() === "") {
-    throw new Error("Database TLS is enabled, but DB_CA_PATH is not configured.");
-  }
-
   let ca;
-  try {
-    const caPath = path.resolve(__dirname, "..", configuredCaPath.trim());
-    ca = fs.readFileSync(caPath);
-  } catch {
-    throw new Error("Database TLS is enabled, but the configured CA certificate could not be loaded.");
+  const configuredCa = process.env.DB_CA_CERT?.trim();
+  const configuredCaPath = process.env.DB_CA_PATH?.trim();
+
+  if (configuredCa) {
+    ca = configuredCa.replace(/\\n/g, "\n");
+  } else if (configuredCaPath) {
+    try {
+      const caPath = path.resolve(__dirname, "..", configuredCaPath);
+      ca = fs.readFileSync(caPath);
+    } catch {
+      throw new Error("Database TLS is enabled, but the configured CA certificate could not be loaded.");
+    }
+  } else {
+    throw new Error(
+      "Database TLS is enabled, but DB_CA_CERT or DB_CA_PATH is not configured.",
+    );
   }
 
   ssl = {

@@ -9,8 +9,14 @@ const { attachLobbyHandlers } = require("./lobby");
 const { createQuestionRepository } = require("./repositories/questionRepository");
 const { createQuizService } = require("./quizService");
 
+const configuredOrigins = (process.env.CLIENT_ORIGIN || "*")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+const corsOrigin = configuredOrigins.includes("*") ? "*" : configuredOrigins;
+
 const app = express();
-app.use(cors());
+app.use(cors({ origin: corsOrigin }));
 
 app.get("/api/status", async (_req, res) => {
   try {
@@ -25,7 +31,7 @@ app.get("/api/status", async (_req, res) => {
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: corsOrigin,
     methods: ["GET", "POST"],
   },
 });

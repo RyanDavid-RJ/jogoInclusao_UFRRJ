@@ -70,6 +70,8 @@ const emitRoomUpdated = (io, roomCode, room) => {
     roomCode,
     playerCount: room.players.length,
     hostId: room.hostId,
+    hostProfile: room.playerProfiles[room.hostId],
+    isPrivate: room.isPrivate,
     schoolStage: room.schoolStage,
     started: room.started,
     players: room.players.map((playerId) => ({
@@ -77,6 +79,24 @@ const emitRoomUpdated = (io, roomCode, room) => {
       ...room.playerProfiles[playerId],
     })),
   });
+};
+
+const getPublicRooms = (rooms) =>
+  [...rooms.entries()]
+    .filter(([, room]) => !room.isPrivate && !room.started)
+    .map(([roomCode, room]) => ({
+      roomCode,
+      playerCount: room.players.length,
+      hostId: room.hostId,
+      hostProfile: room.playerProfiles[room.hostId],
+      isPrivate: room.isPrivate,
+      schoolStage: room.schoolStage,
+    }));
+
+const emitLobbyRooms = (io, rooms) => {
+  if (typeof io.emit === "function") {
+    io.emit("rooms_updated", { rooms: getPublicRooms(rooms) });
+  }
 };
 
 const emitGameOver = (io, roomCode, room) => {
@@ -121,7 +141,7 @@ function attachLobbyHandlers(
     return code;
   };
 
-  const removeSocketFromRoom = (socket) => {
+  const removeSocketFromRoom = (socket, { notifyLobby = true } = {}) => {
     for (const [roomCode, room] of rooms.entries()) {
       const playerIndex = room.players.indexOf(socket.id);
       if (playerIndex === -1) {
@@ -173,6 +193,9 @@ function attachLobbyHandlers(
           );
         }
       }
+      if (notifyLobby) {
+        emitLobbyRooms(io, rooms);
+      }
       if (typeof socket.leave === "function") {
         socket.leave(roomCode);
       }
@@ -191,6 +214,7 @@ function attachLobbyHandlers(
       const room = {
         players: [socket.id],
         hostId: socket.id,
+        isPrivate: payload?.isPrivate === true,
         schoolStage: null,
         started: false,
         playerConditions: null,
@@ -207,10 +231,16 @@ function attachLobbyHandlers(
         roomCode,
         playerCount: 1,
         hostId: socket.id,
+        isPrivate: room.isPrivate,
         schoolStage: room.schoolStage,
         started: room.started,
         players: [{ playerId: socket.id, ...room.playerProfiles[socket.id] }],
       });
+      emitLobbyRooms(io, rooms);
+    });
+
+    socket.on("list_rooms", () => {
+      socket.emit("rooms_updated", { rooms: getPublicRooms(rooms) });
     });
 
     socket.on("join_room", (payload) => {
@@ -260,6 +290,7 @@ function attachLobbyHandlers(
         started: room.started,
       });
       emitRoomUpdated(io, roomCode, room);
+      emitLobbyRooms(io, rooms);
     });
 
     socket.on("set_school_stage", (payload) => {
@@ -293,6 +324,52 @@ function attachLobbyHandlers(
 
       room.schoolStage = payload.schoolStage;
       emitRoomUpdated(io, roomCode, room);
+    });
+
+    socket.on("leave_room", () => {
+      const roomEntry = [...rooms.entries()].find(([, room]) =>
+        room.players.includes(socket.id),
+      );
+      if (!roomEntry) {
+        return socket.emit("room_error", {
+          message: "Você não está em uma sala.",
+        });
+      }
+      const [roomCode] = roomEntry;
+      removeSocketFromRoom(socket);
+      socket.emit("room_left", { roomCode });
+    });
+
+    socket.on("close_room", (payload) => {
+      const roomCode =
+        typeof payload?.roomCode === "string"
+          ? payload.roomCode.trim().toUpperCase()
+          : "";
+      const room = rooms.get(roomCode);
+      if (!room) {
+        return socket.emit("room_error", { message: "Sala não encontrada." });
+      }
+      if (room.hostId !== socket.id) {
+        return socket.emit("room_error", {
+          message: "Somente o anfitrião pode fechar a sala.",
+        });
+      }
+      if (room.started) {
+        return socket.emit("room_error", {
+          message: "A sala não pode ser fechada após o início da partida.",
+        });
+      }
+
+      clearQuizRound(room.quizRound, clearTimeoutFn);
+      for (const playerId of room.players) {
+        io.to(playerId).emit("room_closed", { roomCode });
+        const playerSocket = io.sockets?.sockets?.get(playerId);
+        if (typeof playerSocket?.leave === "function") {
+          playerSocket.leave(roomCode);
+        }
+      }
+      rooms.delete(roomCode);
+      emitLobbyRooms(io, rooms);
     });
 
     socket.on("start_game", (payload) => {

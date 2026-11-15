@@ -252,6 +252,21 @@ test("normalizes profiles, applies deterministic fallbacks, and rejects invalid 
   }
 });
 
+test("allows players to leave and hosts to close waiting rooms", () => {
+  const lobby = createLobby();
+  const player = lobby.io.connect("player-2");
+  player.clientEmit("join_room", { roomCode: lobby.roomCode });
+
+  player.clientEmit("leave_room");
+  assert.equal(lobby.rooms.get(lobby.roomCode).players.includes(player.id), false);
+  assert.equal(player.eventsFor("room_left").length, 1);
+
+  const remainingRoomCode = lobby.roomCode;
+  lobby.host.clientEmit("close_room", { roomCode: remainingRoomCode });
+  assert.equal(lobby.rooms.has(remainingRoomCode), false);
+  assert.equal(lobby.host.eventsFor("room_closed").length, 1);
+});
+
 test("supports a 4-player minimum, with no automatic start at four", () => {
   assert.equal(MIN_PLAYERS, 4);
   const lobby = createLobby();
