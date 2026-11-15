@@ -22,8 +22,11 @@ app.get("/api/status", async (_req, res) => {
   try {
     await pool.query("SELECT 1");
     res.json({ ok: true, db: "ok" });
-  } catch {
-    console.error("Database status check failed.");
+  } catch (error) {
+    console.error("Database status check failed.", {
+      code: error?.code,
+      message: error?.message,
+    });
     res.status(503).json({ ok: false, db: "error" });
   }
 });

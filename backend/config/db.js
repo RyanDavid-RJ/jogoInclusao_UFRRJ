@@ -23,16 +23,23 @@ if (sslEnabled) {
   const configuredCa = process.env.DB_CA_CERT?.trim();
   const configuredCaPath = process.env.DB_CA_PATH?.trim();
 
-  if (configuredCa) {
-    ca = configuredCa.replace(/\\n/g, "\n");
-  } else if (configuredCaPath) {
+  if (configuredCaPath) {
     try {
       const caPath = path.resolve(__dirname, "..", configuredCaPath);
-      ca = fs.readFileSync(caPath);
+      const fileCa = fs.readFileSync(caPath);
+      if (fileCa.length > 0) {
+        ca = fileCa;
+      }
     } catch {
-      throw new Error("Database TLS is enabled, but the configured CA certificate could not be loaded.");
+      // Fall back to the environment value when the deployment does not create a file.
     }
-  } else {
+  }
+
+  if (!ca && configuredCa) {
+    ca = configuredCa.replace(/\\n/g, "\n");
+  }
+
+  if (!ca) {
     throw new Error(
       "Database TLS is enabled, but DB_CA_CERT or DB_CA_PATH is not configured.",
     );
