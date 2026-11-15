@@ -1,6 +1,8 @@
 # Ludo Equidade
 
-Jogo multiplayer de tabuleiro sobre inclusão e acessibilidade, desenvolvido com Expo/React Native no frontend e Node.js, Express e Socket.IO no backend.
+Jogo multiplayer de tabuleiro educativo sobre inclusão, acessibilidade e
+matemática, desenvolvido com Expo/React Native no frontend e Node.js, Express,
+Socket.IO e MySQL no backend.
 
 ## Funcionalidades
 
@@ -10,7 +12,21 @@ Jogo multiplayer de tabuleiro sobre inclusão e acessibilidade, desenvolvido com
 - Condição atribuída individualmente a cada participante.
 - Pausa coletiva quando alguém para nas casas-obstáculo 4, 8, 12 ou 16.
 
-**Estado atual:** a interface e o motor do jogo implementam sala, turnos, movimento, obstáculos, quiz integrado e encerramento da partida. O próximo incremento de produto é o fluxo de splash, perfil inicial, lista/criação de salas públicas ou privadas e navegação de retorno; login Google ainda depende de decisão do provedor OAuth e do contrato de sessão.
+**Estado atual:** o MVP web está publicado e foi validado manualmente com quatro
+jogadores. O ciclo de sala, turnos, movimento, obstáculos, quiz e encerramento
+está funcional. O backend passou 62 testes, e TypeScript e lint do frontend
+passaram. O estado das salas ainda fica em memória em uma única instância; por
+isso, reconexão e recuperação após reinício continuam fora do MVP.
+
+## Documentação do projeto
+
+- [Status do projeto](docs/STATUS_PROJETO.md): o que queríamos, o que foi
+  realizado, estado atual, evidências e direção futura.
+- [Arquitetura e operação](docs/ARQUITETURA_E_OPERACAO.md): responsabilidades
+  do frontend, backend, banco e deploy.
+- [Roadmap](docs/ROADMAP.md): prioridades, critérios de saída e itens adiados.
+- [GDD](docs/GDD.md): visão pedagógica, regras e princípios de design.
+- [Banco de dados e UML](docs/DATABASE_UML.md): modelo, decisões e integração.
 
 ## Tecnologias
 
@@ -106,13 +122,22 @@ cd frontend
 npm run lint
 ```
 
-## Deploy de staging
+## Deploy atual e piloto
 
-A arquitetura recomendada para este MVP é:
+O piloto publicado utiliza:
 
 - **Aiven:** MySQL com o schema e seed de `database/schema_e_seed.sql`.
 - **Render:** Web Service Node.js executando o backend Socket.IO.
 - **Vercel:** export estático do frontend web Expo.
+
+Frontend publicado:
+
+<https://jogoinclusaoufrrj.vercel.app/>
+
+O deploy atual é adequado para grupos pequenos. O backend mantém salas e
+partidas em memória; reinício ou novo deploy encerra partidas ativas. Consulte
+[`docs/ARQUITETURA_E_OPERACAO.md`](docs/ARQUITETURA_E_OPERACAO.md) antes de
+configurar múltiplas instâncias.
 
 ### Aiven
 
@@ -159,7 +184,10 @@ Variável obrigatória:
 EXPO_PUBLIC_SERVER_URL=https://SEU-BACKEND.onrender.com
 ```
 
-Depois do deploy, abra o domínio da Vercel e valide `/api/status` no domínio do Render antes de testar uma partida multiplayer com quatro sessões.
+Depois do deploy, valide `/api/status` no domínio do Render e faça uma partida
+multiplayer com quatro sessões. Para operação contínua, configure
+monitoramento externo do health check e mantenha `CLIENT_ORIGIN` restrito ao
+domínio publicado.
 
 ## Teste manual multiplayer
 
@@ -172,4 +200,21 @@ Depois do deploy, abra o domínio da Vercel e valide `/api/status` no domínio d
 
 ## Banco de perguntas
 
-O repositório inclui um `questionRepository` para consultar perguntas aleatórias em `ludo_equidade.perguntas`, filtradas por `etapa_escolar` e `nivel_estrutural`. O fluxo de quiz está integrado à partida, com perguntas individuais, prazo controlado pelo servidor, pontuação e retomada do turno. Não inclua dados de acesso ao banco ou certificados no GitHub.
+O repositório inclui um `questionRepository` para consultar perguntas aleatórias
+na tabela `perguntas` do banco configurado, filtradas por `etapa_escolar` e
+`nivel_estrutural`. O fluxo de quiz está integrado à partida, com perguntas
+individuais, prazo controlado pelo servidor, pontuação e retomada do turno. Não
+inclua dados de acesso ao banco ou certificados no GitHub.
+
+O protótipo usa `defaultdb` como banco de aplicação confirmado no Aiven. O
+seed inicial cobre as nove combinações de etapa escolar e nível estrutural,
+mas a ampliação e revisão pedagógica do banco ainda fazem parte do roadmap.
+
+## Limitações e próximos passos
+
+O MVP ainda precisa de reconexão, expiração de salas abandonadas, validação em
+dispositivo móvel, testes de acessibilidade, revisão da matriz pedagógica e
+mais perguntas. Não implemente login Google, ranking ou histórico sem antes
+definir identidade, consentimento e política de dados.
+
+Consulte [`docs/ROADMAP.md`](docs/ROADMAP.md) para a sequência recomendada.

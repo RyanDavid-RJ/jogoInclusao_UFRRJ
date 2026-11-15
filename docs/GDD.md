@@ -96,9 +96,28 @@ Os papéis cruzam-se com o obstáculo ativo para selecionar a intensidade do des
 
 **Stack planejada:** frontend React Native/Expo Router; backend Node.js/Express com Socket.IO; SQL hospedado no Aiven.
 
-**Atualização de validação em 2026-11-14:** o gate final foi aprovado no Expo Web com quatro sessões independentes: entrada na mesma sala, início com quatro jogadores, perguntas privadas distintas, encerramento simultâneo do quiz, retomada do turno, autorização correta de rolagem, revelação dos papéis em `game_over` e limpeza após recarregar uma sessão. Os cenários de deadline, `QUESTIONS_UNAVAILABLE`/`quiz_error`, explicação nula, fim por posição/limite, desconexão e perfil público/pós-jogo continuam cobertos pelos 61 testes automatizados do backend. A validação no Expo Go permanece bloqueada por falta de dispositivo/emulador; TypeScript e lint passaram sem warnings.
+**Atualização de validação em 2026-11-15:** o MVP web está publicado na Vercel
+e o backend está publicado no Render. O gate foi aprovado no Expo Web com
+quatro sessões independentes: entrada na mesma sala, início com quatro
+jogadores, perguntas privadas distintas, encerramento simultâneo do quiz,
+retomada do turno, autorização correta de rolagem, revelação dos papéis em
+`game_over` e limpeza após recarregar uma sessão. Os cenários de deadline,
+`QUESTIONS_UNAVAILABLE`/`quiz_error`, explicação nula, fim por posição/limite,
+desconexão e perfil público/pós-jogo estão cobertos pelos **62 testes**
+automatizados do backend. TypeScript e lint passaram. A validação no Expo Go
+permanece pendente. Reconexão e recuperação após reinício ainda não fazem parte
+do MVP porque o estado ativo fica em memória no backend.
 
 **Estado verificado em 2026-11-09:** lobby, motor de turnos, repositório de perguntas e quiz simultâneo foram implementados no backend. O quiz inicia somente em pouso exato nos obstáculos; mantém papéis e gabaritos no servidor, envia perguntas por socket individual, controla prazo, valida resposta única, calcula pontos, trata indisponibilidade sem rodada parcial e remove jogadores desconectados após a rodada. Questões com `explicacao: null` são aceitas e o campo é omitido do resultado privado. A suíte backend passou 58/58 testes. Os testes Socket.IO automatizados cobrem o fluxo normal, timeout com jogador sem resposta, questão ausente, erro do repositório e desconexão individual, usando clientes reais e perguntas em memória. TypeScript passou e lint não teve erros, com um aviso de importação em `frontend/src/app/index.tsx`. Em validação manual do Expo Web, quatro abas jogaram com um quinto cliente fora da sala: foram verificadas perguntas privadas, resposta única, espera, contagem regressiva e expiração natural com resultados privados, pausa/retomada de turno e limpeza da UI ao perder a conexão do servidor; a home respondeu HTTP 200 e a validação standalone passou 4/4 verificações. Ainda não foram exercitados envio após o prazo, comportamento visual de `quiz_error`, explicação nula no cliente, troca de sala durante partida nem fim de partida. O app nativo segue pendente. Os servidores locais foram encerrados após a validação. A consulta Aiven em `defaultdb` e as nove combinações foram validadas conforme relatório do Executor. [[1]](https://app.notion.com/chat?t=40cc1da9eec68082b1f200a9fe207e32)
+
+## Atualização documental — 2026-11-15
+
+Os registros históricos desta seção preservam os números das validações feitas
+em cada etapa. A validação mais recente passou 62/62 testes do backend, além de
+TypeScript e lint do frontend. O MVP web está publicado na Vercel, com o
+backend no Render; a validação nativa no Expo Go e a reconexão após queda ainda
+estão pendentes. Para o estado consolidado e o roadmap, consulte
+[STATUS_PROJETO.md](./STATUS_PROJETO.md) e [ROADMAP.md](./ROADMAP.md).
 
 ## 8. Kanban Técnico
 
@@ -121,7 +140,7 @@ Os papéis cruzam-se com o obstáculo ativo para selecionar a intensidade do des
 
 ### Done
 
-- [x]  **Fase 2 — Interface Duo-Equidade, Trilha Sinuosa de Obstáculos e Tela de Revelação Pós-Jogo no Frontend:** polimento visual aplicado em `frontend/src/app/index.tsx`, com ajuste de inicialização em `backend/package.json`; contrato Socket.IO e regras do motor preservados. Validação aprovada: 61 testes backend, TypeScript, lint e `git diff --check`.
+- [x]  **Fase 2 — Interface Duo-Equidade, Trilha Sinuosa de Obstáculos e Tela de Revelação Pós-Jogo no Frontend:** polimento visual aplicado em `frontend/src/app/index.tsx`, com ajuste de inicialização em `backend/package.json`; contrato Socket.IO e regras do motor preservados. Validação aprovada: 62 testes backend, TypeScript e lint.
 
 - [x]  Monorepo inicial separado em `backend/` e `frontend/`.
 - [x]  Frontend inicial configurado com React Native, Expo e Expo Router, incluindo dependência do cliente Socket.IO.
