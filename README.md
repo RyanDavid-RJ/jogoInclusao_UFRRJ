@@ -10,7 +10,7 @@ Jogo multiplayer de tabuleiro sobre inclusão e acessibilidade, desenvolvido com
 - Condição atribuída individualmente a cada participante.
 - Pausa coletiva quando alguém para nas casas-obstáculo 4, 8, 12 ou 16.
 
-**Estado atual:** a interface e o motor do jogo implementam sala, turnos, movimento, obstáculos, quiz integrado e encerramento da partida.
+**Estado atual:** a interface e o motor do jogo implementam sala, turnos, movimento, obstáculos, quiz integrado e encerramento da partida. O próximo incremento de produto é o fluxo de splash, perfil inicial, lista/criação de salas públicas ou privadas e navegação de retorno; login Google ainda depende de decisão do provedor OAuth e do contrato de sessão.
 
 ## Tecnologias
 

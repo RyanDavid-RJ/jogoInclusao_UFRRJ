@@ -25,6 +25,18 @@ A condição sorteada representa uma perspectiva de jogo; não define a capacida
 - **Profundidade e interação:** priorizar sombras planas com borda inferior tátil em `borderBottomWidth`; usar Reanimated apenas para feedback curto e compreensível, respeitando redução de movimento.
 - **Identidade do jogador:** durante a partida, nome e avatar animal/personagem são a identidade pública; o avatar não deve sugerir a condição secreta. A transformação visual para uma representação humana ilustrativa ocorre somente na revelação pós-jogo.
 
+### Fluxo inicial, perfil e salas — requisito aprovado para a próxima fase
+
+- **Splash:** ao abrir o app, exibir uma tela curta de carregamento com a identidade visual do jogo e encaminhar o jogador para a tela inicial.
+- **Tela inicial:** permitir escolher um avatar, informar um nick editável e acessar **Salas** ou **Criar sala**. O retorno de ambas as telas deve levar novamente à tela inicial.
+- **Login externo:** oferecer a alternativa de login com Google. Quando autenticado, usar o nome da conta como nick inicial e a foto de perfil como avatar inicial; ambos devem poder ser substituídos pelo jogador dentro das regras do produto. O logout deve ficar disponível na tela inicial autenticada.
+- **Lista de salas públicas:** mostrar somente salas públicas abertas, com avatar e nome do anfitrião e quantidade atual de participantes. A entrada deve exigir uma sala ainda disponível, respeitando o limite de 8 jogadores e a regra de início manual com no mínimo 4.
+- **Entrada privada:** disponibilizar na tela de salas um campo para informar o código de uma sala privada. Código inválido, sala inexistente ou sala lotada devem produzir feedback explícito, sem alterar o estado local para uma entrada bem-sucedida.
+- **Criação de sala:** permitir escolher entre sala pública, listada em **Salas**, e sala privada, acessível somente pelo código. Depois da criação, mostrar a sala com os participantes, seus avatares e nicks, a dificuldade/etapa escolhida pelo anfitrião e o estado de prontidão.
+- **Sala criada:** o anfitrião pode sair e fechar a sala antes do início; a ação deve pedir confirmação e limpar a sessão local. O botão de iniciar só fica habilitado com pelo menos 4 participantes e deve preservar o limite máximo de 8 e o início manual já definido.
+- **Referência visual:** as capturas de Gartic apresentadas por Ryan são referência de composição e hierarquia, não de cópia de identidade visual. Aplicar o guia Duo-Equidade e manter controles acessíveis, feedback textual e navegação de retorno.
+- **Escopo do MVP:** primeiro implementar o fluxo de splash, perfil local, salas públicas/privadas e navegação. Login Google exige definição do provedor OAuth, redirect/deep link e contrato de identidade antes de ser considerado concluído.
+
 ## 2. Papéis e Condições
 
 - Papéis possíveis: cadeirante; pessoa com deficiência visual (cegueira/baixa visão); pessoa com deficiência auditiva (surdez); pessoa neuroatípica.
@@ -102,6 +114,8 @@ Os papéis cruzam-se com o obstáculo ativo para selecionar a intensidade do des
 - [ ]  **Revelação e reflexão pós-jogo:** definir avatares e conteúdo educativo da tela final; a revelação do mapa jogador–papel após o campeão já foi implementada. O envio do papel individual durante o jogo permanece privado.
 - [ ]  **Configuração e qualidade:** retirar o endereço local fixo do frontend, adicionar testes para turnos/quiz e testar desconexão, reconexão e encerramento de salas.
 - [ ]  **Acessibilidade:** prototipar leitor de tela, contraste, redução de movimento e opções de tempo; validar a matriz com público e especialistas.
+- [ ]  **Fluxo inicial e lobby no frontend:** implementar splash, tela inicial com avatar/nick, navegação para salas e criação de sala, lista pública, entrada por código privado, sala com participantes e ações de retorno/saída, preservando as regras atuais de 4–8 jogadores e início manual.
+- [ ]  **Autenticação Google e perfil:** definir provedor OAuth, redirect/deep link, sessão, logout e política para substituir nome/foto antes de implementar o login externo; não armazenar tokens no estado público da sala.
 
 ### Doing
 
