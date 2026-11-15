@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
+  Animated,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
   TextInput,
-  TouchableOpacity,
 } from "react-native";
 import { io, Socket } from "socket.io-client";
 
@@ -113,6 +114,14 @@ type QuizAnswerAcknowledgement = {
 };
 
 const QUIZ_ANSWERS: QuizAnswer[] = ["A", "B", "C", "D"];
+const DICE_FACES: Record<number, string> = {
+  1: "⚀",
+  2: "⚁",
+  3: "⚂",
+  4: "⚃",
+  5: "⚄",
+  6: "⚅",
+};
 
 const getQuizErrorMessage = (code: string) => {
   switch (code) {
@@ -169,6 +178,7 @@ const SERVER_URL =
 export default function IndexScreen() {
   const socketRef = useRef<Socket | null>(null);
   const quizSubmissionLockRef = useRef(false);
+  const entranceOpacity = useRef(new Animated.Value(0)).current;
 
   // Estados da Interface
   const [isInRoom, setIsInRoom] = useState(false);
@@ -183,6 +193,7 @@ export default function IndexScreen() {
   const [isStarted, setIsStarted] = useState(false);
   const [schoolStage, setSchoolStage] = useState<SchoolStage | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
+  const [isConnected, setIsConnected] = useState(false);
 
   // Novo estado: Guarda a condição sorteada para o utilizador atual
   const [myCondition, setMyCondition] = useState<string | null>(null);
@@ -205,10 +216,12 @@ export default function IndexScreen() {
     const socket = socketRef.current;
 
     socket.on("connect", () => {
+      setIsConnected(true);
       console.log("Ligado ao servidor com sucesso! ID:", socket.id);
     });
 
     socket.on("disconnect", () => {
+      setIsConnected(false);
       setIsInRoom(false);
       setRoomCode("");
       setPlayerCount(0);
@@ -374,6 +387,14 @@ export default function IndexScreen() {
   }, []);
 
   useEffect(() => {
+    Animated.timing(entranceOpacity, {
+      toValue: 1,
+      duration: 260,
+      useNativeDriver: true,
+    }).start();
+  }, [entranceOpacity]);
+
+  useEffect(() => {
     if (!quizQuestion) {
       setQuizRemainingSeconds(0);
       return;
@@ -500,9 +521,19 @@ export default function IndexScreen() {
         style={styles.gameScrollView}
         contentContainerStyle={styles.gameContainer}
       >
-        <Text style={styles.title}>Ludo Equidade</Text>
+        <Animated.View style={[styles.mainCard, { opacity: entranceOpacity }]}>
+        <View style={styles.header}>
+          <Text style={styles.brandTitle}>🎲 LUDO EQUIDADE • UFRRJ</Text>
+          <Text style={[styles.connectionStatus, isConnected ? styles.connected : styles.disconnected]}>
+            {isConnected ? "🟢 Online" : "🔴 Desconectado"}
+          </Text>
+        </View>
         <Text style={styles.subtitle}>Sala: {roomCode}</Text>
-        {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
+        {errorMsg ? (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorBannerText}>⚠️ {errorMsg}</Text>
+          </View>
+        ) : null}
 
         <View style={styles.gameSummary}>
           <View style={styles.summaryHeader}>
@@ -527,16 +558,69 @@ export default function IndexScreen() {
           </Text>
         </View>
 
+        {!isGameFinished && !isPaused ? (
+          <View style={[styles.turnPanel, isMyTurn && styles.myTurnPanel]}>
+            <Text style={styles.diceFace}>
+              {gameState.diceResult !== null
+                ? DICE_FACES[gameState.diceResult] || "🎲"
+                : "🎲"}
+            </Text>
+            <Text style={styles.gameSummaryText}>
+              {gameState.diceResult !== null
+                ? `Último dado: ${gameState.diceResult}`
+                : "aguardando lançamento"}
+            </Text>
+            {isMyTurn ? (
+              <>
+                <Text style={styles.yourTurnBadge}>🎯 SUA VEZ DE JOGAR!</Text>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.button,
+                    pressed && styles.pressedButton,
+                  ]}
+                  onPress={handleRollDice}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.buttonText}>Rolar dado</Text>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <Text style={styles.gameNotice}>
+                  ⏳ Aguardando o turno de{" "}
+                  {gameState.currentPlayerId
+                    ? getPlayerLabel(gameState.currentPlayerId, playerIds, ownPlayerId, playerProfiles)
+                    : "outro jogador"}...
+                </Text>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.button,
+                    styles.disabledButton,
+                    pressed && styles.pressedButton,
+                  ]}
+                  disabled
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: true }}
+                >
+                  <Text style={styles.buttonText}>Rolar dado</Text>
+                </Pressable>
+              </>
+            )}
+          </View>
+        ) : null}
+
         <View style={styles.board}>
           {boardRows.map((positions, row) => (
             <View key={row} style={styles.boardRow}>
-              {positions.map((position) => {
+              {positions.map((position, visualIndex) => {
                 const playersAtPosition = playerIds.filter(
                   (playerId) => gameState.positions[playerId] === position,
                 );
                 const obstacle = OBSTACLE_META[position];
                 const isStart = position === 0;
                 const isFinish = position === 20;
+                const isOwnPosition = gameState.positions[ownPlayerId || ""] === position;
+                const isCurve = visualIndex === positions.length - 1 && !isFinish;
 
                 return (
                   <View key={position} style={[
@@ -544,13 +628,17 @@ export default function IndexScreen() {
                     obstacle && styles.obstacleCell,
                     isStart && styles.startCell,
                     isFinish && styles.finishCell,
+                    isOwnPosition && styles.ownPositionCell,
                   ]}>
                     <Text style={styles.boardPosition}>
                       {isStart ? "INÍCIO 🏁" : isFinish ? "CHEGADA 🏆" : position}
                     </Text>
                     {obstacle ? (
-                      <Text style={styles.obstacleLabel}>{obstacle.icon} {obstacle.title}</Text>
+                      <Text style={styles.obstacleLabel}>{obstacle.icon} {obstacle.title} · {obstacle.domain}</Text>
                     ) : null}
+                    <Text style={styles.directionMarker}>
+                      {isCurve ? "⤵" : row % 2 === 0 ? "➔" : "⬅"}
+                    </Text>
                     <View style={styles.boardTokens}>
                       {playersAtPosition.map((playerId) => {
                         const profile = playerProfiles.find(
@@ -642,12 +730,13 @@ export default function IndexScreen() {
                       quizAnswerRejected ||
                       quizRemainingSeconds <= 0;
                     return (
-                      <TouchableOpacity
+                      <Pressable
                         key={answer}
-                        style={[
+                        style={({ pressed }) => [
                           styles.quizAnswerButton,
                           isSelected && styles.selectedQuizAnswerButton,
                           isDisabled && styles.disabledButton,
+                          pressed && styles.pressedButton,
                         ]}
                         onPress={() => setQuizSelectedAnswer(answer)}
                         disabled={isDisabled}
@@ -666,12 +755,12 @@ export default function IndexScreen() {
                         >
                           {answer}. {quizQuestion.alternativas[answer]}
                         </Text>
-                      </TouchableOpacity>
+                      </Pressable>
                     );
                   })}
                 </View>
-                <TouchableOpacity
-                  style={[
+                <Pressable
+                  style={({ pressed }) => [
                     styles.quizSubmitButton,
                     (!quizSelectedAnswer ||
                       quizSubmitting ||
@@ -679,6 +768,7 @@ export default function IndexScreen() {
                       quizAnswerRejected ||
                       quizRemainingSeconds <= 0) &&
                       styles.disabledButton,
+                    pressed && styles.pressedButton,
                   ]}
                   onPress={handleSubmitQuizAnswer}
                   disabled={
@@ -693,7 +783,7 @@ export default function IndexScreen() {
                   accessibilityHint="Envia a alternativa selecionada uma única vez"
                 >
                   <Text style={styles.buttonText}>Enviar resposta</Text>
-                </TouchableOpacity>
+                </Pressable>
                 {quizSubmitting ? (
                   <Text style={styles.quizStatusText} accessibilityLiveRegion="polite">
                     Enviando sua resposta...
@@ -732,7 +822,7 @@ export default function IndexScreen() {
         {quizError ? (
           <View style={styles.quizErrorNotice} accessibilityLiveRegion="polite">
             <Text style={styles.quizErrorText}>
-              {getQuizErrorMessage(quizError.code)}
+              ⚠️ {getQuizErrorMessage(quizError.code)}
             </Text>
           </View>
         ) : null}
@@ -789,9 +879,15 @@ export default function IndexScreen() {
               const conditionMeta = CONDITION_META[condition] || { label: condition, personaIcon: "🧑", summary: "Perspectiva vivenciada durante a partida." };
               return (
               <View key={playerId} style={styles.revealCard}>
-                <Text style={styles.revealTransition}>
-                  {avatar.emoji} {name} ➔ {conditionMeta.personaIcon} {conditionMeta.label}
-                </Text>
+                <Text style={styles.revealTransition}>{name}</Text>
+                <View style={styles.badgeRow}>
+                  <Text style={styles.animalBadge}>
+                    {avatar.emoji} {avatar.label}
+                  </Text>
+                  <Text style={styles.perspectiveBadge}>
+                    {conditionMeta.personaIcon} {conditionMeta.label}
+                  </Text>
+                </View>
                 <View style={styles.chipRow}>
                   <Text style={styles.chip}>Posição: {position}/20</Text>
                   <Text style={styles.chip}>Pontos no Quiz: {quizPoints}</Text>
@@ -807,19 +903,15 @@ export default function IndexScreen() {
               <Text style={styles.gameNotice}>• O desempenho matemático explica sozinho o resultado? O que mais pesou?</Text>
               <Text style={styles.gameNotice}>• Que apoios tornariam o caminho mais equitativo para todas as pessoas?</Text>
             </View>
-            <TouchableOpacity style={styles.button} onPress={handleCreateRoom}>
+            <Pressable style={({ pressed }) => [styles.button, pressed && styles.pressedButton]} onPress={handleCreateRoom} accessibilityRole="button">
               <Text style={styles.buttonText}>Criar nova sala</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         ) : gameState.status === "finished" ? (
           <Text style={styles.gameNotice}>Finalizando a partida...</Text>
         ) : null}
 
-        {!isGameFinished && !isPaused && isMyTurn ? (
-          <TouchableOpacity style={styles.button} onPress={handleRollDice}>
-            <Text style={styles.buttonText}>Rolar dado</Text>
-          </TouchableOpacity>
-        ) : null}
+        </Animated.View>
       </ScrollView>
     );
   }
@@ -833,7 +925,14 @@ export default function IndexScreen() {
       !isStarted;
 
     return (
-      <View style={styles.container}>
+      <ScrollView style={styles.gameScrollView} contentContainerStyle={styles.gameContainer}>
+        <Animated.View style={[styles.mainCard, { opacity: entranceOpacity }]}>
+        <View style={styles.header}>
+          <Text style={styles.brandTitle}>🎲 LUDO EQUIDADE • UFRRJ</Text>
+          <Text style={[styles.connectionStatus, isConnected ? styles.connected : styles.disconnected]}>
+            {isConnected ? "🟢 Online" : "🔴 Desconectado"}
+          </Text>
+        </View>
         <Text style={styles.title}>Sala: {roomCode}</Text>
         <Text style={styles.subtitle}>Jogadores: {playerCount} / 8</Text>
         <View style={styles.playerList}>
@@ -848,7 +947,11 @@ export default function IndexScreen() {
           Etapa escolar: {schoolStage ?? "não selecionada"}
         </Text>
 
-        {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
+        {errorMsg ? (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorBannerText}>⚠️ {errorMsg}</Text>
+          </View>
+        ) : null}
 
         {isReady && myCondition ? (
           <View style={styles.readyContainer}>
@@ -867,13 +970,15 @@ export default function IndexScreen() {
                   <View style={styles.stageSelector}>
                     <Text style={styles.stageLabel}>Escolha a etapa escolar:</Text>
                     {SCHOOL_STAGES.map((stage) => (
-                      <TouchableOpacity
+                      <Pressable
                         key={stage}
-                        style={[
+                        style={({ pressed }) => [
                           styles.stageButton,
                           schoolStage === stage && styles.selectedStageButton,
+                          pressed && styles.pressedButton,
                         ]}
                         onPress={() => handleSetSchoolStage(stage)}
+                        accessibilityRole="button"
                       >
                         <Text
                           style={[
@@ -883,18 +988,20 @@ export default function IndexScreen() {
                         >
                           {stage}
                         </Text>
-                      </TouchableOpacity>
+                      </Pressable>
                     ))}
                   </View>
                 ) : null}
                 {!isStarted ? (
-                  <TouchableOpacity
-                    style={[styles.button, !canStart && styles.disabledButton]}
+                  <Pressable
+                    style={({ pressed }) => [styles.button, !canStart && styles.disabledButton, pressed && styles.pressedButton]}
                     onPress={handleStartGame}
                     disabled={!canStart}
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: !canStart }}
                   >
                     <Text style={styles.buttonText}>Iniciar partida</Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 ) : null}
                 <Text style={styles.waitingText}>
                   {isStarted
@@ -913,16 +1020,28 @@ export default function IndexScreen() {
             )}
           </>
         )}
-      </View>
+        </Animated.View>
+      </ScrollView>
     );
   }
 
   // TELA INICIAL (LOBBY)
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.gameScrollView} contentContainerStyle={styles.gameContainer}>
+      <Animated.View style={[styles.mainCard, { opacity: entranceOpacity }]}>
+      <View style={styles.header}>
+        <Text style={styles.brandTitle}>🎲 LUDO EQUIDADE • UFRRJ</Text>
+        <Text style={[styles.connectionStatus, isConnected ? styles.connected : styles.disconnected]}>
+          {isConnected ? "🟢 Online" : "🔴 Desconectado"}
+        </Text>
+      </View>
       <Text style={styles.title}>Ludo Equidade</Text>
 
-      {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
+      {errorMsg ? (
+        <View style={styles.errorBanner}>
+          <Text style={styles.errorBannerText}>⚠️ {errorMsg}</Text>
+        </View>
+      ) : null}
 
       <TextInput
         style={styles.input}
@@ -935,22 +1054,24 @@ export default function IndexScreen() {
       <Text style={styles.avatarLabel}>Escolha seu avatar</Text>
       <View style={styles.avatarSelector}>
         {AVATAR_IDS.map((avatar) => (
-          <TouchableOpacity
+          <Pressable
             key={avatar}
-            style={[
+            style={({ pressed }) => [
               styles.avatarButton,
               avatarId === avatar && styles.selectedAvatarButton,
+              pressed && styles.pressedButton,
             ]}
             onPress={() => setAvatarId(avatar)}
+            accessibilityRole="button"
           >
             <Text style={styles.avatarButtonText}>{AVATAR_META[avatar].emoji} {AVATAR_META[avatar].label}</Text>
-          </TouchableOpacity>
+          </Pressable>
         ))}
       </View>
 
-      <TouchableOpacity style={styles.button} onPress={handleCreateRoom}>
+      <Pressable style={({ pressed }) => [styles.button, pressed && styles.pressedButton]} onPress={handleCreateRoom} accessibilityRole="button">
         <Text style={styles.buttonText}>Criar Nova Sala</Text>
-      </TouchableOpacity>
+      </Pressable>
 
       <View style={styles.divider}>
         <View style={styles.line} />
@@ -968,10 +1089,11 @@ export default function IndexScreen() {
         autoCorrect={false}
       />
 
-      <TouchableOpacity style={styles.secondaryButton} onPress={handleJoinRoom}>
+      <Pressable style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressedButton]} onPress={handleJoinRoom} accessibilityRole="button">
         <Text style={styles.buttonText}>Entrar na Sala</Text>
-      </TouchableOpacity>
-    </View>
+      </Pressable>
+      </Animated.View>
+    </ScrollView>
   );
 }
 
@@ -989,8 +1111,45 @@ const styles = StyleSheet.create({
   },
   gameContainer: {
     alignItems: "center",
+    justifyContent: "center",
     padding: 20,
     paddingBottom: 36,
+  },
+  mainCard: {
+    maxWidth: 460,
+    width: "100%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    borderWidth: 2,
+    borderBottomWidth: 6,
+    borderColor: "#E5E5E5",
+    padding: 24,
+  },
+  header: {
+    alignItems: "center",
+    marginBottom: 14,
+  },
+  brandTitle: {
+    color: "#3C3C3C",
+    fontSize: 16,
+    fontWeight: "900",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  connectionStatus: {
+    borderRadius: 12,
+    fontSize: 14,
+    fontWeight: "800",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  connected: {
+    backgroundColor: "#E8F8DC",
+    color: "#46A302",
+  },
+  disconnected: {
+    backgroundColor: "#FFEAEA",
+    color: "#D92626",
   },
   title: {
     fontSize: 32,
@@ -1053,6 +1212,36 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     marginTop: 8,
   },
+  turnPanel: {
+    width: "100%",
+    maxWidth: 420,
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderColor: "#E5E5E5",
+    borderRadius: 20,
+    borderWidth: 2,
+    borderBottomWidth: 5,
+    padding: 14,
+    marginBottom: 16,
+  },
+  myTurnPanel: {
+    borderColor: "#58CC02",
+  },
+  diceFace: {
+    color: "#3C3C3C",
+    fontSize: 42,
+    marginBottom: 4,
+  },
+  yourTurnBadge: {
+    backgroundColor: "#E8F8DC",
+    color: "#46A302",
+    borderRadius: 12,
+    fontSize: 14,
+    fontWeight: "900",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginVertical: 8,
+  },
   board: {
     width: "100%",
     maxWidth: 420,
@@ -1089,6 +1278,15 @@ const styles = StyleSheet.create({
   finishCell: {
     backgroundColor: "#E9F9DF",
     borderColor: "#46A302",
+  },
+  ownPositionCell: {
+    backgroundColor: "#EBF8FF",
+    borderColor: "#1CB0F6",
+  },
+  directionMarker: {
+    color: "#1CB0F6",
+    fontSize: 15,
+    fontWeight: "900",
   },
   obstacleLabel: {
     color: "#B28900",
@@ -1315,6 +1513,34 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     marginBottom: 10,
   },
+  badgeRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginBottom: 8,
+  },
+  animalBadge: {
+    backgroundColor: "#EAF7FC",
+    borderColor: "#B8E6F7",
+    borderRadius: 12,
+    borderWidth: 1,
+    color: "#1C6A8A",
+    fontSize: 12,
+    fontWeight: "800",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  perspectiveBadge: {
+    backgroundColor: "#F8EEFF",
+    borderColor: "#CE82FF",
+    borderRadius: 12,
+    borderWidth: 1,
+    color: "#7B2CBF",
+    fontSize: 12,
+    fontWeight: "800",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
   chipRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -1453,6 +1679,9 @@ const styles = StyleSheet.create({
   disabledButton: {
     opacity: 0.5,
   },
+  pressedButton: {
+    transform: [{ translateY: 2 }],
+  },
   buttonText: {
     color: "#FFF",
     fontSize: 18,
@@ -1478,6 +1707,21 @@ const styles = StyleSheet.create({
   errorText: {
     color: "#D92626",
     marginBottom: 15,
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  errorBanner: {
+    width: "100%",
+    backgroundColor: "#FFEAEA",
+    borderColor: "#FF4B4B",
+    borderWidth: 2,
+    borderBottomWidth: 4,
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 15,
+  },
+  errorBannerText: {
+    color: "#D92626",
     fontSize: 16,
     fontWeight: "500",
   },

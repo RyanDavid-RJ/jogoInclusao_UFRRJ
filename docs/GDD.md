@@ -105,9 +105,9 @@ Os papéis cruzam-se com o obstáculo ativo para selecionar a intensidade do des
 
 ### Doing
 
-- [ ]  **Fase 2 — Interface Duo-Equidade, Trilha Sinuosa de Obstáculos e Tela de Revelação Pós-Jogo no Frontend:** atualizar exclusivamente `frontend/src/app/_layout.tsx` e `frontend/src/app/index.tsx` com a direção visual Duo-Equidade, sem alterar o backend nem o contrato Socket.IO.
-
 ### Done
+
+- [x]  **Fase 2 — Interface Duo-Equidade, Trilha Sinuosa de Obstáculos e Tela de Revelação Pós-Jogo no Frontend:** polimento visual aplicado em `frontend/src/app/index.tsx`, com ajuste de inicialização em `backend/package.json`; contrato Socket.IO e regras do motor preservados. Validação aprovada: 61 testes backend, TypeScript, lint e `git diff --check`.
 
 - [x]  Monorepo inicial separado em `backend/` e `frontend/`.
 - [x]  Frontend inicial configurado com React Native, Expo e Expo Router, incluindo dependência do cliente Socket.IO.
