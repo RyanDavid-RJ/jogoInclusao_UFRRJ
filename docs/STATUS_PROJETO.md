@@ -83,7 +83,7 @@ ciclo.
 
 ## 3. Evidências de validação
 
-Em 2026-11-16, a suíte do backend foi executada com **63 testes aprovados**.
+Em 2026-11-16, a suíte do backend foi executada com **64 testes aprovados**.
 Também foram aprovados:
 
 - `npx tsc --noEmit` no frontend;
@@ -107,6 +107,7 @@ Consequências conhecidas:
 
 - reinício ou novo deploy do Render encerra as partidas ativas;
 - ainda não existe retomada automática após queda de conexão;
+- salas de espera inativas são encerradas automaticamente após 30 minutos;
 - múltiplas instâncias do backend não devem ser usadas sem estado compartilhado;
 - o banco contém um conjunto inicial pequeno de perguntas;
 - a validação nativa em Expo Go ainda precisa ser feita;
@@ -119,7 +120,6 @@ Consequências conhecidas:
 
 - Confirmar CORS e variáveis de produção no Render.
 - Monitorar `/api/status`.
-- Definir expiração para salas abandonadas.
 - Testar queda e retorno do navegador.
 - Validar o fluxo em celular Android e iOS.
 - Testar visualmente timeout, erro do quiz, explicação ausente e fim de jogo

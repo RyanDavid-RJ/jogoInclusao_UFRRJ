@@ -1,7 +1,12 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const { attachLobbyHandlers, MAX_PLAYERS, MIN_PLAYERS } = require("../lobby");
+const {
+  attachLobbyHandlers,
+  MAX_PLAYERS,
+  MIN_PLAYERS,
+  ROOM_IDLE_TIMEOUT_MS,
+} = require("../lobby");
 const { createQuizService } = require("../quizService");
 
 const question = {
@@ -265,6 +270,18 @@ test("allows players to leave and hosts to close waiting rooms", () => {
   lobby.host.clientEmit("close_room", { roomCode: remainingRoomCode });
   assert.equal(lobby.rooms.has(remainingRoomCode), false);
   assert.equal(lobby.host.eventsFor("room_closed").length, 1);
+});
+
+test("expires inactive waiting rooms and notifies connected players", () => {
+  const lobby = createLobby();
+
+  lobby.clock.advance(ROOM_IDLE_TIMEOUT_MS);
+
+  assert.equal(lobby.rooms.has(lobby.roomCode), false);
+  assert.equal(
+    lobby.host.eventsFor("room_closed").at(-1).payload.roomCode,
+    lobby.roomCode,
+  );
 });
 
 test("supports a 4-player minimum, with no automatic start at four", () => {

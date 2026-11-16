@@ -17,6 +17,7 @@ const MAX_PLAYERS = 8;
 const CONDITIONS = ["cadeirante", "cego", "surdo", "neuroatipico"];
 const SCHOOL_STAGES = ["Fundamental", "Médio", "Superior"];
 const QUIZ_DURATION_MS = 30_000;
+const ROOM_IDLE_TIMEOUT_MS = 30 * 60 * 1_000;
 const AVATAR_IDS = [
   "coelho",
   "gato",
@@ -141,6 +142,36 @@ function attachLobbyHandlers(
     return code;
   };
 
+  const clearRoomExpiration = (room) => {
+    if (room.expirationTimer !== null && room.expirationTimer !== undefined) {
+      clearTimeoutFn(room.expirationTimer);
+      room.expirationTimer = null;
+    }
+  };
+
+  const scheduleRoomExpiration = (roomCode, room) => {
+    clearRoomExpiration(room);
+    room.expirationTimer = setTimeoutFn(() => {
+      if (rooms.get(roomCode) !== room || room.started) {
+        return;
+      }
+
+      for (const playerId of room.players) {
+        io.to(playerId).emit("room_closed", { roomCode });
+        const playerSocket = io.sockets?.sockets?.get(playerId);
+        if (typeof playerSocket?.leave === "function") {
+          playerSocket.leave(roomCode);
+        }
+      }
+
+      clearRoomExpiration(room);
+      rooms.delete(roomCode);
+      emitLobbyRooms(io, rooms);
+    }, ROOM_IDLE_TIMEOUT_MS);
+
+    room.expirationTimer?.unref?.();
+  };
+
   const removeSocketFromRoom = (socket, { notifyLobby = true } = {}) => {
     for (const [roomCode, room] of rooms.entries()) {
       const playerIndex = room.players.indexOf(socket.id);
@@ -173,6 +204,7 @@ function attachLobbyHandlers(
       if (room.players.length === 0) {
         clearQuizRound(room.quizRound, clearTimeoutFn);
         room.quizRound = null;
+        clearRoomExpiration(room);
         rooms.delete(roomCode);
         console.log(`Sala ${roomCode} deletada por estar vazia.`);
       } else {
@@ -224,6 +256,7 @@ function attachLobbyHandlers(
         },
       };
       rooms.set(roomCode, room);
+      scheduleRoomExpiration(roomCode, room);
       socket.join(roomCode);
 
       console.log(`Sala ${roomCode} criada pelo jogador ${socket.id}`);
@@ -279,6 +312,7 @@ function attachLobbyHandlers(
 
       room.players.push(socket.id);
       room.playerProfiles[socket.id] = profileResult.profile;
+      scheduleRoomExpiration(roomCode, room);
       socket.join(roomCode);
 
       console.log(`Jogador ${socket.id} entrou na sala ${roomCode}`);
@@ -323,6 +357,7 @@ function attachLobbyHandlers(
       }
 
       room.schoolStage = payload.schoolStage;
+      scheduleRoomExpiration(roomCode, room);
       emitRoomUpdated(io, roomCode, room);
     });
 
@@ -361,6 +396,7 @@ function attachLobbyHandlers(
       }
 
       clearQuizRound(room.quizRound, clearTimeoutFn);
+      clearRoomExpiration(room);
       for (const playerId of room.players) {
         io.to(playerId).emit("room_closed", { roomCode });
         const playerSocket = io.sockets?.sockets?.get(playerId);
@@ -408,6 +444,7 @@ function attachLobbyHandlers(
       }
 
       room.gameState = createGameState(room.players, randomInt);
+      clearRoomExpiration(room);
       room.started = true;
       emitRoomUpdated(io, roomCode, room);
       const assignedConditions = shuffleArray([...CONDITIONS]);
@@ -778,4 +815,9 @@ const clearQuizRound = (round, clearTimeoutFn) => {
   }
 };
 
-module.exports = { attachLobbyHandlers, MAX_PLAYERS, MIN_PLAYERS };
+module.exports = {
+  attachLobbyHandlers,
+  MAX_PLAYERS,
+  MIN_PLAYERS,
+  ROOM_IDLE_TIMEOUT_MS,
+};

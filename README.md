@@ -17,7 +17,7 @@ Socket.IO e MySQL no backend.
 
 **Estado atual:** o MVP web está publicado e foi validado manualmente com quatro
 jogadores. O ciclo de sala, turnos, movimento, obstáculos, quiz e encerramento
-está funcional. O backend passou 63 testes, e TypeScript e lint do frontend
+está funcional. O backend passou 64 testes, e TypeScript e lint do frontend
 passaram, e o export web de produção foi validado. O estado das salas ainda
 fica em memória em uma única instância; por isso, reconexão e recuperação após
 reinício continuam fora do MVP.
@@ -232,9 +232,8 @@ mas a ampliação e revisão pedagógica do banco ainda fazem parte do roadmap.
 
 ## Limitações e próximos passos
 
-O MVP ainda precisa de reconexão, expiração de salas abandonadas, validação em
-dispositivo móvel, testes de acessibilidade, revisão da matriz pedagógica e
-mais perguntas. Não implemente login Google, ranking ou histórico sem antes
+O MVP ainda precisa de reconexão, validação em dispositivo móvel, testes de
+acessibilidade, revisão da matriz pedagógica e mais perguntas. Não implemente login Google, ranking ou histórico sem antes
 definir identidade, consentimento e política de dados.
 
 Consulte [`docs/ROADMAP.md`](docs/ROADMAP.md) para a sequência recomendada.

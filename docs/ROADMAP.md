@@ -17,7 +17,7 @@ reduzem riscos técnicos e pedagógicos.
 - [x] Papéis privados e revelação final.
 - [x] Lobby visual responsivo com lista pública e entrada por código.
 - [x] Tema claro/escuro, modo daltônico e feedback de erros/conexão.
-- [x] 63 testes backend aprovados.
+- [x] 64 testes backend aprovados.
 - [x] TypeScript e lint aprovados.
 - [x] Export web de produção aprovado.
 - [x] Teste manual com quatro jogadores.
@@ -28,7 +28,8 @@ reduzem riscos técnicos e pedagógicos.
 
 - [ ] Confirmar CORS restrito ao domínio publicado.
 - [ ] Monitorar `/api/status` continuamente.
-- [ ] Definir política para salas abandonadas.
+- [x] Definir política para salas abandonadas: salas de espera inativas expiram
+      após 30 minutos.
 - [ ] Testar deploy/reinício durante uma partida.
 - [ ] Testar perda e retorno da conexão do jogador.
 - [ ] Validar o fluxo em dispositivo Android e iOS.
@@ -60,7 +61,7 @@ defensável para o público definido, com registro das decisões de validação.
 - [ ] Criar identidade temporária de sessão.
 - [ ] Permitir reconexão à sala e restauração do estado.
 - [ ] Definir comportamento de reconexão durante o quiz.
-- [ ] Adicionar expiração e limpeza de salas inativas.
+- [x] Adicionar expiração e limpeza de salas de espera inativas.
 - [ ] Adicionar limites de frequência para eventos.
 - [ ] Avaliar Redis e Socket.IO Adapter.
 - [ ] Separar logs operacionais de dados de jogo.

@@ -177,7 +177,7 @@ lançamento com tráfego imprevisível.
 
 - definir `CLIENT_ORIGIN` sem usar `*` em produção;
 - limitar criação, listagem e entrada de salas;
-- expirar salas abandonadas;
+- expirar salas de espera inativas após 30 minutos;
 - criar usuário MySQL próprio com privilégios mínimos;
 - manter logs sem senhas, tokens ou conteúdo sensível;
 - monitorar o health check;
