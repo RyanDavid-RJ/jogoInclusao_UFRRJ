@@ -5,6 +5,7 @@ const {
   attachLobbyHandlers,
   MAX_PLAYERS,
   MIN_PLAYERS,
+  RECONNECT_GRACE_MS,
   ROOM_IDLE_TIMEOUT_MS,
 } = require("../lobby");
 const { createQuizService } = require("../quizService");
@@ -987,6 +988,7 @@ test("preserves room_joined and transfers host when the host disconnects", () =>
     hostId: lobby.host.id,
     schoolStage: null,
     started: false,
+    sessionToken: lobby.players[1].eventsFor("room_joined")[0].payload.sessionToken,
   });
 
   lobby.host.clientEmit("disconnect");
@@ -995,22 +997,45 @@ test("preserves room_joined and transfers host when the host disconnects", () =>
   assert.equal(room.players.length, 1);
 });
 
-test("advances the turn when the current player disconnects", () => {
+test("keeps a disconnected current player resumable during the grace period", () => {
   const lobby = startLobbyGame((_minimum, maximum) => maximum - 1);
   const room = lobby.rooms.get(lobby.roomCode);
   const [disconnectedPlayerId, nextPlayerId] = room.gameState.turnOrder;
 
   lobby.io.sockets.get(disconnectedPlayerId).clientEmit("disconnect");
 
-  assert.equal(room.gameState.turnOrder.includes(disconnectedPlayerId), false);
+  assert.equal(room.gameState.turnOrder.includes(disconnectedPlayerId), true);
   assert.equal(
     room.gameState.turnOrder[room.gameState.currentTurnIndex],
-    nextPlayerId,
+    disconnectedPlayerId,
   );
-  assert.equal(
-    lobby.host.eventsFor("game_state_updated").at(-1).payload.currentPlayerId,
-    nextPlayerId,
-  );
+
+  lobby.clock.advance(RECONNECT_GRACE_MS);
+
+  assert.equal(room.gameState.turnOrder.includes(disconnectedPlayerId), false);
+  assert.equal(room.gameState.turnOrder[room.gameState.currentTurnIndex], nextPlayerId);
+});
+
+test("resumes a disconnected player with the same session token", () => {
+  const lobby = startLobbyGame((_minimum, maximum) => maximum - 1);
+  const room = lobby.rooms.get(lobby.roomCode);
+  const [disconnectedPlayerId] = room.gameState.turnOrder;
+  const disconnectedSocket = lobby.io.sockets.get(disconnectedPlayerId);
+  const sessionToken = Object.entries(room.sessionTokens).find(
+    ([, playerId]) => playerId === disconnectedPlayerId,
+  )[0];
+  const resumedSocket = lobby.io.connect("resumed-player");
+
+  disconnectedSocket.clientEmit("disconnect");
+  resumedSocket.clientEmit("resume_room", {
+    roomCode: lobby.roomCode,
+    sessionToken,
+  });
+
+  assert.equal(room.players.includes(disconnectedPlayerId), false);
+  assert.equal(room.players.includes(resumedSocket.id), true);
+  assert.equal(room.gameState.turnOrder[room.gameState.currentTurnIndex], resumedSocket.id);
+  assert.equal(resumedSocket.eventsFor("room_resumed").length, 1);
 });
 
 test("resumes a paused game when its pending player disconnects", () => {

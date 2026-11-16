@@ -18,6 +18,7 @@ const CONDITIONS = ["cadeirante", "cego", "surdo", "neuroatipico"];
 const SCHOOL_STAGES = ["Fundamental", "Médio", "Superior"];
 const QUIZ_DURATION_MS = 30_000;
 const ROOM_IDLE_TIMEOUT_MS = 30 * 60 * 1_000;
+const RECONNECT_GRACE_MS = 60 * 1_000;
 const AVATAR_IDS = [
   "coelho",
   "gato",
@@ -29,6 +30,13 @@ const AVATAR_IDS = [
   "leao",
 ];
 const DEFAULT_AVATAR_ID = AVATAR_IDS[0];
+
+const getSessionToken = (payload) =>
+  typeof payload?.sessionToken === "string" &&
+  payload.sessionToken.trim().length >= 16 &&
+  payload.sessionToken.trim().length <= 128
+    ? payload.sessionToken.trim()
+    : randomUUID();
 
 const normalizePlayerProfile = (payload, playerIndex) => {
   const hasName = Object.prototype.hasOwnProperty.call(payload || {}, "name");
@@ -67,15 +75,18 @@ const shuffleArray = (array) => {
 };
 
 const emitRoomUpdated = (io, roomCode, room) => {
+  const connectedPlayers = room.players.filter(
+    (playerId) => !room.disconnectedPlayers?.has(playerId),
+  );
   io.to(roomCode).emit("room_updated", {
     roomCode,
-    playerCount: room.players.length,
+    playerCount: connectedPlayers.length,
     hostId: room.hostId,
     hostProfile: room.playerProfiles[room.hostId],
     isPrivate: room.isPrivate,
     schoolStage: room.schoolStage,
     started: room.started,
-    players: room.players.map((playerId) => ({
+    players: connectedPlayers.map((playerId) => ({
       playerId,
       ...room.playerProfiles[playerId],
     })),
@@ -172,6 +183,93 @@ function attachLobbyHandlers(
     room.expirationTimer?.unref?.();
   };
 
+  const replacePlayerId = (room, oldPlayerId, newPlayerId) => {
+    room.players = room.players.map((playerId) =>
+      playerId === oldPlayerId ? newPlayerId : playerId,
+    );
+    if (room.hostId === oldPlayerId) {
+      room.hostId = newPlayerId;
+    }
+    room.playerProfiles[newPlayerId] = room.playerProfiles[oldPlayerId];
+    delete room.playerProfiles[oldPlayerId];
+    if (room.playerConditions) {
+      room.playerConditions[newPlayerId] = room.playerConditions[oldPlayerId];
+      delete room.playerConditions[oldPlayerId];
+    }
+    for (const [sessionToken, playerId] of Object.entries(room.sessionTokens)) {
+      if (playerId === oldPlayerId) {
+        room.sessionTokens[sessionToken] = newPlayerId;
+      }
+    }
+
+    if (room.gameState) {
+      room.gameState.turnOrder = room.gameState.turnOrder.map((playerId) =>
+        playerId === oldPlayerId ? newPlayerId : playerId,
+      );
+      room.gameState.positions[newPlayerId] = room.gameState.positions[oldPlayerId];
+      room.gameState.quizPoints[newPlayerId] =
+        room.gameState.quizPoints[oldPlayerId];
+      delete room.gameState.positions[oldPlayerId];
+      delete room.gameState.quizPoints[oldPlayerId];
+      if (room.gameState.obstaclePending?.playerId === oldPlayerId) {
+        room.gameState.obstaclePending.playerId = newPlayerId;
+      }
+    }
+
+    if (room.quizRound) {
+      room.quizRound.participants = room.quizRound.participants.map((playerId) =>
+        playerId === oldPlayerId ? newPlayerId : playerId,
+      );
+      if (room.quizRound.answers.has(oldPlayerId)) {
+        room.quizRound.answers.set(
+          newPlayerId,
+          room.quizRound.answers.get(oldPlayerId),
+        );
+        room.quizRound.answers.delete(oldPlayerId);
+      }
+      if (room.quizRound.disconnected.delete(oldPlayerId)) {
+        room.quizRound.disconnected.add(newPlayerId);
+      }
+    }
+  };
+
+  const emitCurrentQuizQuestion = (io, room, playerId) => {
+    const round = room.quizRound;
+    if (
+      !round ||
+      round.status !== "active" ||
+      !round.questions ||
+      round.answers.has(playerId)
+    ) {
+      return;
+    }
+    const question = round.questions.get(playerId);
+    if (!question) {
+      return;
+    }
+    io.to(playerId).emit("quiz_question", {
+      quizId: round.quizId,
+      enunciado: question.enunciado,
+      alternativas: {
+        A: question.opcao_a,
+        B: question.opcao_b,
+        C: question.opcao_c,
+        D: question.opcao_d,
+      },
+      deadlineAt: round.deadlineAt,
+    });
+  };
+
+  const schedulePlayerRemoval = (roomCode, room, playerId) => {
+    const timer = setTimeoutFn(() => {
+      room.disconnectedPlayers.delete(playerId);
+      const socket = { id: playerId, leave: () => {} };
+      removeSocketFromRoom(socket);
+    }, RECONNECT_GRACE_MS);
+    room.disconnectedPlayers.set(playerId, timer);
+    timer?.unref?.();
+  };
+
   const removeSocketFromRoom = (socket, { notifyLobby = true } = {}) => {
     for (const [roomCode, room] of rooms.entries()) {
       const playerIndex = room.players.indexOf(socket.id);
@@ -179,6 +277,16 @@ function attachLobbyHandlers(
         continue;
       }
 
+      const disconnectTimer = room.disconnectedPlayers?.get(socket.id);
+      if (disconnectTimer !== undefined) {
+        clearTimeoutFn(disconnectTimer);
+        room.disconnectedPlayers.delete(socket.id);
+      }
+      for (const [sessionToken, playerId] of Object.entries(room.sessionTokens)) {
+        if (playerId === socket.id) {
+          delete room.sessionTokens[sessionToken];
+        }
+      }
       room.players.splice(playerIndex, 1);
       delete room.playerProfiles[socket.id];
       if (room.quizRound) {
@@ -246,6 +354,10 @@ function attachLobbyHandlers(
       const room = {
         players: [socket.id],
         hostId: socket.id,
+        sessionTokens: {
+          [getSessionToken(payload)]: socket.id,
+        },
+        disconnectedPlayers: new Map(),
         isPrivate: payload?.isPrivate === true,
         schoolStage: null,
         started: false,
@@ -267,6 +379,7 @@ function attachLobbyHandlers(
         isPrivate: room.isPrivate,
         schoolStage: room.schoolStage,
         started: room.started,
+        sessionToken: Object.keys(room.sessionTokens)[0],
         players: [{ playerId: socket.id, ...room.playerProfiles[socket.id] }],
       });
       emitLobbyRooms(io, rooms);
@@ -310,8 +423,15 @@ function attachLobbyHandlers(
         return socket.emit("room_error", { message: profileResult.error });
       }
 
+      const sessionToken = getSessionToken(payload);
+      if (Object.prototype.hasOwnProperty.call(room.sessionTokens, sessionToken)) {
+        return socket.emit("room_error", {
+          message: "Essa sessão já está vinculada à sala.",
+        });
+      }
       room.players.push(socket.id);
       room.playerProfiles[socket.id] = profileResult.profile;
+      room.sessionTokens[sessionToken] = socket.id;
       scheduleRoomExpiration(roomCode, room);
       socket.join(roomCode);
 
@@ -322,9 +442,71 @@ function attachLobbyHandlers(
         hostId: room.hostId,
         schoolStage: room.schoolStage,
         started: room.started,
+        sessionToken,
       });
       emitRoomUpdated(io, roomCode, room);
       emitLobbyRooms(io, rooms);
+    });
+
+    socket.on("resume_room", (payload) => {
+      const roomCode =
+        typeof payload?.roomCode === "string"
+          ? payload.roomCode.trim().toUpperCase()
+          : "";
+      const sessionToken =
+        typeof payload?.sessionToken === "string"
+          ? payload.sessionToken.trim()
+          : "";
+      const room = rooms.get(roomCode);
+      const oldPlayerId = room?.sessionTokens?.[sessionToken];
+
+      if (!room || !oldPlayerId || !room.players.includes(oldPlayerId)) {
+        return socket.emit("room_error", {
+          message: "Não foi possível retomar esta sessão.",
+        });
+      }
+      if (room.gameState?.status === "finished") {
+        return socket.emit("room_error", {
+          message: "A partida já foi encerrada.",
+        });
+      }
+      if (room.players.includes(socket.id)) {
+        return socket.emit("room_error", {
+          message: "Este jogador já está conectado.",
+        });
+      }
+
+      const disconnectTimer = room.disconnectedPlayers.get(oldPlayerId);
+      if (disconnectTimer !== undefined) {
+        clearTimeoutFn(disconnectTimer);
+        room.disconnectedPlayers.delete(oldPlayerId);
+      }
+      replacePlayerId(room, oldPlayerId, socket.id);
+      room.sessionTokens[sessionToken] = socket.id;
+      socket.join(roomCode);
+
+      socket.emit("room_resumed", {
+        roomCode,
+        hostId: room.hostId,
+        schoolStage: room.schoolStage,
+        started: room.started,
+        condition: room.playerConditions?.[socket.id] ?? null,
+        players: room.players.map((playerId) => ({
+          playerId,
+          ...room.playerProfiles[playerId],
+        })),
+      });
+      emitRoomUpdated(io, roomCode, room);
+      if (room.gameState) {
+        socket.emit("game_state_updated", getPublicGameState(room.gameState));
+        if (room.gameState.status === "paused" && room.gameState.obstaclePending) {
+          socket.emit("obstacle_pending", {
+            ...room.gameState.obstaclePending,
+            round: room.gameState.round,
+          });
+        }
+      }
+      emitCurrentQuizQuestion(io, room, socket.id);
     });
 
     socket.on("set_school_stage", (payload) => {
@@ -582,6 +764,37 @@ function attachLobbyHandlers(
 
     socket.on("disconnect", () => {
       console.log("Jogador desconectado:", socket.id);
+      const roomEntry = [...rooms.entries()].find(([, room]) =>
+        room.players.includes(socket.id),
+      );
+      const room = roomEntry?.[1];
+      if (
+        room?.started &&
+        room.gameState &&
+        room.gameState.status !== "finished"
+      ) {
+        if (room.quizRound) {
+          room.quizRound.disconnected.add(socket.id);
+        }
+        if (
+          !room.quizRound &&
+          room.gameState.obstaclePending?.playerId === socket.id
+        ) {
+          completeObstaclePause(room.gameState);
+          io.to(roomEntry[0]).emit(
+            "game_state_updated",
+            getPublicGameState(room.gameState),
+          );
+        }
+        schedulePlayerRemoval(roomEntry[0], room, socket.id);
+        emitRoomUpdated(io, roomEntry[0], room);
+        if (room.disconnectedPlayers.size === room.players.length) {
+          for (const playerId of [...room.players]) {
+            removeSocketFromRoom({ id: playerId, leave: () => {} });
+          }
+        }
+        return;
+      }
       removeSocketFromRoom(socket);
     });
   });
@@ -738,6 +951,7 @@ function attachLobbyHandlers(
           .filter(
             ([playerId, answer]) =>
               room.players.includes(playerId) &&
+              !round.disconnected.has(playerId) &&
               answer.alternativa ===
                 round.questions.get(playerId).resposta_correta,
           )
@@ -785,7 +999,12 @@ function attachLobbyHandlers(
     room.quizRound = null;
 
     for (const playerId of round.disconnected) {
-      removePlayerFromGame(room.gameState, playerId);
+      if (room.players.includes(playerId)) {
+        removeSocketFromRoom(
+          { id: playerId, leave: () => {} },
+          { notifyLobby: false },
+        );
+      }
     }
     if (room.gameState.status === "paused") {
       completeObstaclePause(room.gameState);
@@ -805,7 +1024,9 @@ function attachLobbyHandlers(
 const allConnectedParticipantsAnswered = (room, round) =>
   round.participants.every(
     (playerId) =>
-      !room.players.includes(playerId) || round.answers.has(playerId),
+      !room.players.includes(playerId) ||
+      round.disconnected.has(playerId) ||
+      round.answers.has(playerId),
   );
 
 const clearQuizRound = (round, clearTimeoutFn) => {
@@ -820,4 +1041,5 @@ module.exports = {
   MAX_PLAYERS,
   MIN_PLAYERS,
   ROOM_IDLE_TIMEOUT_MS,
+  RECONNECT_GRACE_MS,
 };

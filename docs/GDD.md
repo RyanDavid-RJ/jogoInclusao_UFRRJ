@@ -107,7 +107,7 @@ casas, com obstáculos em 7, 14, 21 e 28 e Impulso (+2 casas) em 5, 10, 15,
 20 e 25, também foi integrado com a nova API REST de perguntas
 (`GET/POST /api/perguntas`). Os cenários de deadline,
 `QUESTIONS_UNAVAILABLE`/`quiz_error`, explicação nula, fim por posição/limite,
-desconexão e perfil público/pós-jogo estão cobertos pelos **64 testes**
+desconexão e perfil público/pós-jogo estão cobertos pelos **65 testes**
 automatizados do backend. TypeScript e lint passaram. A validação no Expo Go
 permanece pendente. Reconexão e recuperação após reinício ainda não fazem parte
 do MVP porque o estado ativo fica em memória no backend.
@@ -117,7 +117,7 @@ do MVP porque o estado ativo fica em memória no backend.
 ## Atualização documental — 2026-11-16
 
 Os registros históricos desta seção preservam os números das validações feitas
-em cada etapa. A validação mais recente passou 64/64 testes do backend, além de
+em cada etapa. A validação mais recente passou 65/65 testes do backend, além de
 TypeScript e lint do frontend. O MVP web está publicado na Vercel, com o
 backend no Render; a validação nativa no Expo Go e a reconexão após queda ainda
 estão pendentes. Para o estado consolidado e o roadmap, consulte
@@ -144,8 +144,8 @@ estão pendentes. Para o estado consolidado e o roadmap, consulte
 
 ### Done
 
-- [x]  **Fase 2 — Interface Duo-Equidade, Trilha Sinuosa de Obstáculos e Tela de Revelação Pós-Jogo no Frontend:** polimento visual aplicado em `frontend/src/app/index.tsx`, com ajuste de inicialização em `backend/package.json`; contrato Socket.IO e regras do motor preservados. Validação aprovada: 64 testes backend, TypeScript e lint.
-- [x]  **Expansão do Ludo Equidade:** tabuleiro com 30 casas, obstáculos em 7, 14, 21 e 28, Impulso (+2 casas) em 5, 10, 15, 20 e 25, chegada na casa 30 e API REST `GET/POST /api/perguntas`. Validação aprovada: 64 testes backend.
+- [x]  **Fase 2 — Interface Duo-Equidade, Trilha Sinuosa de Obstáculos e Tela de Revelação Pós-Jogo no Frontend:** polimento visual aplicado em `frontend/src/app/index.tsx`, com ajuste de inicialização em `backend/package.json`; contrato Socket.IO e regras do motor preservados. Validação aprovada: 65 testes backend, TypeScript e lint.
+- [x]  **Expansão do Ludo Equidade:** tabuleiro com 30 casas, obstáculos em 7, 14, 21 e 28, Impulso (+2 casas) em 5, 10, 15, 20 e 25, chegada na casa 30 e API REST `GET/POST /api/perguntas`. Validação aprovada: 65 testes backend.
 
 - [x]  Monorepo inicial separado em `backend/` e `frontend/`.
 - [x]  Frontend inicial configurado com React Native, Expo e Expo Router, incluindo dependência do cliente Socket.IO.

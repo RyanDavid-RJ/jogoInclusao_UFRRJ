@@ -35,8 +35,15 @@ type RoomEvent = {
   roomCode: string;
   hostId: string;
   schoolStage: SchoolStage | null;
+  sessionToken?: string;
+  condition?: string | null;
+  started?: boolean;
   players?: PlayerProfile[];
 };
+
+const createSessionToken = () =>
+  globalThis.crypto?.randomUUID?.() ??
+  `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 
 export default function IndexScreen() {
   const { width } = useWindowDimensions();
@@ -44,6 +51,9 @@ export default function IndexScreen() {
   const isDesktop = width >= 900;
   const socketRef = useRef<Socket | null>(null);
   const quizLockRef = useRef(false);
+  const roomCodeRef = useRef("");
+  const sessionTokenRef = useRef<string>(createSessionToken());
+  const resumeRequestedRef = useRef(false);
 
   const [isLoaded, setIsLoaded] = useState(false);
   const [connectionWaitTime, setConnectionWaitTime] = useState(0);
@@ -103,15 +113,23 @@ export default function IndexScreen() {
     socket.on("connect", () => {
       setIsConnected(true);
       setErrorMessage("");
-      socket.emit("list_rooms");
+      if (roomCodeRef.current) {
+        resumeRequestedRef.current = true;
+        socket.emit("resume_room", {
+          roomCode: roomCodeRef.current,
+          sessionToken: sessionTokenRef.current,
+        });
+      } else {
+        socket.emit("list_rooms");
+      }
     });
     socket.on("disconnect", () => {
       setIsConnected(false);
-      setIsInRoom(false);
-      setRoomCode("");
-      setPlayers([]);
-      setErrorMessage("Conexão perdida com o servidor. Tente novamente.");
-      clearGame();
+      setErrorMessage(
+        roomCodeRef.current
+          ? "Conexão perdida. Tentando retomar sua sessão..."
+          : "Conexão perdida com o servidor. Tente novamente.",
+      );
     });
     socket.on(
       "rooms_updated",
@@ -138,6 +156,8 @@ export default function IndexScreen() {
     socket.on("room_created", (data: RoomEvent) => {
       setIsInRoom(true);
       setViewState("waiting_room");
+      roomCodeRef.current = data.roomCode;
+      if (data.sessionToken) sessionTokenRef.current = data.sessionToken;
       setRoomCode(data.roomCode);
       setHostId(data.hostId);
       setSchoolStage(data.schoolStage);
@@ -147,11 +167,25 @@ export default function IndexScreen() {
     socket.on("room_joined", (data: RoomEvent) => {
       setIsInRoom(true);
       setViewState("waiting_room");
+      roomCodeRef.current = data.roomCode;
+      if (data.sessionToken) sessionTokenRef.current = data.sessionToken;
       setRoomCode(data.roomCode);
       setHostId(data.hostId);
       setSchoolStage(data.schoolStage);
       if (data.players) setPlayers(data.players);
       clearGame();
+    });
+    socket.on("room_resumed", (data: RoomEvent) => {
+      resumeRequestedRef.current = false;
+      setIsInRoom(true);
+      setViewState("waiting_room");
+      roomCodeRef.current = data.roomCode;
+      setRoomCode(data.roomCode);
+      setHostId(data.hostId);
+      setSchoolStage(data.schoolStage);
+      if (data.players) setPlayers(data.players);
+      if (data.condition) setMyCondition(data.condition);
+      setErrorMessage("");
     });
     socket.on("room_updated", (data: RoomEvent) => {
       setHostId(data.hostId);
@@ -159,22 +193,35 @@ export default function IndexScreen() {
       if (data.players) setPlayers(data.players);
     });
     socket.on("room_left", () => {
+      resumeRequestedRef.current = false;
       setIsInRoom(false);
       setViewState("home");
+      roomCodeRef.current = "";
       setRoomCode("");
       setPlayers([]);
       setErrorMessage("");
       clearGame();
     });
     socket.on("room_closed", () => {
+      resumeRequestedRef.current = false;
       setIsInRoom(false);
       setViewState("home");
+      roomCodeRef.current = "";
       setRoomCode("");
       setPlayers([]);
       setErrorMessage("A sala foi encerrada pelo anfitrião.");
       clearGame();
     });
     socket.on("room_error", ({ message }: { message: string }) => {
+      if (resumeRequestedRef.current) {
+        resumeRequestedRef.current = false;
+        roomCodeRef.current = "";
+        setIsInRoom(false);
+        setViewState("home");
+        setRoomCode("");
+        setPlayers([]);
+        clearGame();
+      }
       setErrorMessage(message || "Não foi possível concluir a operação da sala.");
     });
     socket.on("game_started", ({ condition }: { condition: string }) => {
@@ -248,7 +295,12 @@ export default function IndexScreen() {
       return;
     }
     setErrorMessage("");
-    emit("create_room", { name: playerName.trim(), avatarId, isPrivate: false });
+    emit("create_room", {
+      name: playerName.trim(),
+      avatarId,
+      isPrivate: false,
+      sessionToken: sessionTokenRef.current,
+    });
   };
   const joinRoom = (code: string) => {
     if (!validName) {
@@ -264,6 +316,7 @@ export default function IndexScreen() {
       roomCode: code.trim().toUpperCase(),
       name: playerName.trim(),
       avatarId,
+      sessionToken: sessionTokenRef.current,
     });
   };
   const submitQuiz = (answer: QuizAnswer) => {
@@ -337,6 +390,7 @@ export default function IndexScreen() {
           onLeaveRoom={() => {
             socketRef.current?.emit("leave_room");
             setIsInRoom(false);
+            roomCodeRef.current = "";
             setGameState(null);
             setRoomCode("");
           }}
@@ -344,6 +398,7 @@ export default function IndexScreen() {
           onBackToHome={() => {
             if (isInRoom) emit("leave_room");
             setIsInRoom(false);
+            roomCodeRef.current = "";
             setViewState("home");
           }}
           palette={palette}

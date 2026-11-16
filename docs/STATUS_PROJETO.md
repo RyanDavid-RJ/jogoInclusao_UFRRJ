@@ -83,7 +83,7 @@ ciclo.
 
 ## 3. Evidências de validação
 
-Em 2026-11-16, a suíte do backend foi executada com **64 testes aprovados**.
+Em 2026-11-16, a suíte do backend foi executada com **65 testes aprovados**.
 Também foram aprovados:
 
 - `npx tsc --noEmit` no frontend;
@@ -106,7 +106,8 @@ partida, mas as salas e o estado do jogo ficam em memória no processo Node.js.
 Consequências conhecidas:
 
 - reinício ou novo deploy do Render encerra as partidas ativas;
-- ainda não existe retomada automática após queda de conexão;
+- quedas transitórias podem ser retomadas por até 60 segundos;
+- reinício ou novo deploy não pode ser retomado porque o estado permanece em memória;
 - salas de espera inativas são encerradas automaticamente após 30 minutos;
 - múltiplas instâncias do backend não devem ser usadas sem estado compartilhado;
 - o banco contém um conjunto inicial pequeno de perguntas;
@@ -136,7 +137,6 @@ Consequências conhecidas:
 
 ### Evolução de produção
 
-- Implementar reconexão e retomada de sessão.
 - Usar Redis/Socket.IO Adapter se houver mais de uma instância.
 - Adicionar limites de frequência e proteção contra abuso.
 - Criar credencial de banco específica para a aplicação, com privilégios
