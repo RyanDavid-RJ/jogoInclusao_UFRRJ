@@ -1,8 +1,9 @@
 const { randomInt: secureRandomInt } = require("node:crypto");
 
-const FINISH_POSITION = 20;
+const FINISH_POSITION = 30;
 const MAX_ROUNDS = 8;
-const OBSTACLE_POSITIONS = new Set([4, 8, 12, 16]);
+const OBSTACLE_POSITIONS = new Set([7, 14, 21, 28]);
+const BONUS_POSITIONS = new Set([5, 10, 15, 20, 25]);
 
 const createGameState = (playerIds, randomInt = secureRandomInt) => {
   const turnOrder = [...playerIds];
@@ -73,10 +74,13 @@ const rollDice = (gameState, randomInt = secureRandomInt) => {
 
   const playerId = gameState.turnOrder[gameState.currentTurnIndex];
   const result = randomInt(1, 7);
-  const newPosition = Math.min(
+  const landedPosition = Math.min(
     FINISH_POSITION,
     gameState.positions[playerId] + result,
   );
+  const newPosition = BONUS_POSITIONS.has(landedPosition)
+    ? Math.min(FINISH_POSITION, landedPosition + 2)
+    : landedPosition;
 
   gameState.diceResult = result;
   gameState.positions[playerId] = newPosition;
@@ -86,9 +90,9 @@ const rollDice = (gameState, randomInt = secureRandomInt) => {
     return { accepted: true, playerId, landedOnObstacle: false, gameOver: true };
   }
 
-  if (OBSTACLE_POSITIONS.has(newPosition)) {
+  if (OBSTACLE_POSITIONS.has(landedPosition)) {
     gameState.status = "paused";
-    gameState.obstaclePending = { playerId, position: newPosition };
+    gameState.obstaclePending = { playerId, position: landedPosition };
     return { accepted: true, playerId, landedOnObstacle: true, gameOver: false };
   }
 

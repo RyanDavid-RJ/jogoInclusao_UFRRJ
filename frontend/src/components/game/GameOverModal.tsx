@@ -16,7 +16,7 @@ import {
 } from "../../constants/duoTheme";
 import { AvatarMedallion, DuoButton, DuoCard } from "../ui/DuoComponents";
 
-const FINISH_HOUSE = 20;
+const FINISH_HOUSE = 30;
 
 /* ------------------------------------------------------------------ */
 /* Props                                                               */

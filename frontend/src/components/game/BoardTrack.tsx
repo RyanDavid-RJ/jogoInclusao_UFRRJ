@@ -7,6 +7,7 @@ import { StyleSheet, Text, View } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 
 import {
+  BONUS_META,
   OBSTACLE_META,
   getPlayerMarker,
   type PlayerProfile,
@@ -18,10 +19,10 @@ import { AvatarMedallion } from "../ui/DuoComponents";
 /* Configuração estática do tabuleiro                                  */
 /* ------------------------------------------------------------------ */
 
-const TOTAL_HOUSES = 21;
+const TOTAL_HOUSES = 31;
 const HOUSES_PER_ROW = 3;
-const TOTAL_ROWS = Math.ceil(TOTAL_HOUSES / HOUSES_PER_ROW); // 7
-const FINISH_HOUSE = TOTAL_HOUSES - 1; // 20
+const TOTAL_ROWS = Math.ceil(TOTAL_HOUSES / HOUSES_PER_ROW); // 11
+const FINISH_HOUSE = TOTAL_HOUSES - 1; // 30
 const START_HOUSE = 0;
 
 interface CellData {
@@ -115,6 +116,7 @@ export function BoardTrack({
         <View key={`row-${rowIndex}`} style={styles.row}>
           {rowCells.map((cell) => {
             const obstacle = OBSTACLE_META[cell.house];
+            const bonus = BONUS_META[cell.house];
             const isStart = cell.house === START_HOUSE;
             const isFinish = cell.house === FINISH_HOUSE;
             const isObstacle = Boolean(obstacle);
@@ -130,6 +132,9 @@ export function BoardTrack({
             } else if (isObstacle) {
               bgColor = palette.warningBg;
               borderColor = palette.warningBorder;
+            } else if (bonus) {
+              bgColor = palette.surfaceAlt;
+              borderColor = palette.primaryBorder;
             } else if (isFinish) {
               bgColor = palette.surfaceAlt;
               borderColor = palette.primaryBorder;
@@ -181,6 +186,19 @@ export function BoardTrack({
                         numberOfLines={2}
                       >
                         {obstacle.title}
+                      </Text>
+                    </>
+                  ) : bonus ? (
+                    <>
+                      <Text style={styles.bonusIcon}>{bonus.icon}</Text>
+                      <Text
+                        style={[
+                          styles.bonusTitle,
+                          { color: palette.textMain },
+                        ]}
+                        numberOfLines={2}
+                      >
+                        {bonus.title}
                       </Text>
                     </>
                   ) : isFinish ? (
@@ -283,6 +301,17 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   obstacleTitle: {
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.2,
+    textAlign: "center",
+  },
+  bonusIcon: {
+    fontSize: 20,
+    lineHeight: 24,
+    textAlign: "center",
+  },
+  bonusTitle: {
     fontSize: 10,
     fontWeight: "800",
     letterSpacing: 0.2,

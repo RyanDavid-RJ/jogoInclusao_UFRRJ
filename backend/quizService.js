@@ -1,20 +1,27 @@
 const OBSTACLES = {
-  4: {
+  7: {
     name: "escada",
     levels: { cadeirante: 3, surdo: 1, cego: 2, neuroatipico: 1 },
   },
-  8: {
+  14: {
     name: "alerta_sonoro",
     levels: { cadeirante: 1, surdo: 3, cego: 1, neuroatipico: 2 },
   },
-  12: {
+  21: {
     name: "multidao_barulho",
     levels: { cadeirante: 1, surdo: 1, cego: 2, neuroatipico: 3 },
   },
-  16: {
+  28: {
     name: "placa_ilegivel",
     levels: { cadeirante: 1, surdo: 1, cego: 3, neuroatipico: 1 },
   },
+};
+
+const LEGACY_OBSTACLE_ALIASES = {
+  4: 7,
+  8: 14,
+  12: 21,
+  16: 28,
 };
 
 const ANSWERS = new Set(["A", "B", "C", "D"]);
@@ -26,7 +33,8 @@ class QuizQuestionsUnavailableError extends Error {
   }
 }
 
-const getObstacleForPosition = (position) => OBSTACLES[position] ?? null;
+const getObstacleForPosition = (position) =>
+  OBSTACLES[LEGACY_OBSTACLE_ALIASES[position] ?? position] ?? null;
 
 const getStructuralLevel = (position, condition) =>
   getObstacleForPosition(position)?.levels[condition] ?? null;

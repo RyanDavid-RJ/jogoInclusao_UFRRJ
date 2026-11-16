@@ -24,7 +24,7 @@ export interface PlayersSidebarProps {
   palette: ThemePalette;
 }
 
-const FINISH_HOUSE = 20;
+const FINISH_HOUSE = 30;
 
 /* ------------------------------------------------------------------ */
 /* Componente                                                          */

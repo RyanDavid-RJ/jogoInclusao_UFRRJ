@@ -128,7 +128,7 @@ const createQuizFixture = async (t, { findRandomQuestion } = {}) => {
   attachLobbyHandlers(io, rooms, {
     quizService,
     createQuizId: () => "integration-quiz",
-    randomInt: (minimum) => (minimum === 1 ? 4 : minimum),
+    randomInt: (minimum) => (minimum === 1 ? 6 : minimum),
     now: () => now,
     setTimeoutFn(callback, delay) {
       const timer = { callback, delay, cleared: false };
@@ -232,6 +232,7 @@ const createQuizFixture = async (t, { findRandomQuestion } = {}) => {
         "game_state_updated",
         (state) => state.status === "paused",
       );
+      rooms.get(roomCode).gameState.positions[currentPlayer.id] = 1;
       currentPlayer.emit("roll_dice", { roomCode });
       await Promise.all([obstacleEvent, pausedStateEvent]);
       return questionEvents ? questionEvents : [];
@@ -277,7 +278,7 @@ test("runs a private quiz round over real Socket.IO clients", async (t) => {
   attachLobbyHandlers(io, rooms, {
     quizService,
     createQuizId: () => "integration-quiz",
-    randomInt: (minimum) => (minimum === 1 ? 4 : minimum),
+    randomInt: (minimum) => (minimum === 1 ? 6 : minimum),
   });
 
   await new Promise((resolve, reject) => {
@@ -369,15 +370,16 @@ test("runs a private quiz round over real Socket.IO clients", async (t) => {
     "game_state_updated",
     (state) => state.status === "paused",
   );
+  rooms.get(roomCode).gameState.positions[currentPlayer.id] = 1;
   currentPlayer.emit("roll_dice", { roomCode });
 
   const [obstaclePending, pausedState] = await Promise.all([
     obstaclePendingEvent,
     pausedStateEvent,
   ]);
-  assert.equal(obstaclePending.position, 4);
+  assert.equal(obstaclePending.position, 7);
   assert.equal(pausedState.status, "paused");
-  assert.equal(pausedState.positions[currentPlayer.id], 4);
+  assert.equal(pausedState.positions[currentPlayer.id], 7);
 
   const questions = await Promise.all(privateQuestionEvents);
   const expectedLevels = new Map(
@@ -477,7 +479,7 @@ test("runs a private quiz round over real Socket.IO clients", async (t) => {
     false,
   );
   assert.equal(finalStates.every((state) => state.status === "active"), true);
-  assert.equal(finalStates[0].positions[currentPlayer.id], 4);
+  assert.equal(finalStates[0].positions[currentPlayer.id], 7);
   assert.equal(finalStates[0].currentPlayerId, nextPlayer.id);
   assert.equal(rooms.get(roomCode).gameState.status, "active");
 });
@@ -497,7 +499,7 @@ test("keeps roles private during play and reveals them only after game over", as
     true,
   );
 
-  room.gameState.positions[fixture.currentPlayer.id] = 19;
+  room.gameState.positions[fixture.currentPlayer.id] = 29;
   const gameOverEvents = fixture.players.map((player) =>
     waitForEvent(player, "game_over"),
   );

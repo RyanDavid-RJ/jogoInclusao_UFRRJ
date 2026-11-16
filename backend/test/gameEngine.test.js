@@ -51,13 +51,13 @@ test("moves normally and advances the current turn", () => {
   assert.equal(gameState.diceResult, 3);
 });
 
-test("caps movement at 20 and declares the winner immediately", () => {
+test("caps movement at 30 and declares the winner immediately", () => {
   const gameState = createState();
-  gameState.positions.p1 = 18;
+  gameState.positions.p1 = 28;
 
   const result = rollDice(gameState, diceSequence([6]));
 
-  assert.equal(gameState.positions.p1, 20);
+  assert.equal(gameState.positions.p1, 30);
   assert.equal(gameState.status, "finished");
   assert.deepEqual(gameState.winners, ["p1"]);
   assert.equal(result.gameOver, true);
@@ -65,26 +65,27 @@ test("caps movement at 20 and declares the winner immediately", () => {
 
 test("pauses only when a roll lands exactly on an obstacle", () => {
   const landed = createState();
-  landed.positions.p1 = 2;
-  const landedResult = rollDice(landed, diceSequence([2]));
+  landed.positions.p1 = 1;
+  const landedResult = rollDice(landed, diceSequence([6]));
 
   assert.equal(landedResult.landedOnObstacle, true);
   assert.equal(landed.status, "paused");
-  assert.deepEqual(landed.obstaclePending, { playerId: "p1", position: 4 });
+  assert.deepEqual(landed.obstaclePending, { playerId: "p1", position: 7 });
 
   const passed = createState();
   passed.positions.p1 = 3;
-  const passedResult = rollDice(passed, diceSequence([2]));
+  const passedResult = rollDice(passed, diceSequence([6]));
 
   assert.equal(passedResult.landedOnObstacle, false);
-  assert.equal(passed.positions.p1, 5);
+  assert.equal(passed.positions.p1, 9);
   assert.equal(passed.status, "active");
   assert.equal(passed.turnOrder[passed.currentTurnIndex], "p2");
 });
 
 test("completes an obstacle pause internally and advances the turn", () => {
   const gameState = createState();
-  const randomInt = diceSequence([4, 1]);
+  gameState.positions.p1 = 1;
+  const randomInt = diceSequence([6, 1]);
   const firstRoll = rollDice(gameState, randomInt);
   assert.equal(firstRoll.landedOnObstacle, true);
   assert.equal(rollDice(gameState, randomInt).accepted, false);
@@ -93,6 +94,19 @@ test("completes an obstacle pause internally and advances the turn", () => {
   assert.equal(gameState.status, "active");
   assert.equal(gameState.turnOrder[gameState.currentTurnIndex], "p2");
   assert.equal(completeObstaclePause(gameState), false);
+});
+
+test("advances two extra houses when landing on a bonus house", () => {
+  for (const bonusHouse of [5, 10, 15, 20, 25]) {
+    const gameState = createState();
+    gameState.positions.p1 = bonusHouse - 1;
+
+    const result = rollDice(gameState, diceSequence([1]));
+
+    assert.equal(result.accepted, true);
+    assert.equal(gameState.positions.p1, bonusHouse + 2);
+    assert.equal(gameState.status, "active");
+  }
 });
 
 test("ends after eight complete rounds and shares an unresolved tie", () => {

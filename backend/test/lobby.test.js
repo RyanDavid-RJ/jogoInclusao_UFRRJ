@@ -389,7 +389,7 @@ test("roll_dice authorizes only the current player in a valid started room", () 
 
   currentPlayer.clientEmit("roll_dice", {
     dice: 6,
-    position: 20,
+    position: 30,
     playerId: otherPlayer.id,
     condition: "cego",
     points: 999,
@@ -411,12 +411,13 @@ test("roll_dice rejects missing, invalid, unstarted, paused, and finished games"
   outsider.clientEmit("roll_dice", { roomCode: "XXXX" });
   assert.match(outsider.eventsFor("room_error").at(-1).payload.message, /Sala não encontrada/);
 
-  const values = [3, 2, 1, 4, 1];
+  const values = [3, 2, 1, 6, 1];
   const started = startLobbyGame((_minimum, _maximum) => values.shift());
   const gameState = started.rooms.get(started.roomCode).gameState;
   const currentPlayer = started.io.sockets.get(
     gameState.turnOrder[gameState.currentTurnIndex],
   );
+  gameState.positions[currentPlayer.id] = 1;
   await currentPlayer.clientEmit("roll_dice", { roomCode: started.roomCode });
   assert.equal(gameState.status, "paused");
   currentPlayer.clientEmit("roll_dice", { roomCode: started.roomCode });
@@ -426,7 +427,7 @@ test("roll_dice rejects missing, invalid, unstarted, paused, and finished games"
   assert.equal(gameState.status, "active");
 
   for (const playerId of gameState.turnOrder) {
-    gameState.positions[playerId] = 19;
+    gameState.positions[playerId] = 29;
   }
   const nextPlayer = started.io.sockets.get(
     gameState.turnOrder[gameState.currentTurnIndex],
@@ -454,7 +455,7 @@ test("initializes turn state after the existing start validations and emits a wi
   assert.deepEqual(room.gameState.turnOrder.slice().sort(), room.players.slice().sort());
 
   const winner = lobby.io.sockets.get(room.gameState.turnOrder[0]);
-  room.gameState.positions[winner.id] = 19;
+  room.gameState.positions[winner.id] = 29;
   winner.clientEmit("roll_dice", { roomCode: lobby.roomCode, dice: 1 });
 
   assert.deepEqual(lobby.io.emissions.at(-2).payload.positions, {
@@ -492,7 +493,7 @@ test("cleans up the finished room before creating a new room", () => {
   const lobby = startLobbyGame((_minimum, maximum) => maximum - 1);
   const room = lobby.rooms.get(lobby.roomCode);
   const winner = lobby.io.sockets.get(room.gameState.turnOrder[0]);
-  room.gameState.positions[winner.id] = 19;
+  room.gameState.positions[winner.id] = 29;
   winner.clientEmit("roll_dice", { roomCode: lobby.roomCode });
 
   winner.clientEmit("create_room");
@@ -507,10 +508,11 @@ test("cleans up the finished room before creating a new room", () => {
 });
 
 test("obstacle pause is released only after the simultaneous quiz ends", async () => {
-  const values = [3, 2, 1, 4, 1];
+  const values = [3, 2, 1, 6, 1];
   const lobby = startLobbyGame((_minimum, _maximum) => values.shift());
   const room = lobby.rooms.get(lobby.roomCode);
   const currentPlayer = lobby.io.sockets.get(room.gameState.turnOrder[0]);
+  room.gameState.positions[currentPlayer.id] = 1;
   await currentPlayer.clientEmit("roll_dice", { roomCode: lobby.roomCode });
 
   assert.equal(room.gameState.status, "paused");
@@ -570,7 +572,7 @@ test("starts question retrieval only for exact landings on the four obstacles", 
     },
   });
 
-  for (const position of [4, 8, 12, 16]) {
+  for (const position of [7, 14, 21, 28]) {
     const diceResult = Math.min(position, 6);
     let shuffleCalls = 0;
     const lobby = startLobbyGame(
@@ -616,14 +618,14 @@ test("starts question retrieval only for exact landings on the four obstacles", 
   room.gameState.positions[playerId] = 3;
   const socket = noObstacleLobby.io.sockets.get(playerId);
   await socket.clientEmit("roll_dice", { roomCode: noObstacleLobby.roomCode });
-  assert.equal(room.gameState.positions[playerId], 5);
+  assert.equal(room.gameState.positions[playerId], 7);
   assert.equal(room.quizRound, null);
   assert.equal(calls.length, 16);
 });
 
 test("sends simultaneous private questions without answers or other players' questions", async () => {
   const questionsByLevel = [];
-  const lobby = await startLobbyAtObstacle(4, {
+  const lobby = await startLobbyAtObstacle(7, {
     questionRepository: {
       async findRandomQuestion({ nivelEstrutural }) {
         questionsByLevel.push(nivelEstrutural);
@@ -671,7 +673,7 @@ test("sends simultaneous private questions without answers or other players' que
 });
 
 test("rejects invalid, stale, duplicate, nonparticipant, and expired answers", async () => {
-  const lobby = await startLobbyAtObstacle(4);
+  const lobby = await startLobbyAtObstacle(7);
   const { quizId } = lobby.room.quizRound;
   const player = lobby.players[0];
 
@@ -718,7 +720,7 @@ test("rejects invalid, stale, duplicate, nonparticipant, and expired answers", a
 });
 
 test("scores correct answers by server receipt order and gives wrong/timeout zero", async () => {
-  const lobby = await startLobbyAtObstacle(4);
+  const lobby = await startLobbyAtObstacle(7);
   const { quizId, participants } = lobby.room.quizRound;
   const [first, second, third] = participants;
 
@@ -763,7 +765,7 @@ test("scores correct answers by server receipt order and gives wrong/timeout zer
 });
 
 test("completes a round with null explanations and sends private results without explanation", async () => {
-  const lobby = await startLobbyAtObstacle(4, {
+  const lobby = await startLobbyAtObstacle(7, {
     questionRepository: {
       async findRandomQuestion() {
         return { ...question, explicacao: null };
@@ -830,7 +832,7 @@ test("completes a round with null explanations and sends private results without
 test("question or database failures send no partial questions, score nothing, and resume the game", async (t) => {
   await t.test("missing question", async () => {
     let queryCount = 0;
-    const lobby = await startLobbyAtObstacle(4, {
+    const lobby = await startLobbyAtObstacle(7, {
       questionRepository: {
         async findRandomQuestion() {
           queryCount += 1;
@@ -864,7 +866,7 @@ test("question or database failures send no partial questions, score nothing, an
     const logs = [];
     console.error = (...values) => logs.push(values.join(" "));
     try {
-      const lobby = await startLobbyAtObstacle(4, {
+      const lobby = await startLobbyAtObstacle(7, {
         questionRepository: {
           async findRandomQuestion() {
             throw new Error("sensitive SQL and credentials");
@@ -894,7 +896,7 @@ test("question or database failures send no partial questions, score nothing, an
 });
 
 test("keeps the fixed participant count after disconnection and completes when connected players answer", async () => {
-  const lobby = await startLobbyAtObstacle(4);
+  const lobby = await startLobbyAtObstacle(7);
   const room = lobby.room;
   const { quizId, participants } = room.quizRound;
   const disconnectedId = participants[0];
@@ -926,13 +928,13 @@ test("ends the match after the final obstacle pause reaches the round limit", as
       shuffleCalls += 1;
       return minimum;
     }
-    return 2;
+    return 6;
   });
   const room = lobby.rooms.get(lobby.roomCode);
   room.gameState.round = 8;
   room.gameState.currentTurnIndex = room.gameState.turnOrder.length - 1;
   const playerId = room.gameState.turnOrder[room.gameState.currentTurnIndex];
-  room.gameState.positions[playerId] = 2;
+  room.gameState.positions[playerId] = 1;
   await lobby.io.sockets.get(playerId).clientEmit("roll_dice", {
     roomCode: lobby.roomCode,
   });
@@ -947,7 +949,7 @@ test("ends the match after the final obstacle pause reaches the round limit", as
 });
 
 test("clears the quiz timer when every player disconnects and the room is removed", async () => {
-  const lobby = await startLobbyAtObstacle(4);
+  const lobby = await startLobbyAtObstacle(7);
   assert.equal(lobby.clock.timerCount, 1);
 
   for (const player of lobby.players) {
@@ -1000,7 +1002,7 @@ test("resumes a paused game when its pending player disconnects", () => {
   room.gameState.status = "paused";
   room.gameState.obstaclePending = {
     playerId: disconnectedPlayerId,
-    position: 4,
+    position: 7,
   };
 
   lobby.io.sockets.get(disconnectedPlayerId).clientEmit("disconnect");

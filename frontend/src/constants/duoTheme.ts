@@ -20,10 +20,18 @@ export const AVATAR_META: Record<string, { label: string; emoji: string; color: 
 };
 
 export const OBSTACLE_META: Record<number, { title: string; domain: string; icon: string; description: string }> = {
-  4: { title: "Escada", domain: "Mobilidade", icon: "🪜", description: "Barreira arquitetônica no percurso." },
-  8: { title: "Alerta Sonoro", domain: "Audição", icon: "🔔", description: "Aviso emitido apenas por sinal sonoro." },
-  12: { title: "Multidão e Barulho", domain: "Sensorial", icon: "📢", description: "Ambiente com sobrecarga de estímulos." },
-  16: { title: "Placa Ilegível", domain: "Visão", icon: "🪧", description: "Sinalização sem contraste ou leitura tátil." },
+  7: { title: "Escada", domain: "Mobilidade", icon: "🪜", description: "Barreira arquitetônica no percurso." },
+  14: { title: "Alerta Sonoro", domain: "Audição", icon: "🔔", description: "Aviso emitido apenas por sinal sonoro." },
+  21: { title: "Multidão e Barulho", domain: "Sensorial", icon: "📢", description: "Ambiente com sobrecarga de estímulos." },
+  28: { title: "Placa Ilegível", domain: "Visão", icon: "🪧", description: "Sinalização sem contraste ou leitura tátil." },
+};
+
+export const BONUS_META: Record<number, { title: string; icon: string }> = {
+  5: { title: "Impulso", icon: "🚀" },
+  10: { title: "Impulso", icon: "🚀" },
+  15: { title: "Impulso", icon: "🚀" },
+  20: { title: "Impulso", icon: "🚀" },
+  25: { title: "Impulso", icon: "🚀" },
 };
 
 export const CONDITION_META: Record<string, { label: string; personaIcon: string; summary: string; color: string; bgTint: string }> = {
