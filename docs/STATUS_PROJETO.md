@@ -1,6 +1,6 @@
 # Status do Projeto — Ludo Equidade
 
-**Atualizado em:** 2026-11-15  
+**Atualizado em:** 2026-11-16
 **Estado:** MVP web funcional em piloto controlado
 
 ## 1. O que queríamos construir
@@ -68,6 +68,11 @@ fora do primeiro ciclo.
 ### Interface e publicação
 
 - Frontend Expo/React Native exportado para web.
+- Lobby responsivo com criação, lista pública e entrada por código funcionando
+  em fluxos separados.
+- Tema claro/escuro, modo daltônico, feedback de conexão e avisos dispensáveis.
+- Tabuleiro, ranking, quiz, revelação final e controles com rótulos de
+  acessibilidade.
 - Backend Node.js/Express/Socket.IO publicado no Render.
 - Frontend publicado na Vercel em:
   <https://jogoinclusaoufrrj.vercel.app/>
@@ -76,11 +81,12 @@ fora do primeiro ciclo.
 
 ## 3. Evidências de validação
 
-Em 2026-11-15, a suíte do backend foi executada com **62 testes aprovados**.
+Em 2026-11-16, a suíte do backend foi executada com **62 testes aprovados**.
 Também foram aprovados:
 
 - `npx tsc --noEmit` no frontend;
 - `npm run lint` no frontend;
+- `npm run build:web` no frontend;
 - validação manual multiplayer no Expo Web com quatro jogadores;
 - perguntas privadas, respostas, prazo, pausa e retomada do turno;
 - autorização da rolagem somente para o jogador correto;
@@ -114,7 +120,8 @@ Consequências conhecidas:
 - Definir expiração para salas abandonadas.
 - Testar queda e retorno do navegador.
 - Validar o fluxo em celular Android e iOS.
-- Testar visualmente timeout, erro do quiz, explicação ausente e fim de jogo.
+- Testar visualmente timeout, erro do quiz, explicação ausente e fim de jogo
+  em navegador e dispositivo móvel.
 
 ### Etapa seguinte — conteúdo e acessibilidade
 

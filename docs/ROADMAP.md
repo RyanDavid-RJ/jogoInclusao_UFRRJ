@@ -15,8 +15,11 @@ reduzem riscos técnicos e pedagógicos.
 - [x] Partida, turnos, obstáculos e fim.
 - [x] Quiz individual e simultâneo.
 - [x] Papéis privados e revelação final.
+- [x] Lobby visual responsivo com lista pública e entrada por código.
+- [x] Tema claro/escuro, modo daltônico e feedback de erros/conexão.
 - [x] 62 testes backend aprovados.
 - [x] TypeScript e lint aprovados.
+- [x] Export web de produção aprovado.
 - [x] Teste manual com quatro jogadores.
 
 ## Fase 1 — Confiabilidade do piloto

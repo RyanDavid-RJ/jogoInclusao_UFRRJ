@@ -27,10 +27,13 @@ TypeScript e `socket.io-client`.
 
 Responsabilidades:
 
-- exibir splash, perfil, lobby, sala, tabuleiro, quiz e resultado;
+- exibir splash, perfil, lobby público/privado, sala, tabuleiro, quiz e
+  resultado;
 - abrir a conexão Socket.IO;
 - mostrar somente as ações permitidas pelo estado recebido;
 - enviar criação/entrada de sala, escolha da etapa, início, rolagem e resposta;
+- apresentar erros de sala e conexão sem ocultar falhas de operação;
+- oferecer tema claro/escuro e modo daltônico sem alterar as regras do jogo;
 - limpar o estado local quando a conexão é encerrada;
 - nunca decidir o gabarito ou a pontuação.
 

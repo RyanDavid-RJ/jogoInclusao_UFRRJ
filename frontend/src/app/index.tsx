@@ -24,12 +24,12 @@ import { QuizModal } from "../components/game/QuizModal";
 import { HomeView } from "../components/lobby/HomeView";
 import { RoomsView } from "../components/lobby/RoomsView";
 import { SplashView } from "../components/lobby/SplashView";
-import { TopHeader } from "../components/ui/DuoComponents";
+import { ErrorBanner, TopHeader } from "../components/ui/DuoComponents";
 
 const SERVER_URL =
   process.env.EXPO_PUBLIC_SERVER_URL || "http://localhost:3000";
 
-type ViewState = "public_list" | "private_join" | "waiting_room";
+type ViewState = "home" | "public_list" | "private_join" | "waiting_room";
 type RoomEvent = {
   roomCode: string;
   hostId: string;
@@ -51,7 +51,7 @@ export default function IndexScreen() {
   const palette = getThemePalette(themeMode, isDaltonico);
 
   const [isInRoom, setIsInRoom] = useState(false);
-  const [viewState, setViewState] = useState<ViewState>("waiting_room");
+  const [viewState, setViewState] = useState<ViewState>("home");
   const [roomCode, setRoomCode] = useState("");
   const [playerName, setPlayerName] = useState("");
   const [avatarId, setAvatarId] = useState("coelho");
@@ -59,6 +59,7 @@ export default function IndexScreen() {
   const [hostId, setHostId] = useState("");
   const [schoolStage, setSchoolStage] = useState<SchoolStage | null>(null);
   const [publicRooms, setPublicRooms] = useState<PublicRoomSummary[]>([]);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const [myCondition, setMyCondition] = useState<string | null>(null);
   const [gameState, setGameState] = useState<PublicGameState | null>(null);
@@ -99,6 +100,7 @@ export default function IndexScreen() {
 
     socket.on("connect", () => {
       setIsConnected(true);
+      setErrorMessage("");
       socket.emit("list_rooms");
     });
     socket.on("disconnect", () => {
@@ -106,6 +108,7 @@ export default function IndexScreen() {
       setIsInRoom(false);
       setRoomCode("");
       setPlayers([]);
+      setErrorMessage("Conexão perdida com o servidor. Tente novamente.");
       clearGame();
     });
     socket.on(
@@ -155,15 +158,22 @@ export default function IndexScreen() {
     });
     socket.on("room_left", () => {
       setIsInRoom(false);
+      setViewState("home");
       setRoomCode("");
       setPlayers([]);
+      setErrorMessage("");
       clearGame();
     });
     socket.on("room_closed", () => {
       setIsInRoom(false);
+      setViewState("home");
       setRoomCode("");
       setPlayers([]);
+      setErrorMessage("A sala foi encerrada pelo anfitrião.");
       clearGame();
+    });
+    socket.on("room_error", ({ message }: { message: string }) => {
+      setErrorMessage(message || "Não foi possível concluir a operação da sala.");
     });
     socket.on("game_started", ({ condition }: { condition: string }) => {
       setMyCondition(condition);
@@ -228,14 +238,26 @@ export default function IndexScreen() {
   const ownPlayerId = socketRef.current?.id ?? "";
   const emit = (event: string, payload?: object) =>
     socketRef.current?.emit(event, payload);
-  const validName = playerName.trim().length >= 1 && playerName.trim().length <= 16;
+  const validName = playerName.trim().length >= 2 && playerName.trim().length <= 16;
 
   const createRoom = () => {
-    if (!validName) return;
+    if (!validName) {
+      setErrorMessage("O apelido deve ter entre 2 e 16 caracteres.");
+      return;
+    }
+    setErrorMessage("");
     emit("create_room", { name: playerName.trim(), avatarId, isPrivate: false });
   };
   const joinRoom = (code: string) => {
-    if (!validName || code.trim().length !== 4) return;
+    if (!validName) {
+      setErrorMessage("O apelido deve ter entre 2 e 16 caracteres.");
+      return;
+    }
+    if (code.trim().length !== 4) {
+      setErrorMessage("Digite um código de sala com 4 caracteres.");
+      return;
+    }
+    setErrorMessage("");
     emit("join_room", {
       roomCode: code.trim().toUpperCase(),
       name: playerName.trim(),
@@ -274,7 +296,14 @@ export default function IndexScreen() {
         onToggleDaltonico={() => setIsDaltonico((value) => !value)}
         palette={palette}
       />
-      {!isInRoom ? (
+      {errorMessage ? (
+        <ErrorBanner
+          message={errorMessage}
+          palette={palette}
+          onDismiss={() => setErrorMessage("")}
+        />
+      ) : null}
+      {!isInRoom && viewState === "home" ? (
         <HomeView
           playerName={playerName}
           onChangeName={setPlayerName}
@@ -287,7 +316,7 @@ export default function IndexScreen() {
         />
       ) : !gameState ? (
         <RoomsView
-          viewState={viewState}
+          viewState={viewState === "home" ? "waiting_room" : viewState}
           publicRooms={publicRooms}
           roomCode={roomCode}
           players={players}
@@ -298,7 +327,11 @@ export default function IndexScreen() {
           onStartGame={() => emit("start_game", { roomCode })}
           onLeaveRoom={() => emit("leave_room")}
           onJoinSpecificRoom={joinRoom}
-          onBackToHome={() => setIsInRoom(false)}
+          onBackToHome={() => {
+            if (isInRoom) emit("leave_room");
+            setIsInRoom(false);
+            setViewState("home");
+          }}
           palette={palette}
         />
       ) : (

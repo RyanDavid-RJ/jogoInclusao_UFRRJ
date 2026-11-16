@@ -1,8 +1,14 @@
 import { useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
-import { PublicRoomSummary, PlayerProfile, SchoolStage, SCHOOL_STAGES, ThemePalette } from "../../constants/duoTheme";
-import { DuoButton, DuoCard, AvatarMedallion } from "../ui/DuoComponents";
+import {
+  PublicRoomSummary,
+  PlayerProfile,
+  SchoolStage,
+  SCHOOL_STAGES,
+  ThemePalette,
+} from "../../constants/duoTheme";
+import { AvatarMedallion, DuoButton, DuoCard } from "../ui/DuoComponents";
 
 export interface RoomsViewProps {
   viewState: "public_list" | "private_join" | "waiting_room";
@@ -20,29 +26,94 @@ export interface RoomsViewProps {
   palette: ThemePalette;
 }
 
-export function RoomsView({ viewState, publicRooms, roomCode, players, hostId, ownPlayerId, schoolStage, onSetSchoolStage, onStartGame, onLeaveRoom, onJoinSpecificRoom, onBackToHome, palette }: RoomsViewProps) {
+export function RoomsView({
+  viewState,
+  publicRooms,
+  roomCode,
+  players,
+  hostId,
+  ownPlayerId,
+  schoolStage,
+  onSetSchoolStage,
+  onStartGame,
+  onLeaveRoom,
+  onJoinSpecificRoom,
+  onBackToHome,
+  palette,
+}: RoomsViewProps) {
   const [code, setCode] = useState("");
 
   return (
-    <ScrollView contentContainerStyle={[styles.content, { backgroundColor: palette.background }]}>
+    <ScrollView
+      contentContainerStyle={[
+        styles.content,
+        { backgroundColor: palette.background },
+      ]}
+      keyboardShouldPersistTaps="handled"
+    >
       <Animated.View entering={FadeIn.duration(400)} style={styles.wrap}>
         {viewState === "public_list" && (
           <DuoCard palette={palette} padding={20}>
             <DuoButton title="Voltar" variant="ghost" onPress={onBackToHome} palette={palette} />
             <Text style={[styles.title, { color: palette.textMain }]}>Salas Públicas</Text>
-            {publicRooms.length === 0 ? <Text style={{color: palette.textMuted}}>Nenhuma sala pública aberta.</Text> : publicRooms.map(r => (
-              <View key={r.roomCode} style={styles.roomRow}>
-                <Text style={{color: palette.textMain, fontWeight: "bold"}}>{r.hostName}</Text>
-                <DuoButton title="Entrar" onPress={() => onJoinSpecificRoom(r.roomCode)} palette={palette} size="sm" />
-              </View>
-            ))}
+            {publicRooms.length === 0 ? (
+              <Text style={[styles.emptyText, { color: palette.textMuted }]}>
+                Nenhuma sala pública aberta no momento.
+              </Text>
+            ) : (
+              publicRooms.map((room) => (
+                <View
+                  key={room.roomCode}
+                  style={[
+                    styles.roomRow,
+                    {
+                      backgroundColor: palette.surfaceAlt,
+                      borderColor: palette.cardBorder,
+                    },
+                  ]}
+                >
+                  <View style={styles.roomInfo}>
+                    <Text style={[styles.roomHost, { color: palette.textMain }]}>
+                      {room.hostName}
+                    </Text>
+                    <Text style={[styles.roomMeta, { color: palette.textMuted }]}>
+                      Sala {room.roomCode} · {room.playerCount}/8 jogadores
+                    </Text>
+                  </View>
+                  <DuoButton
+                    title="Entrar"
+                    onPress={() => onJoinSpecificRoom(room.roomCode)}
+                    palette={palette}
+                    size="sm"
+                    fullWidth={false}
+                  />
+                </View>
+              ))
+            )}
           </DuoCard>
         )}
         {viewState === "private_join" && (
           <DuoCard palette={palette} padding={20}>
             <DuoButton title="Voltar" variant="ghost" onPress={onBackToHome} palette={palette} />
             <Text style={[styles.title, { color: palette.textMain }]}>Sala Privada</Text>
-            <TextInput style={[styles.input, { color: palette.textMain, borderColor: palette.inputBorder, backgroundColor: palette.inputBg }]} value={code} onChangeText={setCode} placeholder="Código" placeholderTextColor={palette.textMuted} maxLength={4} autoCapitalize="characters" />
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  color: palette.textMain,
+                  borderColor: palette.inputBorder,
+                  backgroundColor: palette.inputBg,
+                },
+              ]}
+              value={code}
+              onChangeText={(value) => setCode(value.toUpperCase())}
+              placeholder="Ex.: A1B2"
+              placeholderTextColor={palette.textMuted}
+              maxLength={4}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              accessibilityLabel="Código da sala"
+            />
             <DuoButton title="Entrar" onPress={() => onJoinSpecificRoom(code)} palette={palette} />
           </DuoCard>
         )}
@@ -50,7 +121,7 @@ export function RoomsView({ viewState, publicRooms, roomCode, players, hostId, o
           <DuoCard palette={palette} padding={20}>
             <Text style={[styles.title, { color: palette.textMain }]}>Sala: {roomCode}</Text>
             <View style={styles.grid}>
-              {Array.from({length: 8}).map((_, i) => {
+              {Array.from({ length: 8 }).map((_, i) => {
                 const p = players[i];
                 return p ? (
                   <View key={p.playerId} style={styles.slot}>
@@ -76,7 +147,12 @@ export function RoomsView({ viewState, publicRooms, roomCode, players, hostId, o
               <Text style={{color: palette.textMuted, textAlign: "center", marginBottom: 16}}>Aguardando anfitrião...</Text>
             )}
             <View style={{marginTop: 10}}>
-                <DuoButton title="Sair da Sala" variant="danger" onPress={onLeaveRoom} palette={palette} />
+                <DuoButton
+                  title="Sair da Sala"
+                  variant="danger"
+                  onPress={onLeaveRoom}
+                  palette={palette}
+                />
             </View>
           </DuoCard>
         )}
@@ -89,7 +165,11 @@ const styles = StyleSheet.create({
   content: { flexGrow: 1, alignItems: "center", padding: 20 },
   wrap: { width: "100%", maxWidth: 500 },
   title: { fontSize: 24, fontWeight: "900", marginBottom: 16, textAlign: "center" },
-  roomRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
+  roomRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12, borderWidth: 2, borderRadius: 14, padding: 10, marginBottom: 10 },
+  roomInfo: { flex: 1, gap: 4 },
+  roomHost: { fontSize: 14, fontWeight: "900" },
+  roomMeta: { fontSize: 12, fontWeight: "700" },
+  emptyText: { fontSize: 13, fontWeight: "700", textAlign: "center", paddingVertical: 12 },
   input: { borderWidth: 2, borderRadius: 12, padding: 12, marginBottom: 16, textAlign: "center", fontSize: 20, fontWeight: "bold" },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 10, justifyContent: "center", marginBottom: 24 },
   slot: { alignItems: "center", width: "22%" },

@@ -11,12 +11,15 @@ Socket.IO e MySQL no backend.
 - Tabuleiro compartilhado com posições de 0 a 20, turnos, rodadas e lançamento de dado.
 - Condição atribuída individualmente a cada participante.
 - Pausa coletiva quando alguém para nas casas-obstáculo 4, 8, 12 ou 16.
+- Interface responsiva com tema claro/escuro, modo daltônico, feedback de
+  conexão e mensagens de erro acessíveis.
 
 **Estado atual:** o MVP web está publicado e foi validado manualmente com quatro
 jogadores. O ciclo de sala, turnos, movimento, obstáculos, quiz e encerramento
 está funcional. O backend passou 62 testes, e TypeScript e lint do frontend
-passaram. O estado das salas ainda fica em memória em uma única instância; por
-isso, reconexão e recuperação após reinício continuam fora do MVP.
+passaram, e o export web de produção foi validado. O estado das salas ainda
+fica em memória em uma única instância; por isso, reconexão e recuperação após
+reinício continuam fora do MVP.
 
 ## Documentação do projeto
 
@@ -113,6 +116,13 @@ npm test
 ```bash
 cd frontend
 npx tsc --noEmit
+```
+
+### Build web do frontend
+
+```bash
+cd frontend
+npm run build:web
 ```
 
 ### Lint do frontend
