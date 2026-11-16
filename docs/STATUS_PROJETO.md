@@ -83,7 +83,7 @@ ciclo.
 
 ## 3. Evidências de validação
 
-Em 2026-11-16, a suíte do backend foi executada com **66 testes aprovados**.
+Em 2026-11-16, a suíte do backend foi executada com **70 testes aprovados**.
 Também foram aprovados:
 
 - `npx tsc --noEmit` no frontend;

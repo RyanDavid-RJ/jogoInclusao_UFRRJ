@@ -17,7 +17,7 @@ Socket.IO e MySQL no backend.
 
 **Estado atual:** o MVP web está publicado e foi validado manualmente com quatro
 jogadores. O ciclo de sala, turnos, movimento, obstáculos, quiz e encerramento
-está funcional. O backend passou 66 testes, e TypeScript e lint do frontend
+está funcional. O backend passou 70 testes, e TypeScript e lint do frontend
 passaram, e o export web de produção foi validado. O estado das salas ainda
 fica em memória em uma única instância; por isso, recuperação após reinício
 continua fora do MVP. Quedas transitórias podem ser retomadas por até 60
