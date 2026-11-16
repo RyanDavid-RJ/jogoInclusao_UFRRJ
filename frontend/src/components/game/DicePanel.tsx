@@ -4,8 +4,10 @@
 
 import { useEffect } from "react";
 import { StyleSheet, Text, View } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Easing,
+  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withSequence,
@@ -33,6 +35,8 @@ export function DicePanel({
 }: DicePanelProps) {
   const rotation = useSharedValue(0);
   const scale = useSharedValue(1);
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
 
   useEffect(() => {
     if (diceResult === null) {
@@ -40,20 +44,38 @@ export function DicePanel({
     }
     rotation.value = 0;
     scale.value = 1;
+    translateY.value = -300;
     rotation.value = withTiming(360, {
       duration: 600,
       easing: Easing.out(Easing.cubic),
     });
+    translateY.value = withSpring(0, { damping: 5, stiffness: 100 });
     scale.value = withSequence(
       withTiming(1.2, { duration: 200, easing: Easing.out(Easing.quad) }),
       withSpring(1, { damping: 6, stiffness: 120 }),
     );
-  }, [diceResult, rotation, scale]);
+  }, [diceResult, rotation, scale, translateY]);
+
+  const pan = Gesture.Pan()
+    .enabled(isMyTurn)
+    .onUpdate((event) => {
+      translateX.value = event.translationX;
+      translateY.value = event.translationY;
+    })
+    .onEnd((event) => {
+      if (event.translationY < -50) {
+        runOnJS(onRollDice)();
+      }
+      translateX.value = withSpring(0);
+      translateY.value = withSpring(0);
+    });
 
   const diceAnimatedStyle = useAnimatedStyle(() => ({
     transform: [
       { rotateZ: `${rotation.value}deg` },
       { scale: scale.value },
+      { translateX: translateX.value },
+      { translateY: translateY.value },
     ],
   }));
 
@@ -72,22 +94,24 @@ export function DicePanel({
       style={cardStyle}
     >
       <View style={styles.diceCenter}>
-        <Animated.View
-          style={[
-            styles.diceFace,
-            {
-              borderColor: isMyTurn
-                ? palette.primaryBorder
-                : palette.cardBorder,
-              backgroundColor: palette.cardBg,
-            },
-            diceAnimatedStyle,
-          ]}
-        >
-          <Text style={styles.diceEmoji} numberOfLines={1}>
-            {face}
-          </Text>
-        </Animated.View>
+        <GestureDetector gesture={pan}>
+          <Animated.View
+            style={[
+              styles.diceFace,
+              {
+                borderColor: isMyTurn
+                  ? palette.primaryBorder
+                  : palette.cardBorder,
+                backgroundColor: palette.cardBg,
+              },
+              diceAnimatedStyle,
+            ]}
+          >
+            <Text style={styles.diceEmoji} numberOfLines={1}>
+              {face}
+            </Text>
+          </Animated.View>
+        </GestureDetector>
       </View>
 
       {isMyTurn ? (
@@ -96,7 +120,7 @@ export function DicePanel({
             🎯 SUA VEZ DE JOGAR!
           </Text>
           <DuoButton
-            title="Rolar dado"
+            title="Arraste o dado para cima para jogar!"
             icon="🎲"
             variant="primary"
             size="lg"

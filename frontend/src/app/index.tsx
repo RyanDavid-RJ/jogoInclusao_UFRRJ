@@ -325,7 +325,12 @@ export default function IndexScreen() {
           schoolStage={schoolStage}
           onSetSchoolStage={(stage) => emit("set_school_stage", { roomCode, schoolStage: stage })}
           onStartGame={() => emit("start_game", { roomCode })}
-          onLeaveRoom={() => emit("leave_room")}
+          onLeaveRoom={() => {
+            socketRef.current?.emit("leave_room");
+            setIsInRoom(false);
+            setGameState(null);
+            setRoomCode("");
+          }}
           onJoinSpecificRoom={joinRoom}
           onBackToHome={() => {
             if (isInRoom) emit("leave_room");
