@@ -168,7 +168,8 @@ instância. Portanto:
 - reinício do processo perde salas e partidas;
 - deploy durante uma partida desconecta os jogadores;
 - escala horizontal exige armazenamento compartilhado e adapter Socket.IO;
-- ainda não existe reconexão com restauração automática da sessão.
+- a reconexão temporária restaura a sessão por até 60 segundos, mas não
+  sobrevive a reinício ou deploy.
 
 Essas limitações são aceitas para o MVP e devem ser resolvidas antes de um
 lançamento com tráfego imprevisível.
@@ -182,7 +183,8 @@ lançamento com tráfego imprevisível.
 - criar usuário MySQL próprio com privilégios mínimos;
 - manter logs sem senhas, tokens ou conteúdo sensível;
 - monitorar o health check;
-- adicionar encerramento gracioso do pool;
+- o processo sinaliza indisponibilidade no health check antes de fechar
+  Socket.IO, HTTP e o pool do banco ao receber `SIGTERM` ou `SIGINT`;
 - registrar erros com contexto suficiente para diagnóstico;
 - não coletar nome, imagem ou analytics sem uma política adequada de privacidade.
 

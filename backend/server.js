@@ -22,8 +22,13 @@ const isQuestionAdmin = (req) =>
 
 const app = express();
 app.use(cors({ origin: corsOrigin }));
+let shuttingDown = false;
 
 app.get("/api/status", async (_req, res) => {
+  if (shuttingDown) {
+    return res.status(503).json({ ok: false, db: "unavailable" });
+  }
+
   try {
     await pool.query("SELECT 1");
     res.json({ ok: true, db: "ok" });
@@ -131,6 +136,45 @@ const quizService = createQuizService(createQuestionRepository(pool));
 attachLobbyHandlers(io, rooms, { quizService });
 
 const PORT = process.env.PORT || 3000;
+
 server.listen(PORT, () => {
   console.log(`Servidor a correr na porta ${PORT}`);
 });
+
+const closeServer = (signal) => {
+  if (shuttingDown) {
+    return;
+  }
+  shuttingDown = true;
+  console.log(`Recebido ${signal}; encerrando o servidor.`);
+
+  io.close((ioError) => {
+    if (ioError) {
+      console.error("Failed to close Socket.IO.", {
+        message: ioError.message,
+      });
+    }
+
+    server.close(async (serverError) => {
+      if (serverError) {
+        console.error("Failed to close HTTP server.", {
+          message: serverError.message,
+        });
+      }
+
+      try {
+        await pool.end();
+      } catch (poolError) {
+        console.error("Failed to close database pool.", {
+          code: poolError?.code,
+          message: poolError?.message,
+        });
+      }
+
+      process.exitCode = ioError || serverError ? 1 : 0;
+    });
+  });
+};
+
+process.once("SIGTERM", () => closeServer("SIGTERM"));
+process.once("SIGINT", () => closeServer("SIGINT"));
