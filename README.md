@@ -8,15 +8,16 @@ Socket.IO e MySQL no backend.
 
 - Criação de salas e entrada por código.
 - Partidas para 4 a 8 participantes, com um anfitrião que escolhe a etapa escolar.
-- Tabuleiro compartilhado com posições de 0 a 20, turnos, rodadas e lançamento de dado.
+- Tabuleiro compartilhado com posições de 0 a 30, turnos, rodadas e lançamento de dado.
+- Casas bônus de Impulso (+2 casas) nas posições 5, 10, 15, 20 e 25, com chegada limitada à casa 30.
 - Condição atribuída individualmente a cada participante.
-- Pausa coletiva quando alguém para nas casas-obstáculo 4, 8, 12 ou 16.
+- Pausa coletiva quando alguém para nas casas-obstáculo 7, 14, 21 ou 28.
 - Interface responsiva com tema claro/escuro, modo daltônico, feedback de
   conexão e mensagens de erro acessíveis.
 
 **Estado atual:** o MVP web está publicado e foi validado manualmente com quatro
 jogadores. O ciclo de sala, turnos, movimento, obstáculos, quiz e encerramento
-está funcional. O backend passou 62 testes, e TypeScript e lint do frontend
+está funcional. O backend passou 63 testes, e TypeScript e lint do frontend
 passaram, e o export web de produção foi validado. O estado das salas ainda
 fica em memória em uma única instância; por isso, reconexão e recuperação após
 reinício continuam fora do MVP.
@@ -65,6 +66,9 @@ Copie `backend/.env.example` para `backend/.env` e ajuste as configurações de 
 `backend/.env` é ignorado pelo Git. Não publique senhas, certificados ou outros segredos. Para bancos que exigem TLS, configure `DB_SSL=true` e disponibilize o certificado CA em `backend/ca.pem` por um meio seguro; arquivos de certificado também são ignorados pelo Git.
 
 O endpoint `GET http://localhost:3000/api/status` verifica a conexão com o banco e retorna o status da aplicação.
+As perguntas também podem ser consultadas em `GET /api/perguntas` e cadastradas
+com `POST /api/perguntas`, respeitando as etapas escolares e os níveis
+estruturais válidos.
 
 ### 3. Configure o endereço do backend no frontend
 

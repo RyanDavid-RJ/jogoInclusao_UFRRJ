@@ -1,37 +1,26 @@
-Siga estritamente as regras de #file:docs/AGENTE_EXECUTOR.md.
+# PROMPT PARA O AGENTE EXECUTOR
 
-Objetivo: Implementar a física de arremesso do dado (Drag & Drop com GestureHandler), a animação POV do dado caindo no tabuleiro para todos os jogadores, e o funcionamento correto do botão de "Sair da Sala" no backend e frontend.
+Implemente as correções finais de qualidade e acessibilidade:
 
-Arquivos permitidos:
-- #file:backend/lobby.js
-- #file:frontend/src/app/_layout.tsx
-- #file:frontend/src/app/index.tsx
-- #file:frontend/src/components/game/DicePanel.tsx
+Em frontend/src/app/index.tsx:
 
-Especificação Técnica:
+Importe useSafeAreaInsets de react-native-safe-area-context.
+No componente principal, obtenha const insets = useSafeAreaInsets().
+Aplique no SafeAreaView:
+paddingTop: insets.top + 8
+paddingBottom: insets.bottom + 8
+Preserve os demais estilos e comportamentos existentes.
+Ajuste o layout de frontend/src/components/game/PlayersSidebar.tsx:
 
-1. Rota de Saída no Backend (`backend/lobby.js`):
-   - Dentro de `io.on("connection", (socket) => {`, adicione um listener explícito para `leave_room`:
-     `socket.on("leave_room", () => { removeSocketFromRoom(socket); });`
-   - Isso permite que o jogador volte ao lobby sem precisar fechar a conexão WebSocket inteira.
+Evite quebra de texto nos chips de posição.
+Considere o novo FINISH_HOUSE = 30 e textos como Pos: 30/30.
+Preserve legibilidade, responsividade e acessibilidade em telas estreitas.
+Crie database/perguntas_expansao.sql:
 
-2. Configuração do Gesture Handler (`frontend/src/app/_layout.tsx` e `frontend/src/app/index.tsx`):
-   - Em `_layout.tsx`, importe `GestureHandlerRootView` de `react-native-gesture-handler`.
-   - Envolva o `<Stack />` retornado com `<GestureHandlerRootView style={{ flex: 1, backgroundColor: "transparent" }}>`.
-   - Em `index.tsx`, na prop `onLeaveRoom` do `RoomsView`, altere para disparar `socketRef.current?.emit("leave_room"); setIsInRoom(false); setGameState(null); setRoomCode("");`.
-
-3. Arremesso do Dado com Física (`frontend/src/components/game/DicePanel.tsx`):
-   - Importe `Gesture, GestureDetector` de `react-native-gesture-handler`.
-   - Importe `runOnJS` de `react-native-reanimated`.
-   - Crie `translateX` e `translateY` com `useSharedValue(0)`.
-   - Crie a lógica do gesto `pan`:
-     * Habilitado apenas se `isMyTurn` for `true`.
-     * No `.onUpdate`, atualize `translateX` e `translateY`.
-     * No `.onEnd`, se o dado for arremessado para cima (`e.translationY < -50`), chame `runOnJS(onRollDice)()` para enviar o comando ao servidor. Independentemente de arremessar ou não, use `withSpring(0)` para retornar o dado ao centro.
-   - Atualize a animação de recebimento do dado (POV coletivo):
-     * No `useEffect` que escuta `diceResult`, quando um resultado chegar, faça o dado "cair do céu": defina `translateY.value = -300` imediatamente e depois anime para `0` usando `withSpring(0, { damping: 5, stiffness: 100 })` simultaneamente à rotação de 360 graus.
-   - Envolva a face do dado (`Animated.View`) com o `<GestureDetector gesture={pan}>`.
-   - Atualize a UI: Onde estiver escrito "Rolar dado", mude para "Arraste o dado para cima para jogar!" (quando for a vez do jogador).
-
-Validação obrigatória no terminal (em uma única chamada):
-Push-Location backend; npm test; Pop-Location; Push-Location frontend; npx tsc --noEmit; npm run lint; Pop-Location; git diff --check
+Inclua pelo menos 15 novos INSERTs.
+Distribua perguntas entre Fundamental, Médio e Superior.
+Cubra os níveis estruturais 1, 2 e 3.
+Use perguntas variadas e desafiadoras, com alternativas, resposta correta, explicação e tags.
+Siga exatamente o schema existente da tabela perguntas.
+Não inclua credenciais ou dados sensíveis.
+Valide ao final com os testes do backend, TypeScript e lint do frontend.#

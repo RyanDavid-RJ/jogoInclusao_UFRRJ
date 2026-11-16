@@ -181,6 +181,8 @@ export function PlayersSidebar({
                             styles.chipText,
                             { color: palette.textMain },
                           ]}
+                          numberOfLines={1}
+                          ellipsizeMode="clip"
                         >
                           Pos: {position}/{FINISH_HOUSE}
                         </Text>
@@ -200,6 +202,8 @@ export function PlayersSidebar({
                             styles.chipText,
                             { color: palette.textMain },
                           ]}
+                          numberOfLines={1}
+                          ellipsizeMode="clip"
                         >
                           ⭐ {points}
                         </Text>
@@ -284,6 +288,7 @@ const styles = StyleSheet.create({
   },
   playerMain: {
     flex: 1,
+    minWidth: 0,
     gap: 6,
   },
   playerTopRow: {
@@ -314,12 +319,14 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   chip: {
+    maxWidth: "100%",
     borderRadius: 999,
     borderWidth: 2,
     paddingHorizontal: 8,
     paddingVertical: 2,
   },
   chipText: {
+    flexShrink: 1,
     fontSize: 10,
     fontWeight: "900",
     letterSpacing: 0.3,

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { SafeAreaView, useWindowDimensions, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { io, Socket } from "socket.io-client";
 
 import {
@@ -39,6 +40,7 @@ type RoomEvent = {
 
 export default function IndexScreen() {
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const isDesktop = width >= 900;
   const socketRef = useRef<Socket | null>(null);
   const quizLockRef = useRef(false);
@@ -284,7 +286,14 @@ export default function IndexScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: palette.background }}>
+    <SafeAreaView
+      style={{
+        flex: 1,
+        backgroundColor: palette.background,
+        paddingTop: insets.top + 8,
+        paddingBottom: insets.bottom + 8,
+      }}
+    >
       <TopHeader
         isConnected={isConnected}
         roomCode={isInRoom ? roomCode : undefined}

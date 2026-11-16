@@ -58,11 +58,11 @@ Os papéis cruzam-se com o obstáculo ativo para selecionar a intensidade do des
 
 1. **Sala — implementada:** a partida comporta de 4 a 8 jogadores e o anfitrião escolhe Fundamental, Médio ou Superior e inicia manualmente quando o grupo estiver pronto. Não há início automático ao chegar a quatro. Se o anfitrião desconectar, o próximo jogador assume. O servidor exige uma etapa válida para iniciar e bloqueia alterações depois do início.
 2. **Sorteio, sigilo e revelação — implementados:** os quatro papéis aparecem ao menos uma vez; participantes adicionais recebem papéis sorteados com repetição; cada jogador recebe privadamente apenas seu próprio papel durante a partida; `game_over` revela o mapa completo após o encerramento. [[1]](https://app.notion.com/chat?t=40cc1da9eec68082b1f200a9fe207e32)
-3. **Ordem e movimento — implementados no backend:** a ordem é sorteada uma vez ao iniciar; o servidor rola um dado de 6 lados e move o peão no percurso compartilhado da posição 0 à 20. Aterrissar exatamente nas posições 4, 8, 12 ou 16 pausa a partida e inicia a preparação do quiz; passar por cima não ativa. Movimento excedente é limitado à posição 20.
-4. **Quiz por obstáculo — implementado e integrado:** ao pousar em obstáculo, o servidor deriva o nível pelo papel e pela matriz, busca uma pergunta para cada participante pela etapa da sala e só envia perguntas individuais depois que todas foram encontradas. O frontend exibe o quiz e o estado de encerramento. Casas bônus/multiplicadores ficam fora do primeiro ciclo.
+3. **Ordem e movimento — implementados no backend:** a ordem é sorteada uma vez ao iniciar; o servidor rola um dado de 6 lados e move o peão no percurso compartilhado da posição 0 à 30. Aterrissar exatamente nas posições 7, 14, 21 ou 28 pausa a partida e inicia a preparação do quiz; passar por cima não ativa. Movimento excedente é limitado à posição 30.
+4. **Casas bônus e quiz por obstáculo — implementados e integrados:** ao aterrissar exatamente nas casas 5, 10, 15, 20 ou 25, o jogador recebe **Impulso (+2 casas)**, limitado à chegada na casa 30. O impulso não reativa um obstáculo que tenha sido apenas ultrapassado; obstáculos só são acionados pelo pouso original exato em 7, 14, 21 ou 28. Nesse caso, o servidor deriva o nível pelo papel e pela matriz, busca uma pergunta para cada participante pela etapa da sala e só envia perguntas individuais depois que todas foram encontradas.
 5. **Quiz — integrado no backend:** todos os participantes conectados recebem uma pergunta individual; o servidor controla prazo comum de 30 segundos e aceita no máximo uma resposta por jogador. O gabarito e a explicação, quando disponível, são enviados apenas ao próprio jogador após a validação. Questões sem explicação são válidas; o resultado privado omite esse campo quando nulo.
 6. **Pontuação — implementada no backend:** para N participantes fixados no início da rodada, acertos pontuam N, N−1, ... pela ordem de recebimento no servidor; erro, timeout ou desconexão vale zero, sem recalcular N. O cliente não escolhe o gabarito. [[1]](https://app.notion.com/chat?t=40cc1da9eec68082b1f200a9fe207e32)
-7. **Fim e desempate — implementados no motor backend:** a partida termina imediatamente quando alguém chega à posição 20. Se ninguém chegar ao fim após 8 rodadas completas, vence quem estiver mais avançado; em empate de posição, vence quem tiver mais pontos de quiz; persistindo o empate, há campeões compartilhados. Os pontos do quiz são acumulados no estado e usados no desempate. Validar duração e ritmo em playtest.
+7. **Fim e desempate — implementados no motor backend:** a partida termina imediatamente quando alguém chega à posição 30, inclusive após um Impulso (+2 casas). Se ninguém chegar ao fim após 8 rodadas completas, vence quem estiver mais avançado; em empate de posição, vence quem tiver mais pontos de quiz; persistindo o empate, há campeões compartilhados. Os pontos do quiz são acumulados no estado e usados no desempate. Validar duração e ritmo em playtest.
 
 ## 4. Matriz de Equidade (rascunho para validação)
 
@@ -82,6 +82,7 @@ Os papéis cruzam-se com o obstáculo ativo para selecionar a intensidade do des
 - **Janela de resposta:** 30 segundos, com relógio controlado pelo servidor.
 - **Níveis estruturais:** Nível 1 — operações básicas diretas; Nível 2 — problemas de lógica intermediários; Nível 3 — equações mais complexas.
 - **Etapa escolar — implementada conforme relato:** Fundamental, Médio ou Superior é escolhida pelo anfitrião no lobby antes de iniciar a partida. É um filtro separado do nível estrutural; o servidor valida e guarda a escolha no estado da sala, propaga a seleção aos jogadores, exige valor válido para iniciar e bloqueia alterações após o início.
+- **API REST de perguntas — implementada:** `GET /api/perguntas` lista as perguntas disponíveis e `POST /api/perguntas` cadastra uma nova pergunta, com validação de etapa escolar, nível estrutural, alternativas e resposta correta.
 - **Ranking aprovado:** para N participantes, os acertos recebem N, N−1, ... até 1 ponto pela ordem de recebimento pelo servidor; erro e tempo esgotado valem zero.
 - **Decisões ainda em aberto:** quantidade de perguntas por partida; política de reconexão durante o quiz.
 
@@ -96,24 +97,27 @@ Os papéis cruzam-se com o obstáculo ativo para selecionar a intensidade do des
 
 **Stack planejada:** frontend React Native/Expo Router; backend Node.js/Express com Socket.IO; SQL hospedado no Aiven.
 
-**Atualização de validação em 2026-11-15:** o MVP web está publicado na Vercel
+**Atualização de validação em 2026-11-16:** o MVP web está publicado na Vercel
 e o backend está publicado no Render. O gate foi aprovado no Expo Web com
 quatro sessões independentes: entrada na mesma sala, início com quatro
 jogadores, perguntas privadas distintas, encerramento simultâneo do quiz,
 retomada do turno, autorização correta de rolagem, revelação dos papéis em
-`game_over` e limpeza após recarregar uma sessão. Os cenários de deadline,
+`game_over` e limpeza após recarregar uma sessão. O tabuleiro expandido para 30
+casas, com obstáculos em 7, 14, 21 e 28 e Impulso (+2 casas) em 5, 10, 15,
+20 e 25, também foi integrado com a nova API REST de perguntas
+(`GET/POST /api/perguntas`). Os cenários de deadline,
 `QUESTIONS_UNAVAILABLE`/`quiz_error`, explicação nula, fim por posição/limite,
-desconexão e perfil público/pós-jogo estão cobertos pelos **62 testes**
+desconexão e perfil público/pós-jogo estão cobertos pelos **63 testes**
 automatizados do backend. TypeScript e lint passaram. A validação no Expo Go
 permanece pendente. Reconexão e recuperação após reinício ainda não fazem parte
 do MVP porque o estado ativo fica em memória no backend.
 
 **Estado verificado em 2026-11-09:** lobby, motor de turnos, repositório de perguntas e quiz simultâneo foram implementados no backend. O quiz inicia somente em pouso exato nos obstáculos; mantém papéis e gabaritos no servidor, envia perguntas por socket individual, controla prazo, valida resposta única, calcula pontos, trata indisponibilidade sem rodada parcial e remove jogadores desconectados após a rodada. Questões com `explicacao: null` são aceitas e o campo é omitido do resultado privado. A suíte backend passou 58/58 testes. Os testes Socket.IO automatizados cobrem o fluxo normal, timeout com jogador sem resposta, questão ausente, erro do repositório e desconexão individual, usando clientes reais e perguntas em memória. TypeScript passou e lint não teve erros, com um aviso de importação em `frontend/src/app/index.tsx`. Em validação manual do Expo Web, quatro abas jogaram com um quinto cliente fora da sala: foram verificadas perguntas privadas, resposta única, espera, contagem regressiva e expiração natural com resultados privados, pausa/retomada de turno e limpeza da UI ao perder a conexão do servidor; a home respondeu HTTP 200 e a validação standalone passou 4/4 verificações. Ainda não foram exercitados envio após o prazo, comportamento visual de `quiz_error`, explicação nula no cliente, troca de sala durante partida nem fim de partida. O app nativo segue pendente. Os servidores locais foram encerrados após a validação. A consulta Aiven em `defaultdb` e as nove combinações foram validadas conforme relatório do Executor. [[1]](https://app.notion.com/chat?t=40cc1da9eec68082b1f200a9fe207e32)
 
-## Atualização documental — 2026-11-15
+## Atualização documental — 2026-11-16
 
 Os registros históricos desta seção preservam os números das validações feitas
-em cada etapa. A validação mais recente passou 62/62 testes do backend, além de
+em cada etapa. A validação mais recente passou 63/63 testes do backend, além de
 TypeScript e lint do frontend. O MVP web está publicado na Vercel, com o
 backend no Render; a validação nativa no Expo Go e a reconexão após queda ainda
 estão pendentes. Para o estado consolidado e o roadmap, consulte
@@ -123,7 +127,7 @@ estão pendentes. Para o estado consolidado e o roadmap, consulte
 
 ### To-Do
 
-- [x]  **Baseline do percurso e vitória definido para implementação:** trilha linear de 20 casas; obstáculos nas posições 4, 8, 12 e 16; dado excedente para na chegada; primeira pessoa a chegar vence; limite de 8 rodadas completas, depois posição, pontos de quiz e, por fim, vitória compartilhada. Validar duração e ritmo em playtest; bônus e multiplicadores ficam adiados.
+- [x]  **Expansão do percurso e vitória definida para implementação:** trilha linear de 30 casas; obstáculos nas posições 7, 14, 21 e 28; Impulso (+2 casas) nas posições 5, 10, 15, 20 e 25; dado e impulso limitados à chegada; primeira pessoa a chegar à casa 30 vence; limite de 8 rodadas completas, depois posição, pontos de quiz e, por fim, vitória compartilhada.
 - [x]  **Inspeção arquitetural do motor:** relatório de Ryan/DeepSeek confirma que `backend/lobby.js` concentra o lobby, que a ordem atual é a de entrada e que ainda não há posições, turno, rodada ou vencedor; nenhuma alteração de código foi feita. A proposta é criar `backend/gameEngine.js` e preservar os eventos/payloads atuais do lobby. [[1]](https://app.notion.com/chat?t=40cc1da9eec68082b1f200a9fe207e32)
 - [x]  **Banco de perguntas no Aiven:** script aplicado em `defaultdb` após confirmar o banco conectado; estrutura validada; há questão para cada combinação de etapa e nível; consulta real do repositório confirmada, com gabarito e explicação fora da projeção pública. Validado conforme relatório do Executor em 2026-11-09.
 - [ ]  **Acesso de produção ao Aiven:** antes da publicação, criar credencial de serviço própria com privilégios mínimos; nunca versionar credenciais nem dumps pessoais.
@@ -141,6 +145,7 @@ estão pendentes. Para o estado consolidado e o roadmap, consulte
 ### Done
 
 - [x]  **Fase 2 — Interface Duo-Equidade, Trilha Sinuosa de Obstáculos e Tela de Revelação Pós-Jogo no Frontend:** polimento visual aplicado em `frontend/src/app/index.tsx`, com ajuste de inicialização em `backend/package.json`; contrato Socket.IO e regras do motor preservados. Validação aprovada: 62 testes backend, TypeScript e lint.
+- [x]  **Expansão do Ludo Equidade:** tabuleiro com 30 casas, obstáculos em 7, 14, 21 e 28, Impulso (+2 casas) em 5, 10, 15, 20 e 25, chegada na casa 30 e API REST `GET/POST /api/perguntas`. Validação aprovada: 63 testes backend.
 
 - [x]  Monorepo inicial separado em `backend/` e `frontend/`.
 - [x]  Frontend inicial configurado com React Native, Expo e Expo Router, incluindo dependência do cliente Socket.IO.
@@ -157,7 +162,7 @@ estão pendentes. Para o estado consolidado e o roadmap, consulte
 - [x]  Integrar a interface do quiz em `frontend/src/app/index.tsx`: pergunta e alternativas privadas, contagem regressiva a partir de `deadlineAt`, envio único, espera pelos demais, erros, resultado e explicação opcional. TypeScript aprovado, lint sem erros (um aviso) e backend 53/53.
 - [x]  Validar manualmente o fluxo integrado no Expo Web com quatro participantes e um cliente externo: pergunta/resultado privados, resposta e espera, prazo/expiração natural, pausa e retomada do turno; backend desconectado durante outro quiz retornou os clientes ao lobby e limpou estado/timers. Home HTTP 200 e validação standalone 4/4. Troca de sala, feedback visual de erros e fim de partida não foram exercitados.
 - [x]  Ampliar testes Socket.IO em `backend/test/socket.integration.test.js`: timeout com participante sem resposta, questão ausente, falha do repositório e desconexão individual no quiz; conferir zero pontos para a pessoa desconectada, N original e progressão sem travamento. Teardown agrega erros e tenta fechar sockets, Socket.IO e HTTP server. Backend `npm test`: 58/58.
-- [x]  Definir baseline do ciclo: ordem sorteada uma vez; dado de 6 lados; percurso de 20 casas; obstáculos em 4, 8, 12 e 16; quiz ao aterrissar; excedente limitado à chegada; fim após 8 rodadas completas, com desempate por posição, pontos de quiz e vitória compartilhada. Validar ritmo em playtest; o registro de indicadores para reflexão ainda não está implementado.
+- [x]  Definir baseline expandido do ciclo: ordem sorteada uma vez; dado de 6 lados; percurso de 30 casas; obstáculos em 7, 14, 21 e 28; Impulso (+2 casas) em 5, 10, 15, 20 e 25; quiz ao aterrissar em obstáculo; excedente limitado à chegada; fim após 8 rodadas completas, com desempate por posição, pontos de quiz e vitória compartilhada. Validar ritmo em playtest; o registro de indicadores para reflexão ainda não está implementado.
 - [x]  Conexão MySQL/Aiven com CA validado e `GET /api/status` real retornando HTTP 200 (status informado por Ryan).
 - [x]  Repositório de perguntas em `backend/repositories/questionRepository.js`, com filtros validados, query parametrizada `FROM perguntas`, projeção pública por allowlist e teste que confirma o uso do nome sem schema fixo. Os testes usam pool simulado e não comprovam consulta real à Aiven.
 - [x]  Versionar `database/schema_e_seed.sql` com `CREATE TABLE IF NOT EXISTS` e nove questões, uma por combinação de Fundamental/Médio/Superior e nível estrutural 1/2/3. O seed evita inserir a mesma combinação de etapa, nível e enunciado novamente.
