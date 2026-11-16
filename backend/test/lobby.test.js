@@ -6,6 +6,7 @@ const {
   MAX_PLAYERS,
   MIN_PLAYERS,
   RECONNECT_GRACE_MS,
+  RATE_LIMITS,
   ROOM_IDLE_TIMEOUT_MS,
 } = require("../lobby");
 const { createQuizService } = require("../quizService");
@@ -283,6 +284,23 @@ test("expires inactive waiting rooms and notifies connected players", () => {
     lobby.host.eventsFor("room_closed").at(-1).payload.roomCode,
     lobby.roomCode,
   );
+});
+
+test("limits repeated room creation attempts per socket", () => {
+  const lobby = createLobby();
+
+  for (let attempt = 1; attempt < RATE_LIMITS.create_room; attempt += 1) {
+    lobby.host.clientEmit("create_room");
+  }
+  const roomsBeforeBlockedAttempt = lobby.rooms.size;
+
+  lobby.host.clientEmit("create_room");
+
+  assert.equal(lobby.rooms.size, roomsBeforeBlockedAttempt);
+  assert.deepEqual(lobby.host.eventsFor("room_error").at(-1).payload, {
+    code: "RATE_LIMITED",
+    message: "Muitas tentativas. Aguarde um momento e tente novamente.",
+  });
 });
 
 test("supports a 4-player minimum, with no automatic start at four", () => {

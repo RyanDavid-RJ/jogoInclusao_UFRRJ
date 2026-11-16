@@ -19,6 +19,17 @@ const SCHOOL_STAGES = ["Fundamental", "Médio", "Superior"];
 const QUIZ_DURATION_MS = 30_000;
 const ROOM_IDLE_TIMEOUT_MS = 30 * 60 * 1_000;
 const RECONNECT_GRACE_MS = 60 * 1_000;
+const RATE_LIMIT_WINDOW_MS = 60 * 1_000;
+const RATE_LIMITS = {
+  create_room: 5,
+  join_room: 30,
+  list_rooms: 30,
+  resume_room: 10,
+  start_game: 10,
+  set_school_stage: 20,
+  roll_dice: 20,
+  submit_quiz_answer: 30,
+};
 const AVATAR_IDS = [
   "coelho",
   "gato",
@@ -141,6 +152,36 @@ function attachLobbyHandlers(
     createQuizId = randomUUID,
   } = {},
 ) {
+  const rateLimitState = new Map();
+
+  const allowEvent = (socket, eventName) => {
+    const limit = RATE_LIMITS[eventName];
+    if (!limit) {
+      return true;
+    }
+
+    const currentTime = now();
+    const previous = rateLimitState.get(socket.id);
+    const state =
+      !previous || currentTime - previous.windowStartedAt >= RATE_LIMIT_WINDOW_MS
+        ? { windowStartedAt: currentTime, counts: new Map() }
+        : previous;
+    const count = state.counts.get(eventName) ?? 0;
+    if (count >= limit) {
+      rateLimitState.set(socket.id, state);
+      return false;
+    }
+    state.counts.set(eventName, count + 1);
+    rateLimitState.set(socket.id, state);
+    return true;
+  };
+
+  const rejectRateLimitedEvent = (socket) =>
+    socket.emit("room_error", {
+      code: "RATE_LIMITED",
+      message: "Muitas tentativas. Aguarde um momento e tente novamente.",
+    });
+
   const generateRoomCode = () => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     let code = "";
@@ -345,6 +386,9 @@ function attachLobbyHandlers(
 
   io.on("connection", (socket) => {
     socket.on("create_room", (payload) => {
+      if (!allowEvent(socket, "create_room")) {
+        return rejectRateLimitedEvent(socket);
+      }
       const profileResult = normalizePlayerProfile(payload, 0);
       if (profileResult.error) {
         return socket.emit("room_error", { message: profileResult.error });
@@ -386,10 +430,16 @@ function attachLobbyHandlers(
     });
 
     socket.on("list_rooms", () => {
+      if (!allowEvent(socket, "list_rooms")) {
+        return rejectRateLimitedEvent(socket);
+      }
       socket.emit("rooms_updated", { rooms: getPublicRooms(rooms) });
     });
 
     socket.on("join_room", (payload) => {
+      if (!allowEvent(socket, "join_room")) {
+        return rejectRateLimitedEvent(socket);
+      }
       const roomCode =
         typeof payload?.roomCode === "string"
           ? payload.roomCode.trim().toUpperCase()
@@ -449,6 +499,9 @@ function attachLobbyHandlers(
     });
 
     socket.on("resume_room", (payload) => {
+      if (!allowEvent(socket, "resume_room")) {
+        return rejectRateLimitedEvent(socket);
+      }
       const roomCode =
         typeof payload?.roomCode === "string"
           ? payload.roomCode.trim().toUpperCase()
@@ -510,6 +563,9 @@ function attachLobbyHandlers(
     });
 
     socket.on("set_school_stage", (payload) => {
+      if (!allowEvent(socket, "set_school_stage")) {
+        return rejectRateLimitedEvent(socket);
+      }
       const roomCode =
         typeof payload?.roomCode === "string"
           ? payload.roomCode.trim().toUpperCase()
@@ -591,6 +647,9 @@ function attachLobbyHandlers(
     });
 
     socket.on("start_game", (payload) => {
+      if (!allowEvent(socket, "start_game")) {
+        return rejectRateLimitedEvent(socket);
+      }
       const roomCode =
         typeof payload?.roomCode === "string"
           ? payload.roomCode.trim().toUpperCase()
@@ -651,6 +710,9 @@ function attachLobbyHandlers(
     });
 
     socket.on("roll_dice", async (payload) => {
+      if (!allowEvent(socket, "roll_dice")) {
+        return rejectRateLimitedEvent(socket);
+      }
       const hasRoomCode = Object.prototype.hasOwnProperty.call(
         payload || {},
         "roomCode",
@@ -724,6 +786,9 @@ function attachLobbyHandlers(
           acknowledge(response);
         }
       };
+      if (!allowEvent(socket, "submit_quiz_answer")) {
+        return respond({ success: false, code: "RATE_LIMITED" });
+      }
       const roomEntry = [...rooms.entries()].find(([, candidate]) =>
         candidate.players.includes(socket.id),
       );
@@ -764,6 +829,7 @@ function attachLobbyHandlers(
 
     socket.on("disconnect", () => {
       console.log("Jogador desconectado:", socket.id);
+      rateLimitState.delete(socket.id);
       const roomEntry = [...rooms.entries()].find(([, room]) =>
         room.players.includes(socket.id),
       );
@@ -1040,6 +1106,7 @@ module.exports = {
   attachLobbyHandlers,
   MAX_PLAYERS,
   MIN_PLAYERS,
+  RATE_LIMITS,
   ROOM_IDLE_TIMEOUT_MS,
   RECONNECT_GRACE_MS,
 };

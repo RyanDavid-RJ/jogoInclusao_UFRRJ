@@ -83,7 +83,7 @@ ciclo.
 
 ## 3. Evidências de validação
 
-Em 2026-11-16, a suíte do backend foi executada com **65 testes aprovados**.
+Em 2026-11-16, a suíte do backend foi executada com **66 testes aprovados**.
 Também foram aprovados:
 
 - `npx tsc --noEmit` no frontend;
@@ -138,7 +138,8 @@ Consequências conhecidas:
 ### Evolução de produção
 
 - Usar Redis/Socket.IO Adapter se houver mais de uma instância.
-- Adicionar limites de frequência e proteção contra abuso.
+- Manter limites de frequência e ampliar a proteção contra abuso conforme o
+  tráfego real.
 - Criar credencial de banco específica para a aplicação, com privilégios
   mínimos.
 - Avaliar persistência de partidas, ranking e autenticação somente quando

@@ -14,7 +14,7 @@ Espaço de trabalho dedicado à modelagem UML e ao desenvolvimento do banco de d
 ## Contexto confirmado
 
 - O projeto está em um monorepo com frontend React Native/Expo e backend Node.js, Express e [Socket.IO](http://Socket.IO).
-- Lobby para 4–8 jogadores, início manual pelo anfitrião, transferência em desconexão, papéis privados, seleção de etapa escolar, motor de turnos e quiz foram implementados. O schema e a consulta foram validados em `defaultdb`. Em 2026-11-16, os 65 testes do backend, TypeScript e lint passaram.
+- Lobby para 4–8 jogadores, início manual pelo anfitrião, transferência em desconexão, papéis privados, seleção de etapa escolar, motor de turnos e quiz foram implementados. O schema e a consulta foram validados em `defaultdb`. Em 2026-11-16, os 66 testes do backend, TypeScript e lint passaram.
 - O banco planejado é MySQL no Aiven. O PowerSoccer é referência para `mysql2/promise`, pool de conexões, variáveis de ambiente e organização do backend em módulos.
 - As perguntas precisam ser filtradas por etapa escolar e nível estrutural; essas dimensões são independentes. Cada questão terá enunciado, quatro alternativas e resposta correta.
 - A resposta correta deve permanecer no servidor até a validação da resposta do jogador.
@@ -67,7 +67,7 @@ Para cada prompt gerado, registrar o objetivo, o contexto necessário, o arquivo
 ## Situação Aiven e próximos passos — atualização de 2026-11-15
 
 Os números de testes citados nas subseções históricas correspondem às etapas
-em que foram registrados. A validação mais recente passou 65/65 testes do
+em que foram registrados. A validação mais recente passou 66/66 testes do
 backend, além de TypeScript e lint do frontend. A integração de perguntas está
 concluída para o MVP; os próximos trabalhos são ampliar o conteúdo, validar o
 uso móvel e decidir se reconexão ou persistência serão necessários.
@@ -77,7 +77,7 @@ uso móvel e decidir se reconexão ou persistência serão necessários.
 - Ryan confirmou em 2026-11-09 que usaremos `defaultdb` nesta etapa, informou que já fez backup do banco Power-Soccer e adiou a revisão de `ludo_equidade`. A tentativa inicial foi bloqueada pela seleção local do banco; na segunda tentativa, segundo o Executor, `SELECT DATABASE()` confirmou `defaultdb` antes de qualquer escrita.
 - O repositório consulta a tabela como `FROM perguntas`, sem schema fixo; a seleção do banco fica a cargo da configuração da conexão.
 - `database/schema_e_seed.sql` está versionado com a criação da tabela `perguntas` e nove questões, cobrindo cada combinação das etapas Fundamental, Médio e Superior com os níveis estruturais 1, 2 e 3. O seed evita a reinserção da mesma etapa, nível e enunciado.
-- A aplicação usa `defaultdb`, com a tabela `perguntas` cobrindo as nove combinações de etapa e nível. A projeção pública omite gabarito e explicação. A suíte atual do backend passou 65/65 testes; TypeScript e lint do frontend também passaram.
+- A aplicação usa `defaultdb`, com a tabela `perguntas` cobrindo as nove combinações de etapa e nível. A projeção pública omite gabarito e explicação. A suíte atual do backend passou 66/66 testes; TypeScript e lint do frontend também passaram.
 - A configuração privada foi ajustada por Ryan/Executor para selecionar `defaultdb`; nenhum segredo foi exibido. A revisão do banco `ludo_equidade` fica adiada após o backup informado do Power-Soccer. O backup não foi restaurado nem alterado.
 - Ryan decidiu que, se qualquer pergunta compatível estiver ausente, o servidor não deve iniciar rodada parcial: deve emitir `QUESTIONS_UNAVAILABLE`, não pontuar e liberar a pausa para avançar o jogo.
 - Ryan decidiu fixar o conjunto de N participantes no início do quiz; quem desconectar durante a rodada conta como sem resposta/zero, sem recalcular a faixa de pontos.

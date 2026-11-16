@@ -17,7 +17,7 @@ reduzem riscos técnicos e pedagógicos.
 - [x] Papéis privados e revelação final.
 - [x] Lobby visual responsivo com lista pública e entrada por código.
 - [x] Tema claro/escuro, modo daltônico e feedback de erros/conexão.
-- [x] 65 testes backend aprovados.
+- [x] 66 testes backend aprovados.
 - [x] TypeScript e lint aprovados.
 - [x] Export web de produção aprovado.
 - [x] Teste manual com quatro jogadores.
@@ -62,7 +62,7 @@ defensável para o público definido, com registro das decisões de validação.
 - [x] Permitir reconexão à sala e restauração do estado por 60 segundos.
 - [x] Definir comportamento de reconexão durante o quiz.
 - [x] Adicionar expiração e limpeza de salas de espera inativas.
-- [ ] Adicionar limites de frequência para eventos.
+- [x] Adicionar limites de frequência para eventos sensíveis.
 - [ ] Avaliar Redis e Socket.IO Adapter.
 - [ ] Separar logs operacionais de dados de jogo.
 
