@@ -144,7 +144,7 @@ estão pendentes. Para o estado consolidado e o roadmap, consulte
 
 ### Done
 
-- [x]  **Fase 2 — Interface Duo-Equidade, Trilha Sinuosa de Obstáculos e Tela de Revelação Pós-Jogo no Frontend:** polimento visual aplicado em `frontend/src/app/index.tsx`, com ajuste de inicialização em `backend/package.json`; contrato Socket.IO e regras do motor preservados. Validação aprovada: 62 testes backend, TypeScript e lint.
+- [x]  **Fase 2 — Interface Duo-Equidade, Trilha Sinuosa de Obstáculos e Tela de Revelação Pós-Jogo no Frontend:** polimento visual aplicado em `frontend/src/app/index.tsx`, com ajuste de inicialização em `backend/package.json`; contrato Socket.IO e regras do motor preservados. Validação aprovada: 63 testes backend, TypeScript e lint.
 - [x]  **Expansão do Ludo Equidade:** tabuleiro com 30 casas, obstáculos em 7, 14, 21 e 28, Impulso (+2 casas) em 5, 10, 15, 20 e 25, chegada na casa 30 e API REST `GET/POST /api/perguntas`. Validação aprovada: 63 testes backend.
 
 - [x]  Monorepo inicial separado em `backend/` e `frontend/`.

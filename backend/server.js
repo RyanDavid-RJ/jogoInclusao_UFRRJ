@@ -14,6 +14,11 @@ const configuredOrigins = (process.env.CLIENT_ORIGIN || "*")
   .map((origin) => origin.trim())
   .filter(Boolean);
 const corsOrigin = configuredOrigins.includes("*") ? "*" : configuredOrigins;
+const questionAdminToken = process.env.QUESTION_ADMIN_TOKEN?.trim();
+
+const isQuestionAdmin = (req) =>
+  Boolean(questionAdminToken) &&
+  req.get("x-question-admin-token") === questionAdminToken;
 
 const app = express();
 app.use(cors({ origin: corsOrigin }));
@@ -33,7 +38,11 @@ app.get("/api/status", async (_req, res) => {
 
 app.get("/api/perguntas", async (_req, res) => {
   try {
-    const [rows] = await pool.query("SELECT * FROM perguntas");
+    const [rows] = await pool.query(
+      `SELECT id, etapa_escolar, nivel_estrutural, enunciado,
+              opcao_a, opcao_b, opcao_c, opcao_d, explicacao, tags
+       FROM perguntas`,
+    );
     res.json(rows);
   } catch (error) {
     console.error("Failed to fetch questions.", {
@@ -45,6 +54,15 @@ app.get("/api/perguntas", async (_req, res) => {
 });
 
 app.post("/api/perguntas", express.json(), async (req, res) => {
+  if (!questionAdminToken) {
+    return res.status(503).json({
+      error: "Cadastro de perguntas administrativas não está configurado.",
+    });
+  }
+  if (!isQuestionAdmin(req)) {
+    return res.status(401).json({ error: "Credencial administrativa inválida." });
+  }
+
   const {
     etapa_escolar: etapaEscolar,
     nivel_estrutural: nivelEstrutural,

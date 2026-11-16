@@ -66,8 +66,10 @@ Copie `backend/.env.example` para `backend/.env` e ajuste as configurações de 
 `backend/.env` é ignorado pelo Git. Não publique senhas, certificados ou outros segredos. Para bancos que exigem TLS, configure `DB_SSL=true` e disponibilize o certificado CA em `backend/ca.pem` por um meio seguro; arquivos de certificado também são ignorados pelo Git.
 
 O endpoint `GET http://localhost:3000/api/status` verifica a conexão com o banco e retorna o status da aplicação.
-As perguntas também podem ser consultadas em `GET /api/perguntas` e cadastradas
-com `POST /api/perguntas`, respeitando as etapas escolares e os níveis
+As perguntas podem ser consultadas em `GET /api/perguntas`, que nunca retorna o
+gabarito. O cadastro via `POST /api/perguntas` exige o cabeçalho
+`X-Question-Admin-Token`, configurado pela variável secreta
+`QUESTION_ADMIN_TOKEN`, além de respeitar as etapas escolares e os níveis
 estruturais válidos.
 
 ### 3. Configure o endereço do backend no frontend
@@ -180,7 +182,11 @@ DB_NAME=...
 DB_SSL=true
 DB_CA_CERT=...
 CLIENT_ORIGIN=https://SEU-PROJETO.vercel.app
+QUESTION_ADMIN_TOKEN=...
 ```
+
+`QUESTION_ADMIN_TOKEN` deve ser um token forte, armazenado somente nas
+variáveis secretas do Render. Não o inclua no frontend nem no repositório.
 
 O valor de `CLIENT_ORIGIN` pode conter uma lista separada por vírgulas quando houver mais de um domínio autorizado.
 

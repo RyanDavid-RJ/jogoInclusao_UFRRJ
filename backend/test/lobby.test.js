@@ -446,6 +446,7 @@ test("initializes turn state after the existing start validations and emits a wi
 
   assert.deepEqual(Object.keys(initialState.payload), [
     "positions",
+    "quizPoints",
     "currentPlayerId",
     "round",
     "diceResult",

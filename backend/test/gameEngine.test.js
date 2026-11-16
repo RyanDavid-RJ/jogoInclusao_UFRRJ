@@ -145,17 +145,24 @@ test("breaks an eight-round tie by position and then quiz points", () => {
 
 test("publishes only the public game state", () => {
   const gameState = createState();
+  gameState.quizPoints.p1 = 3;
   const publicState = getPublicGameState(gameState);
 
   assert.deepEqual(Object.keys(publicState), [
     "positions",
+    "quizPoints",
     "currentPlayerId",
     "round",
     "diceResult",
     "status",
   ]);
+  assert.deepEqual(publicState.quizPoints, {
+    p1: 3,
+    p2: 0,
+    p3: 0,
+    p4: 0,
+  });
   assert.equal("turnOrder" in publicState, false);
-  assert.equal("quizPoints" in publicState, false);
   assert.equal("obstaclePending" in publicState, false);
   assert.equal("winners" in publicState, false);
 });

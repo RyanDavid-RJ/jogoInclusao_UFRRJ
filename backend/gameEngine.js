@@ -176,6 +176,7 @@ const removePlayerFromGame = (gameState, playerId) => {
 
 const getPublicGameState = (gameState) => ({
   positions: { ...gameState.positions },
+  quizPoints: { ...gameState.quizPoints },
   currentPlayerId:
     gameState.status === "finished"
       ? null

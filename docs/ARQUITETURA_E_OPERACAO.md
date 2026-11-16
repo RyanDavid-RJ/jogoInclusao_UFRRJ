@@ -111,7 +111,7 @@ O ciclo simplificado é:
 10. respostas são validadas no servidor;
 11. o quiz termina por respostas completas ou prazo;
 12. o servidor pontua e libera o próximo turno;
-13. o jogo termina por posição 20 ou limite de rodadas;
+13. o jogo termina por posição 30 ou limite de rodadas;
 14. `game_over` revela o resultado final.
 
 Eventos privados, como `game_started`, `quiz_question` e `quiz_result`, são
@@ -133,6 +133,10 @@ A tabela `perguntas` contém:
 - resposta correta;
 - explicação opcional;
 - tags.
+
+`GET /api/perguntas` usa uma projeção sem `resposta_correta`. O cadastro via
+`POST /api/perguntas` exige `QUESTION_ADMIN_TOKEN` no cabeçalho
+`X-Question-Admin-Token`; CORS não substitui essa autenticação.
 
 O gabarito permanece disponível apenas no servidor. A aplicação usa TLS quando
 `DB_SSL=true` e recebe o certificado CA por arquivo seguro ou variável de

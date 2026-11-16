@@ -17,14 +17,15 @@ O primeiro ciclo definido para o MVP foi:
 2. reunir de 4 a 8 participantes;
 3. escolher a etapa escolar;
 4. sortear papéis privados;
-5. jogar em turnos em um tabuleiro de 0 a 20;
-6. abrir um quiz simultâneo ao pousar nas casas 4, 8, 12 ou 16;
+5. jogar em turnos em um tabuleiro de 0 a 30;
+6. receber Impulso (+2) nas casas 5, 10, 15, 20 e 25 e abrir um quiz
+   simultâneo ao pousar nas casas 7, 14, 21 ou 28;
 7. pontuar as respostas e retomar a partida;
 8. declarar o resultado e revelar os papéis no final.
 
 O escopo inicial priorizou uma partida jogável e verificável. Login externo,
-histórico de partidas, ranking, casas bônus e escalabilidade horizontal ficaram
-fora do primeiro ciclo.
+histórico de partidas e escalabilidade horizontal ficaram fora do primeiro
+ciclo.
 
 ## 2. O que foi realizado
 
@@ -46,8 +47,9 @@ fora do primeiro ciclo.
 
 - Ordem de turnos sorteada pelo servidor.
 - Dado de seis lados.
-- Movimento limitado à casa 20.
-- Obstáculos nas casas 4, 8, 12 e 16.
+- Movimento limitado à casa 30.
+- Impulso (+2) nas casas 5, 10, 15, 20 e 25, limitado à chegada.
+- Obstáculos nas casas 7, 14, 21 e 28.
 - Partida pausada enquanto o quiz simultâneo está aberto.
 - Limite de oito rodadas completas.
 - Desempate por posição, pontos do quiz e, se necessário, campeões
@@ -81,7 +83,7 @@ fora do primeiro ciclo.
 
 ## 3. Evidências de validação
 
-Em 2026-11-16, a suíte do backend foi executada com **62 testes aprovados**.
+Em 2026-11-16, a suíte do backend foi executada com **63 testes aprovados**.
 Também foram aprovados:
 
 - `npx tsc --noEmit` no frontend;
