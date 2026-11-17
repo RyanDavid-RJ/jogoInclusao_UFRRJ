@@ -184,10 +184,13 @@ DB_SSL=true
 DB_CA_CERT=...
 CLIENT_ORIGIN=https://SEU-PROJETO.vercel.app
 QUESTION_ADMIN_TOKEN=...
+NODE_ENV=production
 ```
 
 `QUESTION_ADMIN_TOKEN` deve ser um token forte, armazenado somente nas
 variáveis secretas do Render. Não o inclua no frontend nem no repositório.
+Em produção, `NODE_ENV=production` faz o backend exigir `CLIENT_ORIGIN`
+explícito e rejeitar o curinga `*`.
 
 O valor de `CLIENT_ORIGIN` pode conter uma lista separada por vírgulas quando houver mais de um domínio autorizado.
 

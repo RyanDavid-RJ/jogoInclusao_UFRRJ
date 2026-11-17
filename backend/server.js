@@ -8,10 +8,22 @@ const { createQuestionRepository } = require("./repositories/questionRepository"
 const { createQuizService } = require("./quizService");
 const { createApiApp } = require("./api");
 
-const configuredOrigins = (process.env.CLIENT_ORIGIN || "*")
+const defaultOrigins =
+  process.env.NODE_ENV === "production"
+    ? ""
+    : "http://localhost:3000,http://localhost:8081,http://localhost:19006";
+const configuredOrigins = (process.env.CLIENT_ORIGIN || defaultOrigins)
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
+if (
+  process.env.NODE_ENV === "production" &&
+  (configuredOrigins.length === 0 || configuredOrigins.includes("*"))
+) {
+  throw new Error(
+    "CLIENT_ORIGIN must contain explicit origins when NODE_ENV=production.",
+  );
+}
 const corsOrigin = configuredOrigins.includes("*") ? "*" : configuredOrigins;
 const questionAdminToken = process.env.QUESTION_ADMIN_TOKEN?.trim();
 

@@ -152,6 +152,8 @@ ambiente. Credenciais e certificados não pertencem ao repositório.
 - Health Check: `/api/status`;
 - variáveis: `PORT`, `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`,
   `DB_NAME`, `DB_SSL`, `DB_CA_CERT` e `CLIENT_ORIGIN`.
+- `NODE_ENV=production` deve ser configurado no serviço. Nesse modo, o
+  processo não inicia sem `CLIENT_ORIGIN` explícito e não aceita `*`.
 
 ### Vercel
 
@@ -176,7 +178,7 @@ lançamento com tráfego imprevisível.
 
 ## 8. Segurança e operação recomendadas
 
-- definir `CLIENT_ORIGIN` sem usar `*` em produção;
+- definir `NODE_ENV=production` e `CLIENT_ORIGIN` sem usar `*` em produção;
 - limitar criação, listagem e entrada de salas;
 - aplicar limites de frequência também aos eventos de retomada, rolagem e resposta;
 - expirar salas de espera inativas após 30 minutos;
