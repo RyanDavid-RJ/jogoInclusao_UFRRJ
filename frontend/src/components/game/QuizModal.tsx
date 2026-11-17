@@ -4,7 +4,11 @@
 
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import Animated, { FadeInDown, FadeOutDown } from "react-native-reanimated";
+import Animated, {
+  FadeInDown,
+  FadeOutDown,
+  useReducedMotion,
+} from "react-native-reanimated";
 
 import {
   OBSTACLE_META,
@@ -39,6 +43,7 @@ export function QuizModal({
   onSubmit,
   palette,
 }: QuizModalProps) {
+  const reduceMotion = useReducedMotion();
   const [selectedAnswer, setSelectedAnswer] = useState<QuizAnswer | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -82,10 +87,10 @@ export function QuizModal({
   };
 
   return (
-    <View style={styles.overlay}>
+    <View style={styles.overlay} accessibilityViewIsModal>
       <Animated.View
-        entering={FadeInDown.springify()}
-        exiting={FadeOutDown}
+        entering={reduceMotion ? undefined : FadeInDown.springify()}
+        exiting={reduceMotion ? undefined : FadeOutDown}
         style={styles.modalWrap}
       >
         <DuoCard palette={palette} variant="default" padding={18}>
@@ -155,6 +160,7 @@ export function QuizModal({
                       variant={isSelected ? "primary" : "ghost"}
                       size="md"
                       fullWidth
+                      selected={isSelected}
                       onPress={
                         isSubmitting
                           ? undefined
@@ -195,6 +201,7 @@ export function QuizModal({
                     color: result.correta ? palette.primary : palette.danger,
                   },
                 ]}
+                accessibilityLiveRegion="polite"
               >
                 {result.correta ? "Correto!" : "Incorreto"}
               </Text>

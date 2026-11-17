@@ -4,7 +4,11 @@
 
 import { useMemo } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
-import Animated, { FadeInUp, SlideInDown } from "react-native-reanimated";
+import Animated, {
+  FadeInUp,
+  SlideInDown,
+  useReducedMotion,
+} from "react-native-reanimated";
 
 import {
   getAvatarMeta,
@@ -41,6 +45,7 @@ export function GameOverModal({
   onBackToHome,
   palette,
 }: GameOverModalProps) {
+  const reduceMotion = useReducedMotion();
   const playerIds = useMemo(
     () => playerProfiles.map((profile) => profile.playerId),
     [playerProfiles]
@@ -57,7 +62,7 @@ export function GameOverModal({
   const reveal = gameOver.reveal ?? [];
 
   return (
-    <View style={styles.overlay}>
+    <View style={styles.overlay} accessibilityViewIsModal>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -66,7 +71,7 @@ export function GameOverModal({
           <DuoCard palette={palette} variant="default" padding={20}>
             {/* BANNER DE CAMPEÃO */}
             <Animated.View
-              entering={SlideInDown.springify()}
+              entering={reduceMotion ? undefined : SlideInDown.springify()}
               style={[
                 styles.championBanner,
                 {
@@ -123,7 +128,11 @@ export function GameOverModal({
                   return (
                     <Animated.View
                       key={item.playerId}
-                      entering={FadeInUp.delay(index * 150).springify()}
+                      entering={
+                        reduceMotion
+                          ? undefined
+                          : FadeInUp.delay(index * 150).springify()
+                      }
                       style={[
                         styles.revealItem,
                         {

@@ -3,7 +3,11 @@
 // Compatível com React Compiler. Sem shadow* no StyleSheet.
 
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
-import Animated, { FadeIn, SlideInDown } from "react-native-reanimated";
+import Animated, {
+  FadeIn,
+  SlideInDown,
+  useReducedMotion,
+} from "react-native-reanimated";
 
 import type { ThemePalette } from "../../constants/duoTheme";
 
@@ -13,6 +17,7 @@ export interface SplashViewProps {
 }
 
 export function SplashView({ palette, connectionWaitTime }: SplashViewProps) {
+  const reduceMotion = useReducedMotion();
   const showSlowServerNotice = connectionWaitTime > 3;
 
   return (
@@ -20,7 +25,7 @@ export function SplashView({ palette, connectionWaitTime }: SplashViewProps) {
       style={[styles.container, { backgroundColor: palette.background }]}
     >
       <Animated.View
-        entering={FadeIn.duration(600)}
+        entering={reduceMotion ? undefined : FadeIn.duration(600)}
         style={styles.logoWrap}
       >
         <View
@@ -47,7 +52,7 @@ export function SplashView({ palette, connectionWaitTime }: SplashViewProps) {
 
       {showSlowServerNotice ? (
         <Animated.View
-          entering={SlideInDown.duration(400)}
+          entering={reduceMotion ? undefined : SlideInDown.duration(400)}
           style={[
             styles.slowCard,
             {

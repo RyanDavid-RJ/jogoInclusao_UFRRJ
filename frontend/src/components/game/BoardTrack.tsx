@@ -4,7 +4,7 @@
 
 import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import Animated, { FadeIn } from "react-native-reanimated";
+import Animated, { FadeIn, useReducedMotion } from "react-native-reanimated";
 
 import {
   BONUS_META,
@@ -81,6 +81,7 @@ export function BoardTrack({
   playerProfiles,
   palette,
 }: BoardTrackProps) {
+  const reduceMotion = useReducedMotion();
   const playerIds = useMemo(
     () => playerProfiles.map((profile) => profile.playerId),
     [playerProfiles]
@@ -109,7 +110,7 @@ export function BoardTrack({
 
   return (
     <Animated.View
-      entering={FadeIn.duration(400)}
+      entering={reduceMotion ? undefined : FadeIn.duration(400)}
       style={[styles.container, { backgroundColor: palette.background }]}
     >
       {BOARD_ROWS.map((rowCells, rowIndex) => (
@@ -122,6 +123,25 @@ export function BoardTrack({
             const isObstacle = Boolean(obstacle);
             const isOwnHere = ownHouse === cell.house;
             const playersHere = playersByHouse.get(cell.house) ?? [];
+            const houseDescription = [
+              `Casa ${cell.house}`,
+              isStart
+                ? "Início"
+                : isFinish
+                  ? "Chegada"
+                  : obstacle
+                    ? `Obstáculo: ${obstacle.title}`
+                    : bonus
+                      ? `Impulso: ${bonus.title}`
+                      : null,
+              playersHere.length > 0
+                ? `Jogadores: ${playersHere
+                    .map((profile) => profile.name)
+                    .join(", ")}`
+                : "Sem jogadores",
+            ]
+              .filter(Boolean)
+              .join(". ");
 
             let bgColor = palette.cardBg;
             let borderColor = palette.cardBorder;
@@ -150,6 +170,8 @@ export function BoardTrack({
                   styles.cell,
                   { backgroundColor: bgColor, borderColor },
                 ]}
+                accessible
+                accessibilityLabel={houseDescription}
               >
                 <View style={styles.cellTopRow}>
                   <Text

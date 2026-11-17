@@ -40,6 +40,7 @@ export interface DuoButtonProps {
   variant?: DuoButtonVariant;
   size?: DuoButtonSize;
   disabled?: boolean;
+  selected?: boolean;
   fullWidth?: boolean;
   palette: ThemePalette;
   accessibilityLabel?: string;
@@ -150,6 +151,7 @@ export function DuoButton({
   variant = "primary",
   size = "md",
   disabled = false,
+  selected,
   fullWidth = true,
   palette,
   accessibilityLabel,
@@ -166,7 +168,10 @@ export function DuoButton({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? title}
       accessibilityHint={accessibilityHint}
-      accessibilityState={{ disabled: !!disabled }}
+      accessibilityState={{
+        disabled: !!disabled,
+        ...(selected === undefined ? {} : { selected }),
+      }}
       style={({ pressed }) => [
         styles.buttonBase,
         {
@@ -519,6 +524,7 @@ export function TopHeader({
               borderColor: connectionBorder,
             },
           ]}
+          accessibilityLiveRegion="polite"
         >
           <Text style={[styles.statusText, { color: connectionText }]}>
             {connectionLabel}

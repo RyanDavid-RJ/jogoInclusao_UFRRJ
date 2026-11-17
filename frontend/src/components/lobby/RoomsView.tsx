@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import Animated, { FadeIn } from "react-native-reanimated";
+import Animated, { FadeIn, useReducedMotion } from "react-native-reanimated";
 import {
   PublicRoomSummary,
   PlayerProfile,
@@ -41,6 +41,7 @@ export function RoomsView({
   onBackToHome,
   palette,
 }: RoomsViewProps) {
+  const reduceMotion = useReducedMotion();
   const [code, setCode] = useState("");
 
   return (
@@ -51,7 +52,10 @@ export function RoomsView({
       ]}
       keyboardShouldPersistTaps="handled"
     >
-      <Animated.View entering={FadeIn.duration(400)} style={styles.wrap}>
+      <Animated.View
+        entering={reduceMotion ? undefined : FadeIn.duration(400)}
+        style={styles.wrap}
+      >
         {viewState === "public_list" && (
           <DuoCard palette={palette} padding={20}>
             <DuoButton title="Voltar" variant="ghost" onPress={onBackToHome} palette={palette} />

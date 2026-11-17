@@ -10,7 +10,11 @@ import {
   TextInput,
   View,
 } from "react-native";
-import Animated, { FadeIn, SlideInDown } from "react-native-reanimated";
+import Animated, {
+  FadeIn,
+  SlideInDown,
+  useReducedMotion,
+} from "react-native-reanimated";
 
 import {
   AVATAR_IDS,
@@ -50,6 +54,7 @@ export function HomeView({
   onCreateRoom,
   palette,
 }: HomeViewProps) {
+  const reduceMotion = useReducedMotion();
   const trimmedName = playerName.trim();
   const canCreate = trimmedName.length >= 2;
 
@@ -65,7 +70,7 @@ export function HomeView({
       keyboardShouldPersistTaps="handled"
     >
       <Animated.View
-        entering={FadeIn.duration(400)}
+        entering={reduceMotion ? undefined : FadeIn.duration(400)}
         style={styles.headerWrap}
       >
         <Text style={[styles.title, { color: palette.textMain }]}>
@@ -77,7 +82,7 @@ export function HomeView({
       </Animated.View>
 
       <Animated.View
-        entering={SlideInDown.duration(420)}
+        entering={reduceMotion ? undefined : SlideInDown.duration(420)}
         style={styles.mainCardWrap}
       >
         <DuoCard palette={palette} variant="default" padding={18}>

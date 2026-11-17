@@ -9,6 +9,7 @@ import Animated, {
   Easing,
   runOnJS,
   useAnimatedStyle,
+  useReducedMotion,
   useSharedValue,
   withSequence,
   withSpring,
@@ -33,6 +34,7 @@ export function DicePanel({
   onRollDice,
   palette,
 }: DicePanelProps) {
+  const reduceMotion = useReducedMotion();
   const rotation = useSharedValue(0);
   const scale = useSharedValue(1);
   const translateX = useSharedValue(0);
@@ -44,7 +46,10 @@ export function DicePanel({
     }
     rotation.value = 0;
     scale.value = 1;
-    translateY.value = -300;
+    translateY.value = reduceMotion ? 0 : -300;
+    if (reduceMotion) {
+      return;
+    }
     rotation.value = withTiming(360, {
       duration: 600,
       easing: Easing.out(Easing.cubic),
@@ -54,7 +59,7 @@ export function DicePanel({
       withTiming(1.2, { duration: 200, easing: Easing.out(Easing.quad) }),
       withSpring(1, { damping: 6, stiffness: 120 }),
     );
-  }, [diceResult, rotation, scale, translateY]);
+  }, [diceResult, reduceMotion, rotation, scale, translateY]);
 
   const pan = Gesture.Pan()
     .enabled(isMyTurn)
@@ -66,8 +71,8 @@ export function DicePanel({
       if (event.translationY < -50) {
         runOnJS(onRollDice)();
       }
-      translateX.value = withSpring(0);
-      translateY.value = withSpring(0);
+      translateX.value = reduceMotion ? 0 : withSpring(0);
+      translateY.value = reduceMotion ? 0 : withSpring(0);
     });
 
   const diceAnimatedStyle = useAnimatedStyle(() => ({

@@ -128,6 +128,8 @@ export function PlayersSidebar({
                       borderColor: palette.cardBorder,
                     },
                   ]}
+                  accessible
+                  accessibilityLabel={`Jogador ${player.name}. Posição ${position} de ${FINISH_HOUSE}. Pontos de quiz: ${points}.`}
                 >
                   <AvatarMedallion
                     avatarId={player.avatarId}
