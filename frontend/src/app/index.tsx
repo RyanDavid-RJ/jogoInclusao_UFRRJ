@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { SafeAreaView, useWindowDimensions, View } from "react-native";
+import {
+  AppState,
+  SafeAreaView,
+  ScrollView,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { io, Socket } from "socket.io-client";
 
@@ -271,6 +277,16 @@ export default function IndexScreen() {
   }, []);
 
   useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (nextAppState === "active" && socketRef.current?.disconnected) {
+        socketRef.current.connect();
+      }
+    });
+
+    return () => subscription.remove();
+  }, []);
+
+  useEffect(() => {
     if (!quizQuestion) {
       setQuizRemainingSeconds(0);
       return;
@@ -288,6 +304,7 @@ export default function IndexScreen() {
   const emit = (event: string, payload?: object) =>
     socketRef.current?.emit(event, payload);
   const validName = playerName.trim().length >= 2 && playerName.trim().length <= 16;
+  const GameContainer = isDesktop ? View : ScrollView;
 
   const createRoom = () => {
     if (!validName) {
@@ -404,8 +421,17 @@ export default function IndexScreen() {
           palette={palette}
         />
       ) : (
-        <View style={{ flex: 1, flexDirection: isDesktop ? "row" : "column" }}>
-          <View style={{ width: isDesktop ? 320 : "100%", height: isDesktop ? "100%" : 220 }}>
+        <GameContainer
+          style={
+            isDesktop ? { flex: 1, flexDirection: "row" } : { flex: 1 }
+          }
+        >
+          <View
+            style={{
+              width: isDesktop ? 300 : "100%",
+              height: isDesktop ? "100%" : undefined,
+            }}
+          >
             <PlayersSidebar
               players={players}
               positions={gameState.positions}
@@ -454,7 +480,7 @@ export default function IndexScreen() {
               palette={palette}
             />
           ) : null}
-        </View>
+        </GameContainer>
       )}
     </SafeAreaView>
   );
