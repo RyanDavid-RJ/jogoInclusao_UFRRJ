@@ -1,6 +1,6 @@
 # Status do Projeto — Ludo Equidade
 
-**Atualizado em:** 2026-11-16
+**Atualizado em:** 2026-11-20
 **Estado:** MVP web funcional em piloto controlado
 
 ## 1. O que queríamos construir
@@ -64,17 +64,40 @@ ciclo.
 - Pontuação dos acertos pela ordem de recebimento no servidor.
 - Erros, prazo expirado e desconexões valem zero.
 - Falha na busca de perguntas não inicia uma rodada parcial.
-- MySQL/Aiven com a tabela `perguntas` e cobertura das nove combinações de
-  etapa escolar e nível estrutural.
+- MySQL/Aiven com a tabela `perguntas` limpa e balanceada em produção (`defaultdb`),
+  com **27 perguntas únicas** (3 para cada uma das 9 combinações de etapa escolar
+  e nível estrutural), cobrindo `database/schema_e_seed.sql` e
+  `database/perguntas_expansao.sql` (idempotente contra duplicações e com gabarito
+  da sequência `4, 11, 18, 25...` corrigido para `C`).
+- API REST dedicada (`backend/api.js`) com `GET /api/status`, `GET /api/perguntas`
+  (sem gabarito) e `POST /api/perguntas` protegido por `X-Question-Admin-Token`.
+
+### Confiabilidade e operação no backend
+
+- Reconexão temporária de sessão por até 60 segundos (`sessionToken` +
+  `resume_room`/`room_resumed`), incluindo remapeamento de perguntas e aceite de
+  respostas durante rodadas ativas de quiz.
+- Expiração automática de salas de espera inativas após 30 minutos.
+- Limites de frequência (rate limiting) por socket nos eventos críticos.
+- Exigência de `CLIENT_ORIGIN` explícito (sem `*`) quando `NODE_ENV=production`
+  (validado no Render em produção com `https://jogoinclusaoufrrj.vercel.app`,
+  `QUESTION_ADMIN_TOKEN` ativo e serviço operacional na porta 10000).
+- Encerramento gracioso ao receber `SIGTERM`/`SIGINT`, sinalizando
+  indisponibilidade em `/api/status` antes de fechar Socket.IO, HTTP e pool MySQL.
 
 ### Interface e publicação
 
-- Frontend Expo/React Native exportado para web.
-- Lobby responsivo com criação, lista pública e entrada por código funcionando
-  em fluxos separados.
-- Tema claro/escuro, modo daltônico, feedback de conexão e avisos dispensáveis.
-- Tabuleiro, ranking, quiz, revelação final e controles com rótulos de
-  acessibilidade.
+- Frontend Expo/React Native (React Compiler ativo) exportado para web.
+- Lobby responsivo com criação de sala pública ou privada, lista pública, entrada
+  por código e opção de fechar sala (`close_room`) com confirmação para o anfitrião.
+- Tema claro/escuro (com contraste ajustado em superfícies de destaque/alerta),
+  modo daltônico, respeito à redução de movimento (`useReducedMotion`), área
+  segura (`useSafeAreaInsets`), rolagem única no mobile (`ScrollView` sem
+  aninhamento) e tentativa de reconexão ao retornar ao primeiro plano (`AppState`).
+- Tabuleiro sinuoso exato de 0 a 30 (`BoardTrack`), ranking ao vivo, dado com
+  gesto, modal de quiz com leitura do resultado/explicação até o clique em
+  "Continuar" (`QuizModal`), tela final de revelação com perguntas iniciais de
+  reflexão e retorno limpo à tela inicial (`GameOverModal`).
 - Backend Node.js/Express/Socket.IO publicado no Render.
 - Frontend publicado na Vercel em:
   <https://jogoinclusaoufrrj.vercel.app/>
@@ -83,13 +106,15 @@ ciclo.
 
 ## 3. Evidências de validação
 
-Em 2026-11-16, a suíte do backend foi executada com **70 testes aprovados**.
-Também foram aprovados:
+Em 2026-11-20, a suíte automatizada foi validada com **72/72 testes aprovados**
+no backend (`node --test`), além de aprovação sem erros em:
 
 - `npx tsc --noEmit` no frontend;
 - `npm run lint` no frontend;
-- `npm run build:web` no frontend;
-- validação manual multiplayer no Expo Web com quatro jogadores;
+- `npm run build:web` no frontend (validado no ciclo de publicação);
+- validação manual multiplayer no Expo Web e em produção (Render + Vercel) com quatro jogadores;
+- teste exploratório inicial no Safari em iPhone físico (correções de rolagem e
+  reconexão aplicadas localmente, aguardando publicação na Vercel para reteste);
 - perguntas privadas, respostas, prazo, pausa e retomada do turno;
 - autorização da rolagem somente para o jogador correto;
 - encerramento e revelação do resultado.
@@ -103,37 +128,43 @@ O sistema está adequado para demonstrações, testes com pequenos grupos e
 validação pedagógica inicial. O servidor é a fonte de verdade durante uma
 partida, mas as salas e o estado do jogo ficam em memória no processo Node.js.
 
-Consequências conhecidas:
+Consequências e riscos operacionais conhecidos:
 
 - reinício ou novo deploy do Render encerra as partidas ativas;
 - quedas transitórias podem ser retomadas por até 60 segundos;
 - reinício ou novo deploy não pode ser retomado porque o estado permanece em memória;
 - salas de espera inativas são encerradas automaticamente após 30 minutos;
 - múltiplas instâncias do backend não devem ser usadas sem estado compartilhado;
-- o banco contém um conjunto inicial pequeno de perguntas;
-- a validação nativa em Expo Go ainda precisa ser feita;
+- **Aiven MySQL Free Tier encerra em 2026-12-21** (backup local já salvo;
+  planejar migração de hospedagem MySQL antes dessa data);
+- as correções recentes de frontend (Safari iPhone, quiz, tabuleiro, contraste e
+  sala privada) precisam ser publicadas na Vercel para reteste em celular físico;
+- a validação nativa em Expo Go e em Android ainda precisa ser feita;
 - a matriz de obstáculos e papéis ainda precisa de validação com pessoas com
   deficiência e educadores.
 
 ## 5. Para onde queremos ir
 
-### Próxima etapa — confiabilidade do piloto
+### Próxima etapa — confiabilidade do piloto e publicação
 
-- Confirmar CORS e variáveis de produção no Render.
-- Monitorar `/api/status`.
-- Testar queda e retorno do navegador.
-- Validar o fluxo em celular Android e iOS.
-- Testar visualmente timeout, erro do quiz, explicação ausente e fim de jogo
-  em navegador e dispositivo móvel.
+- Publicar as correções recentes na Vercel e no Render e retestar no Safari
+  (iPhone físico), em Android e em desktop.
+- Monitorar `/api/status` continuamente.
+- Planejar e executar a migração do banco MySQL antes do encerramento do
+  Aiven Free Tier em **2026-12-21**.
+- Testar visualmente timeout, erro do quiz, explicação ausente, reconexão
+  durante quiz e fim de jogo em navegador desktop e mobile.
 
 ### Etapa seguinte — conteúdo e acessibilidade
 
-- Aumentar o banco de perguntas.
+- Evitar repetição de perguntas dentro da mesma partida e continuar expandindo o
+  banco além das 27 questões atuais.
 - Revisar perguntas com professores.
 - Validar a matriz com pessoas com deficiência e especialistas.
-- Implementar leitor de tela, contraste, teclado, redução de movimento e
-  feedback que não dependa apenas de cor.
-- Criar uma tela final de reflexão pedagógica.
+- Completar suporte a leitor de tela, navegação por teclado e alternativas para
+  eventuais alertas sonoros.
+- Evoluir a tela final de reflexão pedagógica com métricas observadas da partida
+  (dados, bônus, obstáculos, níveis e acertos) e ilustrações diversas validadas.
 
 ### Evolução de produção
 

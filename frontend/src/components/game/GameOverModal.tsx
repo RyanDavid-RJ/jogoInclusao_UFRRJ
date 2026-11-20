@@ -202,7 +202,9 @@ export function GameOverModal({
                             style={[
                               styles.conditionCircle,
                               {
-                                backgroundColor: conditionMeta.bgTint,
+                                backgroundColor: palette.isDark
+                                  ? conditionMeta.darkBgTint
+                                  : conditionMeta.bgTint,
                                 borderColor: conditionMeta.color,
                               },
                             ]}

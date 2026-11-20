@@ -1056,6 +1056,96 @@ test("resumes a disconnected player with the same session token", () => {
   assert.equal(resumedSocket.eventsFor("room_resumed").length, 1);
 });
 
+test("resumes a disconnected player during an active quiz, re-delivers the question, and scores their answer", async () => {
+  const lobby = await startLobbyAtObstacle(7);
+  const room = lobby.room;
+  const { quizId, participants } = room.quizRound;
+  const disconnectedPlayerId = participants[0];
+  const disconnectedSocket = lobby.io.sockets.get(disconnectedPlayerId);
+  const sessionToken = Object.entries(room.sessionTokens).find(
+    ([, playerId]) => playerId === disconnectedPlayerId,
+  )[0];
+  const resumedSocket = lobby.io.connect("resumed-quiz-player");
+
+  disconnectedSocket.clientEmit("disconnect");
+  resumedSocket.clientEmit("resume_room", {
+    roomCode: lobby.roomCode,
+    sessionToken,
+  });
+
+  const reDeliveredQuestions = lobby.io.emissions.filter(
+    ({ target, eventName }) =>
+      target === resumedSocket.id && eventName === "quiz_question",
+  );
+  assert.equal(reDeliveredQuestions.length, 1);
+  assert.equal(reDeliveredQuestions[0].payload.quizId, quizId);
+
+  const resumedAck = submitAnswer(resumedSocket, quizId, "A");
+  assert.deepEqual(resumedAck, { success: true });
+
+  for (const playerId of participants.slice(1)) {
+    assert.deepEqual(
+      submitAnswer(lobby.io.sockets.get(playerId), quizId, "A"),
+      { success: true },
+    );
+  }
+
+  assert.equal(room.quizRound, null);
+  assert.equal(room.players.includes(resumedSocket.id), true);
+  assert.equal(room.gameState.quizPoints[resumedSocket.id], 4);
+  const resumedResult = lobby.io.emissions.find(
+    ({ target, eventName }) =>
+      target === resumedSocket.id && eventName === "quiz_result",
+  );
+  assert.ok(resumedResult);
+  assert.equal(resumedResult.payload.correta, true);
+  assert.equal(resumedResult.payload.pontos, 4);
+});
+
+test("keeps a player's submitted quiz answer when they disconnect and reconnect before the round ends", async () => {
+  const lobby = await startLobbyAtObstacle(7);
+  const room = lobby.room;
+  const { quizId, participants } = room.quizRound;
+  const playerId = participants[0];
+  const originalSocket = lobby.io.sockets.get(playerId);
+  const sessionToken = Object.entries(room.sessionTokens).find(
+    ([, id]) => id === playerId,
+  )[0];
+  const resumedSocket = lobby.io.connect("resumed-after-answer");
+
+  assert.deepEqual(submitAnswer(originalSocket, quizId, "A"), { success: true });
+  originalSocket.clientEmit("disconnect");
+  resumedSocket.clientEmit("resume_room", {
+    roomCode: lobby.roomCode,
+    sessionToken,
+  });
+
+  assert.equal(
+    lobby.io.emissions.some(
+      ({ target, eventName }) =>
+        target === resumedSocket.id && eventName === "quiz_question",
+    ),
+    false,
+  );
+
+  for (const otherId of participants.slice(1)) {
+    assert.deepEqual(
+      submitAnswer(lobby.io.sockets.get(otherId), quizId, "B"),
+      { success: true },
+    );
+  }
+
+  assert.equal(room.quizRound, null);
+  assert.equal(room.players.includes(resumedSocket.id), true);
+  assert.equal(room.gameState.quizPoints[resumedSocket.id], 4);
+  const resumedResult = lobby.io.emissions.find(
+    ({ target, eventName }) =>
+      target === resumedSocket.id && eventName === "quiz_result",
+  );
+  assert.ok(resumedResult);
+  assert.equal(resumedResult.payload.pontos, 4);
+});
+
 test("resumes a paused game when its pending player disconnects", () => {
   const lobby = startLobbyGame((_minimum, maximum) => maximum - 1);
   const room = lobby.rooms.get(lobby.roomCode);

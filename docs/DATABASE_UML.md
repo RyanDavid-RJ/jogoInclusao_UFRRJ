@@ -1,9 +1,19 @@
 # UML e Banco de Dados — Ludo Equidade
 
-> **Estado consolidado em 2026-11-15:** o banco de perguntas está integrado ao
-> backend e o MVP web está publicado. O app usa `defaultdb` no Aiven, enquanto
-> salas e partidas continuam em memória no Render. Para a visão geral do
-> projeto, consulte [Status do Projeto](./STATUS_PROJETO.md) e
+> **Estado consolidado em 2026-11-20:** o banco de perguntas está integrado ao
+> backend e o MVP web está publicado. O app usa `defaultdb` no Aiven com **27
+> perguntas únicas balanceadas** (3 para cada uma das 9 combinações de etapa
+> escolar × nível estrutural), cobrindo `database/schema_e_seed.sql` e
+> `database/perguntas_expansao.sql` (agora idempotente contra duplicações e com
+> o gabarito da sequência `4, 11, 18, 25...` corrigido para `C`). A API REST
+> vive em `backend/api.js` (`GET /api/perguntas` sem gabarito e
+> `POST /api/perguntas` autenticado por `X-Question-Admin-Token`). O motor atual
+> usa trilha de 0 a 30, Impulso (+2) em 5/10/15/20/25 e obstáculos em 7/14/21/28
+> (mantendo aliases legados 4/8/12/16 em `quizService.js`). Salas e partidas
+> continuam em memória no Render, com **72/72 testes backend aprovados**. Nota
+> operacional: o Aiven MySQL Free Tier encerra em **2026-12-21** (backup local
+> já salvo; planejar migração antes do prazo). Para a visão geral atualizada,
+> consulte [Status do Projeto](./STATUS_PROJETO.md) e
 > [Arquitetura e Operação](./ARQUITETURA_E_OPERACAO.md). As seções abaixo
 > preservam decisões e registros históricos da evolução do banco.
 
@@ -135,7 +145,7 @@ Esperado: `defaultdb` como banco ativo, tabela com as colunas e restrições pre
 - [x]  Selecionar `defaultdb` na configuração privada e confirmar o destino antes da escrita, conforme relatório do Executor.
 - [x]  Aplicar `database/schema_e_seed.sql` em `defaultdb`; validar a estrutura, cobertura das nove combinações e consulta real do repositório, que retornou projeção pública sem gabarito/explicação. O Executor reportou sucesso em 2026-11-09.
 - [x]  Integrar repositório e quiz ao fluxo disparado por obstáculo; suíte backend aprovada em 53/53 testes, incluindo questões com explicação nula e integração Socket.IO com clientes reais para o fluxo normal.
-- [ ]  Ampliar integração Socket.IO para timeout, indisponibilidade/falha de questão, desconexão e encerramento de partida; o teste atual usa perguntas em memória.
+- [x]  Ampliar integração Socket.IO para timeout, indisponibilidade/falha de questão, desconexão e encerramento de partida; o teste atual usa perguntas em memória.
 
 ### Decisão de arquitetura para o MVP
 
@@ -170,7 +180,7 @@ Esperado: `defaultdb` como banco ativo, tabela com as colunas e restrições pre
 
 - Ambiente verificado pelo DeepSeek: Node.js `v26.13.0`; backend CommonJS, sem campo `engines` no `package.json`.
 - Lockfiles existentes: `backend/package-lock.json` e `frontend/package-lock.json`; atualizar o lockfile do backend ao adicionar dependência, sem criar outro.
-- Dependências do backend: `cors`, `dotenv`, `express` e `socket.io`. `dotenv` já existe; adicionar apenas `mysql2` se a inspeção final confirmar que ainda falta.
+- Dependências do backend: `cors`, `dotenv`, `express`, `mysql2` e `socket.io` (com `socket.io-client` em `devDependencies` para testes de integração).
 - O `.gitignore` da raiz já ignora `.env`; não há `.gitignore` dentro de `backend/`. Confirmar que `.env.example` permanece versionável.
 - O script `test` executa `node --test`. O teste do repositório está em `backend/test/questionRepository.test.js` (não em `backend/repositories/`). O relatório anterior à integração do quiz registrava 34 testes; após a integração, o Executor reportou 49 testes aprovados. Ambos os comandos usam `node --test`. A consulta real contra `defaultdb` foi reportada como aprovada.
 - [x]  Hardening da conexão concluído conforme o relato: `DB_PORT` preenchido localmente, CA validado e `GET /api/status` real retornou HTTP 200.

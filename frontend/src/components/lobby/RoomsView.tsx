@@ -14,6 +14,7 @@ export interface RoomsViewProps {
   viewState: "public_list" | "private_join" | "waiting_room";
   publicRooms: PublicRoomSummary[];
   roomCode: string;
+  isPrivateRoom?: boolean;
   players: PlayerProfile[];
   hostId: string;
   ownPlayerId: string;
@@ -21,6 +22,7 @@ export interface RoomsViewProps {
   onSetSchoolStage: (stage: SchoolStage) => void;
   onStartGame: () => void;
   onLeaveRoom: () => void;
+  onCloseRoom?: () => void;
   onJoinSpecificRoom: (code: string) => void;
   onBackToHome: () => void;
   palette: ThemePalette;
@@ -30,6 +32,7 @@ export function RoomsView({
   viewState,
   publicRooms,
   roomCode,
+  isPrivateRoom = false,
   players,
   hostId,
   ownPlayerId,
@@ -37,12 +40,14 @@ export function RoomsView({
   onSetSchoolStage,
   onStartGame,
   onLeaveRoom,
+  onCloseRoom,
   onJoinSpecificRoom,
   onBackToHome,
   palette,
 }: RoomsViewProps) {
   const reduceMotion = useReducedMotion();
   const [code, setCode] = useState("");
+  const [confirmingClose, setConfirmingClose] = useState(false);
 
   return (
     <ScrollView
@@ -124,6 +129,34 @@ export function RoomsView({
         {viewState === "waiting_room" && (
           <DuoCard palette={palette} padding={20}>
             <Text style={[styles.title, { color: palette.textMain }]}>Sala: {roomCode}</Text>
+            <View style={styles.roomMetaRow}>
+              <View
+                style={[
+                  styles.metaPill,
+                  {
+                    backgroundColor: palette.surfaceAlt,
+                    borderColor: palette.cardBorder,
+                  },
+                ]}
+              >
+                <Text style={[styles.metaPillText, { color: palette.textMain }]}>
+                  {isPrivateRoom ? "🔒 Privada" : "🌐 Pública"}
+                </Text>
+              </View>
+              <View
+                style={[
+                  styles.metaPill,
+                  {
+                    backgroundColor: palette.surfaceAlt,
+                    borderColor: palette.cardBorder,
+                  },
+                ]}
+              >
+                <Text style={[styles.metaPillText, { color: palette.textMain }]}>
+                  👥 {players.length}/8 jogadores
+                </Text>
+              </View>
+            </View>
             <View style={styles.grid}>
               {Array.from({ length: 8 }).map((_, i) => {
                 const p = players[i];
@@ -142,21 +175,80 @@ export function RoomsView({
                 <Text style={{textAlign: "center", color: palette.textMain, fontWeight: "bold", marginBottom: 10}}>Escolha a etapa escolar:</Text>
                 <View style={styles.stageWrap}>
                   {SCHOOL_STAGES.map(s => (
-                    <DuoButton key={s} title={s} variant={schoolStage === s ? "primary" : "ghost"} onPress={() => onSetSchoolStage(s)} palette={palette} size="sm" />
+                    <DuoButton key={s} title={s} variant={schoolStage === s ? "primary" : "ghost"} onPress={() => onSetSchoolStage(s)} palette={palette} size="sm" fullWidth={false} />
                   ))}
                 </View>
                 <DuoButton title="Iniciar Partida" onPress={onStartGame} disabled={players.length < 4 || !schoolStage} palette={palette} />
               </>
             ) : (
-              <Text style={{color: palette.textMuted, textAlign: "center", marginBottom: 16}}>Aguardando anfitrião...</Text>
+              <Text style={{color: palette.textMuted, textAlign: "center", marginBottom: 16}}>
+                {schoolStage ? `Etapa: ${schoolStage} · Aguardando anfitrião...` : "Aguardando anfitrião..."}
+              </Text>
             )}
-            <View style={{marginTop: 10}}>
-                <DuoButton
-                  title="Sair da Sala"
-                  variant="danger"
-                  onPress={onLeaveRoom}
-                  palette={palette}
-                />
+            <View style={styles.roomActions}>
+              {ownPlayerId === hostId && onCloseRoom ? (
+                confirmingClose ? (
+                  <View
+                    style={[
+                      styles.confirmCloseBox,
+                      {
+                        backgroundColor: palette.dangerBg,
+                        borderColor: palette.dangerBorder,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.confirmCloseText,
+                        { color: palette.textMain },
+                      ]}
+                    >
+                      Encerrar esta sala para todos os jogadores?
+                    </Text>
+                    <View style={styles.confirmCloseRow}>
+                      <DuoButton
+                        title="Cancelar"
+                        variant="ghost"
+                        size="sm"
+                        fullWidth={false}
+                        style={styles.confirmBtn}
+                        onPress={() => setConfirmingClose(false)}
+                        palette={palette}
+                      />
+                      <DuoButton
+                        title="Confirmar"
+                        variant="danger"
+                        size="sm"
+                        fullWidth={false}
+                        style={styles.confirmBtn}
+                        onPress={() => {
+                          setConfirmingClose(false);
+                          onCloseRoom();
+                        }}
+                        palette={palette}
+                      />
+                    </View>
+                  </View>
+                ) : (
+                  <DuoButton
+                    title="Fechar Sala"
+                    variant="danger"
+                    size="sm"
+                    onPress={() => setConfirmingClose(true)}
+                    palette={palette}
+                    accessibilityHint="Encerra a sala para todos os participantes"
+                  />
+                )
+              ) : null}
+              <DuoButton
+                title="Sair da Sala"
+                variant={ownPlayerId === hostId && onCloseRoom ? "ghost" : "danger"}
+                onPress={() => {
+                  setConfirmingClose(false);
+                  onLeaveRoom();
+                }}
+                palette={palette}
+              />
             </View>
           </DuoCard>
         )}
@@ -178,5 +270,13 @@ const styles = StyleSheet.create({
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 10, justifyContent: "center", marginBottom: 24 },
   slot: { alignItems: "center", width: "22%" },
   emptySlot: { width: 64, height: 64, borderRadius: 32, borderWidth: 2, borderStyle: "dashed", borderColor: "#CCC", alignItems: "center", justifyContent: "center" },
-  stageWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center", marginBottom: 20 }
+  stageWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center", marginBottom: 20 },
+  roomMetaRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 8, marginBottom: 16 },
+  metaPill: { borderRadius: 999, borderWidth: 2, paddingHorizontal: 10, paddingVertical: 4 },
+  metaPillText: { fontSize: 12, fontWeight: "800" },
+  roomActions: { marginTop: 12, gap: 10 },
+  confirmCloseBox: { borderRadius: 14, borderWidth: 2, borderBottomWidth: 4, padding: 12, gap: 10 },
+  confirmCloseText: { fontSize: 13, fontWeight: "800", textAlign: "center" },
+  confirmCloseRow: { flexDirection: "row", gap: 8 },
+  confirmBtn: { flex: 1 }
 });

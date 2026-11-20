@@ -3,7 +3,7 @@
 // Compatível com React Compiler. Sem shadow* no StyleSheet.
 
 import { useEffect, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import Animated, {
   FadeInDown,
   FadeOutDown,
@@ -31,6 +31,7 @@ export interface QuizModalProps {
   obstaclePending: { position: number } | null;
   remainingSeconds: number;
   onSubmit: (answer: QuizAnswer) => void;
+  onDismiss?: () => void;
   palette: ThemePalette;
 }
 
@@ -41,6 +42,7 @@ export function QuizModal({
   obstaclePending,
   remainingSeconds,
   onSubmit,
+  onDismiss,
   palette,
 }: QuizModalProps) {
   const reduceMotion = useReducedMotion();
@@ -114,6 +116,19 @@ export function QuizModal({
             </View>
           ) : null}
 
+          {/* ESTADO: PREPARANDO DESAFIO */}
+          {!question && !result && !error && obstaclePending ? (
+            <View style={styles.preparingWrap}>
+              <ActivityIndicator size="small" color={palette.secondary} />
+              <Text
+                style={[styles.preparingText, { color: palette.textMuted }]}
+                accessibilityLiveRegion="polite"
+              >
+                Preparando o desafio para todos os jogadores...
+              </Text>
+            </View>
+          ) : null}
+
           {/* ESTADO: PERGUNTA */}
           {question && !result && !error ? (
             <View style={styles.section}>
@@ -174,20 +189,39 @@ export function QuizModal({
                 })}
               </View>
 
-              <View style={styles.confirmWrap}>
-                <DuoButton
-                  title="Confirmar Resposta"
-                  icon="✅"
-                  variant="primary"
-                  size="lg"
-                  fullWidth
-                  onPress={handleSubmit}
-                  disabled={!selectedAnswer || isSubmitting}
-                  palette={palette}
-                  accessibilityLabel="Confirmar resposta selecionada"
-                  accessibilityHint="Envia sua resposta e encerra a pergunta atual"
-                />
-              </View>
+              {isSubmitting ? (
+                <View
+                  style={[
+                    styles.waitingBanner,
+                    {
+                      backgroundColor: palette.surfaceAlt,
+                      borderColor: palette.secondaryBorder,
+                    },
+                  ]}
+                  accessibilityLiveRegion="polite"
+                >
+                  <Text
+                    style={[styles.waitingText, { color: palette.textMain }]}
+                  >
+                    ⏳ Resposta enviada! Aguardando os demais jogadores...
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.confirmWrap}>
+                  <DuoButton
+                    title="Confirmar Resposta"
+                    icon="✅"
+                    variant="primary"
+                    size="lg"
+                    fullWidth
+                    onPress={handleSubmit}
+                    disabled={!selectedAnswer || isSubmitting}
+                    palette={palette}
+                    accessibilityLabel="Confirmar resposta selecionada"
+                    accessibilityHint="Envia sua resposta e aguarda o resultado da rodada"
+                  />
+                </View>
+              )}
             </View>
           ) : null}
 
@@ -203,11 +237,13 @@ export function QuizModal({
                 ]}
                 accessibilityLiveRegion="polite"
               >
-                {result.correta ? "Correto!" : "Incorreto"}
+                {result.correta ? "✅ Correto!" : "❌ Incorreto"}
               </Text>
 
               <Text style={[styles.resultLine, { color: palette.textMain }]}>
-                Resposta correta: {result.respostaCorreta}
+                {result.alternativa
+                  ? `Sua resposta: ${result.alternativa} · Gabarito: ${result.respostaCorreta}`
+                  : `Sem resposta no prazo · Gabarito: ${result.respostaCorreta}`}
               </Text>
               <Text style={[styles.resultLine, { color: palette.textMain }]}>
                 Pontos ganhos: ⭐ {result.pontos}
@@ -233,25 +269,52 @@ export function QuizModal({
                   </Text>
                 </View>
               ) : null}
+
+              {onDismiss ? (
+                <View style={styles.confirmWrap}>
+                  <DuoButton
+                    title="Continuar"
+                    variant="secondary"
+                    size="md"
+                    fullWidth
+                    onPress={onDismiss}
+                    palette={palette}
+                    accessibilityLabel="Fechar resultado do quiz e voltar ao tabuleiro"
+                  />
+                </View>
+              ) : null}
             </View>
           ) : null}
 
           {/* ESTADO: ERRO */}
           {error ? (
-            <View
-              style={[
-                styles.errorBanner,
-                {
-                  backgroundColor: palette.dangerBg,
-                  borderColor: palette.dangerBorder,
-                },
-              ]}
-              accessibilityRole="alert"
-              accessibilityLiveRegion="polite"
-            >
-              <Text style={[styles.errorText, { color: palette.textMain }]}>
-                ⚠️ {getQuizErrorMessage(error.code)}
-              </Text>
+            <View style={styles.section}>
+              <View
+                style={[
+                  styles.errorBanner,
+                  {
+                    backgroundColor: palette.dangerBg,
+                    borderColor: palette.dangerBorder,
+                  },
+                ]}
+                accessibilityRole="alert"
+                accessibilityLiveRegion="polite"
+              >
+                <Text style={[styles.errorText, { color: palette.textMain }]}>
+                  ⚠️ {getQuizErrorMessage(error.code)}
+                </Text>
+              </View>
+              {onDismiss ? (
+                <DuoButton
+                  title="Continuar"
+                  variant="ghost"
+                  size="md"
+                  fullWidth
+                  onPress={onDismiss}
+                  palette={palette}
+                  accessibilityLabel="Fechar aviso de erro do quiz"
+                />
+              ) : null}
             </View>
           ) : null}
         </DuoCard>
@@ -326,6 +389,30 @@ const styles = StyleSheet.create({
   },
   confirmWrap: {
     marginTop: 6,
+  },
+  preparingWrap: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 18,
+    gap: 10,
+  },
+  preparingText: {
+    fontSize: 13,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  waitingBanner: {
+    marginTop: 6,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderBottomWidth: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  waitingText: {
+    fontSize: 13,
+    fontWeight: "800",
+    textAlign: "center",
   },
   resultTitle: {
     fontSize: 20,

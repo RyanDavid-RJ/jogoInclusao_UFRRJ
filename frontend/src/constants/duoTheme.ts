@@ -34,11 +34,11 @@ export const BONUS_META: Record<number, { title: string; icon: string }> = {
   25: { title: "Impulso", icon: "🚀" },
 };
 
-export const CONDITION_META: Record<string, { label: string; personaIcon: string; summary: string; color: string; bgTint: string }> = {
-  cadeirante: { label: "Pessoa Cadeirante", personaIcon: "🧑‍🦽", summary: "Perspectiva de mobilidade física diante de barreiras arquitetônicas.", color: "#1CB0F6", bgTint: "#E6F6FE" },
-  cego: { label: "Pessoa com Deficiência Visual", personaIcon: "🧑‍🦯", summary: "Perspectiva de orientação espacial e leitura diante de barreiras visuais.", color: "#A559D9", bgTint: "#F8EEFF" },
-  surdo: { label: "Pessoa Surda", personaIcon: "🤟", summary: "Perspectiva de comunicação visual diante de barreiras sonoras.", color: "#FF9600", bgTint: "#FFF3E0" },
-  neuroatipico: { label: "Pessoa Neuroatípica", personaIcon: "🧠", summary: "Perspectiva de processamento sensorial diante de ambientes sobrecarregados.", color: "#58CC02", bgTint: "#E9F9DF" },
+export const CONDITION_META: Record<string, { label: string; personaIcon: string; summary: string; color: string; bgTint: string; darkBgTint: string }> = {
+  cadeirante: { label: "Pessoa Cadeirante", personaIcon: "🧑‍🦽", summary: "Perspectiva de mobilidade física diante de barreiras arquitetônicas.", color: "#1CB0F6", bgTint: "#E6F6FE", darkBgTint: "#163042" },
+  cego: { label: "Pessoa com Deficiência Visual", personaIcon: "🧑‍🦯", summary: "Perspectiva de orientação espacial e leitura diante de barreiras visuais.", color: "#A559D9", bgTint: "#F8EEFF", darkBgTint: "#2D1F3D" },
+  surdo: { label: "Pessoa Surda", personaIcon: "🤟", summary: "Perspectiva de comunicação visual diante de barreiras sonoras.", color: "#FF9600", bgTint: "#FFF3E0", darkBgTint: "#3D2912" },
+  neuroatipico: { label: "Pessoa Neuroatípica", personaIcon: "🧠", summary: "Perspectiva de processamento sensorial diante de ambientes sobrecarregados.", color: "#58CC02", bgTint: "#E9F9DF", darkBgTint: "#1D3514" },
 };
 
 export interface PlayerProfile { playerId: string; name: string; avatarId: string; }
@@ -52,31 +52,33 @@ export interface QuizError { quizId: string; code: string; }
 export interface QuizAnswerAcknowledgement { success: boolean; code?: string; }
 
 export interface ThemePalette {
-  background: string; cardBg: string; cardBorder: string; surfaceAlt: string; textMain: string; textMuted: string; inputBg: string; inputBorder: string; primary: string; primaryBorder: string; secondary: string; secondaryBorder: string; warning: string; warningBg: string; warningBorder: string; danger: string; dangerBg: string; dangerBorder: string; purple: string; purpleBg: string; purpleBorder: string; boardBg: string; boardBorder: string;
+  isDark: boolean; background: string; cardBg: string; cardBorder: string; surfaceAlt: string; textMain: string; textMuted: string; inputBg: string; inputBorder: string; primary: string; primaryBorder: string; secondary: string; secondaryBorder: string; warning: string; warningBg: string; warningBorder: string; danger: string; dangerBg: string; dangerBorder: string; purple: string; purpleBg: string; purpleBorder: string; boardBg: string; boardBorder: string;
 }
 
 export function getThemePalette(mode: ThemeMode, isDaltonico: boolean): ThemePalette {
+  const isDark = mode === "dark";
   const palette: ThemePalette = {
-    background: mode === "dark" ? "#1F2428" : "#F7F9FA",
-    cardBg: mode === "dark" ? "#2B3137" : "#FFFFFF",
-    cardBorder: mode === "dark" ? "#444D56" : "#E5E5E5",
-    surfaceAlt: mode === "dark" ? "#3A424A" : "#F0F4F8",
-    textMain: mode === "dark" ? "#E1E4E8" : "#3C3C3C",
-    textMuted: mode === "dark" ? "#959DA5" : "#777777",
-    inputBg: mode === "dark" ? "#24292E" : "#F0F0F0",
-    inputBorder: mode === "dark" ? "#444D56" : "#DDDDDD",
+    isDark,
+    background: isDark ? "#1F2428" : "#F7F9FA",
+    cardBg: isDark ? "#2B3137" : "#FFFFFF",
+    cardBorder: isDark ? "#444D56" : "#E5E5E5",
+    surfaceAlt: isDark ? "#3A424A" : "#F0F4F8",
+    textMain: isDark ? "#E1E4E8" : "#3C3C3C",
+    textMuted: isDark ? "#959DA5" : "#777777",
+    inputBg: isDark ? "#24292E" : "#F0F0F0",
+    inputBorder: isDark ? "#444D56" : "#DDDDDD",
     primary: "#58CC02", primaryBorder: "#46A302",
     secondary: "#1CB0F6", secondaryBorder: "#1899D6",
-    warning: "#FFC800", warningBg: "#FFF9DB", warningBorder: "#E5B400",
-    danger: "#FF4B4B", dangerBg: "#FFEAEA", dangerBorder: "#EA2B2B",
-    purple: "#CE82FF", purpleBg: "#F8EEFF", purpleBorder: "#A559D9",
-    boardBg: mode === "dark" ? "#1A2A3A" : "#EAF7FC",
-    boardBorder: mode === "dark" ? "#2B4A6A" : "#B8E6F7",
+    warning: "#FFC800", warningBg: isDark ? "#3D3214" : "#FFF9DB", warningBorder: "#E5B400",
+    danger: "#FF4B4B", dangerBg: isDark ? "#3F1E22" : "#FFEAEA", dangerBorder: "#EA2B2B",
+    purple: "#CE82FF", purpleBg: isDark ? "#322242" : "#F8EEFF", purpleBorder: "#A559D9",
+    boardBg: isDark ? "#1A2A3A" : "#EAF7FC",
+    boardBorder: isDark ? "#2B4A6A" : "#B8E6F7",
   };
   if (isDaltonico) {
     palette.primary = "#1CB0F6"; palette.primaryBorder = "#1899D6";
     palette.danger = "#FF9600"; palette.dangerBorder = "#E08200";
-    palette.dangerBg = "#FFF3E0";
+    palette.dangerBg = isDark ? "#3F2B14" : "#FFF3E0";
   }
   return palette;
 }

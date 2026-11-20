@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
   AppState,
-  SafeAreaView,
   ScrollView,
   useWindowDimensions,
   View,
@@ -40,6 +39,7 @@ type ViewState = "home" | "public_list" | "private_join" | "waiting_room";
 type RoomEvent = {
   roomCode: string;
   hostId: string;
+  isPrivate?: boolean;
   schoolStage: SchoolStage | null;
   sessionToken?: string;
   condition?: string | null;
@@ -64,6 +64,7 @@ export default function IndexScreen() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [connectionWaitTime, setConnectionWaitTime] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
+  const [ownPlayerId, setOwnPlayerId] = useState("");
   const [themeMode, setThemeMode] = useState<ThemeMode>("light");
   const [isDaltonico, setIsDaltonico] = useState(false);
   const palette = getThemePalette(themeMode, isDaltonico);
@@ -71,6 +72,7 @@ export default function IndexScreen() {
   const [isInRoom, setIsInRoom] = useState(false);
   const [viewState, setViewState] = useState<ViewState>("home");
   const [roomCode, setRoomCode] = useState("");
+  const [isPrivateRoom, setIsPrivateRoom] = useState(false);
   const [playerName, setPlayerName] = useState("");
   const [avatarId, setAvatarId] = useState("coelho");
   const [players, setPlayers] = useState<PlayerProfile[]>([]);
@@ -118,6 +120,7 @@ export default function IndexScreen() {
 
     socket.on("connect", () => {
       setIsConnected(true);
+      setOwnPlayerId(socket.id ?? "");
       setErrorMessage("");
       if (roomCodeRef.current) {
         resumeRequestedRef.current = true;
@@ -165,6 +168,7 @@ export default function IndexScreen() {
       roomCodeRef.current = data.roomCode;
       if (data.sessionToken) sessionTokenRef.current = data.sessionToken;
       setRoomCode(data.roomCode);
+      setIsPrivateRoom(data.isPrivate === true);
       setHostId(data.hostId);
       setSchoolStage(data.schoolStage);
       setPlayers(data.players ?? []);
@@ -176,6 +180,7 @@ export default function IndexScreen() {
       roomCodeRef.current = data.roomCode;
       if (data.sessionToken) sessionTokenRef.current = data.sessionToken;
       setRoomCode(data.roomCode);
+      setIsPrivateRoom(data.isPrivate === true);
       setHostId(data.hostId);
       setSchoolStage(data.schoolStage);
       if (data.players) setPlayers(data.players);
@@ -187,6 +192,7 @@ export default function IndexScreen() {
       setViewState("waiting_room");
       roomCodeRef.current = data.roomCode;
       setRoomCode(data.roomCode);
+      if (typeof data.isPrivate === "boolean") setIsPrivateRoom(data.isPrivate);
       setHostId(data.hostId);
       setSchoolStage(data.schoolStage);
       if (data.players) setPlayers(data.players);
@@ -195,6 +201,7 @@ export default function IndexScreen() {
     });
     socket.on("room_updated", (data: RoomEvent) => {
       setHostId(data.hostId);
+      if (typeof data.isPrivate === "boolean") setIsPrivateRoom(data.isPrivate);
       setSchoolStage(data.schoolStage);
       if (data.players) setPlayers(data.players);
     });
@@ -204,6 +211,9 @@ export default function IndexScreen() {
       setViewState("home");
       roomCodeRef.current = "";
       setRoomCode("");
+      setIsPrivateRoom(false);
+      setHostId("");
+      setSchoolStage(null);
       setPlayers([]);
       setErrorMessage("");
       clearGame();
@@ -214,6 +224,9 @@ export default function IndexScreen() {
       setViewState("home");
       roomCodeRef.current = "";
       setRoomCode("");
+      setIsPrivateRoom(false);
+      setHostId("");
+      setSchoolStage(null);
       setPlayers([]);
       setErrorMessage("A sala foi encerrada pelo anfitrião.");
       clearGame();
@@ -225,6 +238,9 @@ export default function IndexScreen() {
         setIsInRoom(false);
         setViewState("home");
         setRoomCode("");
+        setIsPrivateRoom(false);
+        setHostId("");
+        setSchoolStage(null);
         setPlayers([]);
         clearGame();
       }
@@ -237,9 +253,11 @@ export default function IndexScreen() {
       setGameState(state);
       if (state.status !== "paused") setObstaclePending(null);
     });
-    socket.on("obstacle_pending", (data: ObstaclePending) =>
-      setObstaclePending(data),
-    );
+    socket.on("obstacle_pending", (data: ObstaclePending) => {
+      setObstaclePending(data);
+      setQuizResult(null);
+      setQuizError(null);
+    });
     socket.on("quiz_question", (question: QuizQuestion) => {
       quizLockRef.current = false;
       setQuizQuestion(question);
@@ -259,8 +277,6 @@ export default function IndexScreen() {
     socket.on("quiz_round_ended", () => {
       quizLockRef.current = false;
       setQuizQuestion(null);
-      setQuizResult(null);
-      setQuizError(null);
     });
     socket.on("game_over", (result: GameOver) => {
       setObstaclePending(null);
@@ -300,13 +316,36 @@ export default function IndexScreen() {
     return () => clearInterval(timer);
   }, [quizQuestion]);
 
-  const ownPlayerId = socketRef.current?.id ?? "";
   const emit = (event: string, payload?: object) =>
     socketRef.current?.emit(event, payload);
   const validName = playerName.trim().length >= 2 && playerName.trim().length <= 16;
-  const GameContainer = isDesktop ? View : ScrollView;
 
-  const createRoom = () => {
+  const leaveAndResetSession = () => {
+    if (roomCodeRef.current) {
+      socketRef.current?.emit("leave_room");
+    }
+    resumeRequestedRef.current = false;
+    roomCodeRef.current = "";
+    quizLockRef.current = false;
+    setIsInRoom(false);
+    setViewState("home");
+    setRoomCode("");
+    setIsPrivateRoom(false);
+    setHostId("");
+    setSchoolStage(null);
+    setPlayers([]);
+    setErrorMessage("");
+    setMyCondition(null);
+    setGameState(null);
+    setObstaclePending(null);
+    setGameOver(null);
+    setQuizQuestion(null);
+    setQuizResult(null);
+    setQuizError(null);
+    emit("list_rooms");
+  };
+
+  const createRoom = (isPrivate: boolean) => {
     if (!validName) {
       setErrorMessage("O apelido deve ter entre 2 e 16 caracteres.");
       return;
@@ -315,7 +354,7 @@ export default function IndexScreen() {
     emit("create_room", {
       name: playerName.trim(),
       avatarId,
-      isPrivate: false,
+      isPrivate,
       sessionToken: sessionTokenRef.current,
     });
   };
@@ -355,8 +394,45 @@ export default function IndexScreen() {
     return <SplashView palette={palette} connectionWaitTime={connectionWaitTime} />;
   }
 
+  const gameContent = gameState ? (
+    <>
+      <View
+        style={{
+          width: isDesktop ? 300 : "100%",
+          height: isDesktop ? "100%" : undefined,
+        }}
+      >
+        <PlayersSidebar
+          players={players}
+          positions={gameState.positions}
+          quizPoints={gameState.quizPoints ?? {}}
+          myCondition={myCondition}
+          palette={palette}
+          scrollable={isDesktop}
+        />
+      </View>
+      <View style={{ flex: 1, padding: 10 }}>
+        <DicePanel
+          diceResult={gameState.diceResult}
+          isMyTurn={gameState.status === "active" && gameState.currentPlayerId === ownPlayerId}
+          currentPlayerName={
+            players.find((player) => player.playerId === gameState.currentPlayerId)?.name ?? ""
+          }
+          onRollDice={() => emit("roll_dice", { roomCode })}
+          palette={palette}
+        />
+        <BoardTrack
+          positions={gameState.positions}
+          ownPlayerId={ownPlayerId}
+          playerProfiles={players}
+          palette={palette}
+        />
+      </View>
+    </>
+  ) : null;
+
   return (
-    <SafeAreaView
+    <View
       style={{
         flex: 1,
         backgroundColor: palette.background,
@@ -388,7 +464,10 @@ export default function IndexScreen() {
           onChangeName={setPlayerName}
           avatarId={avatarId}
           onChangeAvatar={setAvatarId}
-          onJoinPublicRoom={() => setViewState("public_list")}
+          onJoinPublicRoom={() => {
+            emit("list_rooms");
+            setViewState("public_list");
+          }}
           onJoinPrivateRoom={() => setViewState("private_join")}
           onCreateRoom={createRoom}
           palette={palette}
@@ -398,65 +477,33 @@ export default function IndexScreen() {
           viewState={viewState === "home" ? "waiting_room" : viewState}
           publicRooms={publicRooms}
           roomCode={roomCode}
+          isPrivateRoom={isPrivateRoom}
           players={players}
           hostId={hostId}
           ownPlayerId={ownPlayerId}
           schoolStage={schoolStage}
           onSetSchoolStage={(stage) => emit("set_school_stage", { roomCode, schoolStage: stage })}
           onStartGame={() => emit("start_game", { roomCode })}
-          onLeaveRoom={() => {
-            socketRef.current?.emit("leave_room");
-            setIsInRoom(false);
-            roomCodeRef.current = "";
-            setGameState(null);
-            setRoomCode("");
-          }}
+          onLeaveRoom={leaveAndResetSession}
+          onCloseRoom={() => emit("close_room", { roomCode })}
           onJoinSpecificRoom={joinRoom}
-          onBackToHome={() => {
-            if (isInRoom) emit("leave_room");
-            setIsInRoom(false);
-            roomCodeRef.current = "";
-            setViewState("home");
-          }}
+          onBackToHome={leaveAndResetSession}
           palette={palette}
         />
       ) : (
-        <GameContainer
-          style={
-            isDesktop ? { flex: 1, flexDirection: "row" } : { flex: 1 }
-          }
-        >
-          <View
-            style={{
-              width: isDesktop ? 300 : "100%",
-              height: isDesktop ? "100%" : undefined,
-            }}
-          >
-            <PlayersSidebar
-              players={players}
-              positions={gameState.positions}
-              quizPoints={gameState.quizPoints ?? {}}
-              myCondition={myCondition}
-              palette={palette}
-            />
-          </View>
-          <View style={{ flex: 1, padding: 10 }}>
-            <DicePanel
-              diceResult={gameState.diceResult}
-              isMyTurn={gameState.status === "active" && gameState.currentPlayerId === ownPlayerId}
-              currentPlayerName={
-                players.find((player) => player.playerId === gameState.currentPlayerId)?.name ?? ""
-              }
-              onRollDice={() => emit("roll_dice", { roomCode })}
-              palette={palette}
-            />
-            <BoardTrack
-              positions={gameState.positions}
-              ownPlayerId={ownPlayerId}
-              playerProfiles={players}
-              palette={palette}
-            />
-          </View>
+        <View style={{ flex: 1 }}>
+          {isDesktop ? (
+            <View style={{ flex: 1, flexDirection: "row" }}>
+              {gameContent}
+            </View>
+          ) : (
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={{ paddingBottom: 24 }}
+            >
+              {gameContent}
+            </ScrollView>
+          )}
           <QuizModal
             question={quizQuestion}
             result={quizResult}
@@ -464,6 +511,10 @@ export default function IndexScreen() {
             obstaclePending={obstaclePending}
             remainingSeconds={quizRemainingSeconds}
             onSubmit={submitQuiz}
+            onDismiss={() => {
+              setQuizResult(null);
+              setQuizError(null);
+            }}
             palette={palette}
           />
           {gameOver ? (
@@ -471,17 +522,12 @@ export default function IndexScreen() {
               gameOver={gameOver}
               playerProfiles={players}
               ownPlayerId={ownPlayerId}
-              onBackToHome={() => {
-                setGameOver(null);
-                setIsInRoom(false);
-                setRoomCode("");
-                setPlayers([]);
-              }}
+              onBackToHome={leaveAndResetSession}
               palette={palette}
             />
           ) : null}
-        </GameContainer>
+        </View>
       )}
-    </SafeAreaView>
+    </View>
   );
 }

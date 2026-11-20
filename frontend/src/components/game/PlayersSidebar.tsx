@@ -22,6 +22,7 @@ export interface PlayersSidebarProps {
   quizPoints: Record<string, number>;
   myCondition: string | null;
   palette: ThemePalette;
+  scrollable?: boolean;
 }
 
 const FINISH_HOUSE = 30;
@@ -36,6 +37,7 @@ export function PlayersSidebar({
   quizPoints,
   myCondition,
   palette,
+  scrollable = true,
 }: PlayersSidebarProps) {
   const hasCondition =
     myCondition !== null && myCondition.trim().length > 0;
@@ -44,12 +46,8 @@ export function PlayersSidebar({
     [hasCondition, myCondition]
   );
 
-  return (
-    <ScrollView
-      style={[styles.scroll, { backgroundColor: palette.background }]}
-      contentContainerStyle={styles.scrollContent}
-      showsVerticalScrollIndicator={false}
-    >
+  const content = (
+    <>
       {/* SEÇÃO 1 — Sua Perspectiva */}
       {hasCondition && conditionMeta !== null ? (
         <DuoCard
@@ -57,7 +55,9 @@ export function PlayersSidebar({
           variant="default"
           padding={14}
           style={{
-            backgroundColor: conditionMeta.bgTint,
+            backgroundColor: palette.isDark
+              ? conditionMeta.darkBgTint
+              : conditionMeta.bgTint,
             borderColor: conditionMeta.color,
           }}
         >
@@ -218,6 +218,29 @@ export function PlayersSidebar({
           </View>
         )}
       </DuoCard>
+    </>
+  );
+
+  if (!scrollable) {
+    return (
+      <View
+        style={[
+          styles.scrollContent,
+          { backgroundColor: palette.background },
+        ]}
+      >
+        {content}
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView
+      style={[styles.scroll, { backgroundColor: palette.background }]}
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={false}
+    >
+      {content}
     </ScrollView>
   );
 }

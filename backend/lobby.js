@@ -261,6 +261,13 @@ function attachLobbyHandlers(
       room.quizRound.participants = room.quizRound.participants.map((playerId) =>
         playerId === oldPlayerId ? newPlayerId : playerId,
       );
+      if (room.quizRound.questions?.has(oldPlayerId)) {
+        room.quizRound.questions.set(
+          newPlayerId,
+          room.quizRound.questions.get(oldPlayerId),
+        );
+        room.quizRound.questions.delete(oldPlayerId);
+      }
       if (room.quizRound.answers.has(oldPlayerId)) {
         room.quizRound.answers.set(
           newPlayerId,
@@ -268,9 +275,8 @@ function attachLobbyHandlers(
         );
         room.quizRound.answers.delete(oldPlayerId);
       }
-      if (room.quizRound.disconnected.delete(oldPlayerId)) {
-        room.quizRound.disconnected.add(newPlayerId);
-      }
+      room.quizRound.disconnected.delete(oldPlayerId);
+      room.quizRound.reconnectedFrom?.set(oldPlayerId, newPlayerId);
     }
   };
 
@@ -895,6 +901,7 @@ function attachLobbyHandlers(
       participantCount: room.players.length,
       answers: new Map(),
       disconnected: new Set(),
+      reconnectedFrom: new Map(),
       questions: null,
       deadlineAt: null,
       timer: null,
@@ -928,7 +935,18 @@ function attachLobbyHandlers(
           return;
         }
 
-        round.questions = questions;
+        const resolveCurrentPlayerId = (playerId) => {
+          let current = playerId;
+          while (round.reconnectedFrom.has(current)) {
+            current = round.reconnectedFrom.get(current);
+          }
+          return current;
+        };
+        const remappedQuestions = new Map();
+        for (const [playerId, question] of questions.entries()) {
+          remappedQuestions.set(resolveCurrentPlayerId(playerId), question);
+        }
+        round.questions = remappedQuestions;
         round.deadlineAt = now() + QUIZ_DURATION_MS;
         round.status = "active";
         round.timer = setTimeoutFn(() => {
@@ -938,11 +956,14 @@ function attachLobbyHandlers(
         }, QUIZ_DURATION_MS);
 
         for (const playerId of round.participants) {
-          if (!room.players.includes(playerId)) {
+          if (!room.players.includes(playerId) || round.disconnected.has(playerId)) {
             continue;
           }
 
-          const question = questions.get(playerId);
+          const question = round.questions.get(playerId);
+          if (!question) {
+            continue;
+          }
           io.to(playerId).emit("quiz_question", {
             quizId: round.quizId,
             enunciado: question.enunciado,
@@ -1032,11 +1053,14 @@ function attachLobbyHandlers(
       }
 
       for (const playerId of round.participants) {
-        if (!room.players.includes(playerId)) {
+        if (!room.players.includes(playerId) || round.disconnected.has(playerId)) {
           continue;
         }
 
         const question = round.questions.get(playerId);
+        if (!question) {
+          continue;
+        }
         const answer = round.answers.get(playerId);
         const points = pointsByPlayer.get(playerId) || 0;
         io.to(playerId).emit("quiz_result", {

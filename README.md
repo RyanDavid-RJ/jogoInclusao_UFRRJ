@@ -6,22 +6,25 @@ Socket.IO e MySQL no backend.
 
 ## Funcionalidades
 
-- Criação de salas e entrada por código.
-- Partidas para 4 a 8 participantes, com um anfitrião que escolhe a etapa escolar.
-- Tabuleiro compartilhado com posições de 0 a 30, turnos, rodadas e lançamento de dado.
+- Criação de salas públicas e privadas, listagem pública e entrada por código de 4 caracteres.
+- Partidas para 4 a 8 participantes, com um anfitrião que escolhe a etapa escolar e inicia manualmente.
+- Tabuleiro compartilhado com posições de 0 a 30, turnos, rodadas e lançamento de dado (botão ou gesto).
 - Casas bônus de Impulso (+2 casas) nas posições 5, 10, 15, 20 e 25, com chegada limitada à casa 30.
-- Condição atribuída individualmente a cada participante.
-- Pausa coletiva quando alguém para nas casas-obstáculo 7, 14, 21 ou 28.
-- Interface responsiva com tema claro/escuro, modo daltônico, feedback de
-  conexão e mensagens de erro acessíveis.
+- Condição atribuída individualmente a cada participante, mantida em sigilo até a revelação final com perguntas de reflexão.
+- Pausa coletiva quando alguém para nas casas-obstáculo 7, 14, 21 ou 28, disparando quiz simultâneo de 30 segundos.
+- Reconexão automática de sessão por até 60 segundos em quedas transitórias e expiração de salas de espera inativas após 30 minutos.
+- Interface responsiva com tema claro/escuro, modo daltônico, respeito à redução de movimento, feedback de conexão e mensagens de erro acessíveis.
 
-**Estado atual:** o MVP web está publicado e foi validado manualmente com quatro
-jogadores. O ciclo de sala, turnos, movimento, obstáculos, quiz e encerramento
-está funcional. O backend passou 70 testes, e TypeScript e lint do frontend
-passaram, e o export web de produção foi validado. O estado das salas ainda
-fica em memória em uma única instância; por isso, recuperação após reinício
-continua fora do MVP. Quedas transitórias podem ser retomadas por até 60
-segundos.
+**Estado atual (2026-11-20):** o MVP web está publicado (Render + Vercel) e
+validado com quatro jogadores. O ciclo de sala pública/privada, turnos,
+movimento, obstáculos, quiz, reconexão e encerramento está funcional. O backend
+passou 72/72 testes, TypeScript e lint do frontend passaram, e o banco em
+produção conta com 27 perguntas únicas balanceadas (3 por combinação de etapa
+escolar × nível estrutural). O estado das salas ainda fica em memória em uma
+única instância; por isso, recuperação após reinício continua fora do MVP.
+Quedas transitórias podem ser retomadas por até 60 segundos. Consulte
+[`docs/STATUS_PROJETO.md`](docs/STATUS_PROJETO.md) para detalhes operacionais
+(incluindo a migração planejada do MySQL antes de 2026-12-21).
 
 ## Documentação do projeto
 
@@ -139,6 +142,12 @@ cd frontend
 npm run lint
 ```
 
+### Validação completa (PowerShell, na raiz do repositório)
+
+```powershell
+Push-Location backend; npm test; Pop-Location; Push-Location frontend; npx tsc --noEmit; npm run lint; Pop-Location; git diff --check
+```
+
 ## Deploy atual e piloto
 
 O piloto publicado utiliza:
@@ -230,9 +239,13 @@ na tabela `perguntas` do banco configurado, filtradas por `etapa_escolar` e
 individuais, prazo controlado pelo servidor, pontuação e retomada do turno. Não
 inclua dados de acesso ao banco ou certificados no GitHub.
 
-O protótipo usa `defaultdb` como banco de aplicação confirmado no Aiven. O
-seed inicial cobre as nove combinações de etapa escolar e nível estrutural,
-mas a ampliação e revisão pedagógica do banco ainda fazem parte do roadmap.
+O protótipo usa `defaultdb` como banco de aplicação confirmado no Aiven, hoje
+populado com **27 perguntas únicas balanceadas** (3 para cada uma das 9
+combinações de etapa escolar e nível estrutural) a partir de
+`database/schema_e_seed.sql` e `database/perguntas_expansao.sql` (ambos
+idempotentes contra inserções duplicadas). A revisão pedagógica com professores,
+ampliação futura do acervo e a migração de provedor antes do encerramento do
+Aiven Free Tier (2026-12-21) seguem no roadmap.
 
 ## Limitações e próximos passos
 

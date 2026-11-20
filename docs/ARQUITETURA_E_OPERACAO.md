@@ -22,19 +22,37 @@ das perguntas, não o estado ativo das partidas.
 
 ## 2. Frontend
 
-O frontend está em `frontend/` e usa Expo, React Native, Expo Router,
-TypeScript e `socket.io-client`.
+O frontend está em `frontend/` e usa Expo (SDK 53), React Native, Expo Router,
+TypeScript, React Compiler (`experiments.reactCompiler: true`) e
+`socket.io-client`.
+
+Estrutura principal em `frontend/src/`:
+
+- `app/index.tsx`: orquestração de conexão Socket.IO, estado de sessão/sala/jogo,
+  reconexão via `AppState` e composição responsiva desktop/mobile;
+- `components/lobby/` (`SplashView`, `HomeView`, `RoomsView`): carregamento,
+  perfil local, listagem pública, entrada por código e sala de espera;
+- `components/game/` (`BoardTrack`, `DicePanel`, `PlayersSidebar`, `QuizModal`,
+  `GameOverModal`): trilha 0–30, dado animado com gesto, ranking/perspectiva,
+  quiz simultâneo e revelação/reflexão final;
+- `components/ui/DuoComponents.tsx` e `constants/duoTheme.ts`: design system
+  Duo-Equidade (profundidade por `borderWidth`/`borderBottomWidth`, sem `shadow*`)
+  e paletas claro/escuro/daltônico.
 
 Responsabilidades:
 
 - exibir splash, perfil, lobby público/privado, sala, tabuleiro, quiz e
   resultado;
-- abrir a conexão Socket.IO;
+- abrir a conexão Socket.IO e tentar retomar a sessão em quedas transitórias
+  (`resume_room` + `sessionToken`, inclusive ao retornar ao primeiro plano via
+  `AppState`);
 - mostrar somente as ações permitidas pelo estado recebido;
 - enviar criação/entrada de sala, escolha da etapa, início, rolagem e resposta;
 - apresentar erros de sala e conexão sem ocultar falhas de operação;
-- oferecer tema claro/escuro e modo daltônico sem alterar as regras do jogo;
-- limpar o estado local quando a conexão é encerrada;
+- oferecer tema claro/escuro, modo daltônico e respeito à redução de movimento
+  (`useReducedMotion`) sem alterar as regras do jogo;
+- limpar o estado local ao sair/fechar a sala ou quando a retomada de sessão
+  falhar (`room_error`);
 - nunca decidir o gabarito ou a pontuação.
 
 O mesmo código é preparado para web e mobile. O deploy atual utiliza:
@@ -54,17 +72,39 @@ O backend está em `backend/` e é iniciado por `node server.js` ou `npm start`.
 ### `server.js`
 
 - carrega variáveis de ambiente;
-- configura CORS;
-- cria o servidor HTTP e o Socket.IO;
-- expõe `GET /api/status`;
-- cria o pool MySQL;
-- registra os handlers do lobby.
+- valida e configura CORS (exigindo `CLIENT_ORIGIN` explícito e sem `*` quando
+  `NODE_ENV=production`);
+- instancia a aplicação Express via `api.js` e cria os servidores HTTP e
+  Socket.IO;
+- cria o pool MySQL via `config/db.js`;
+- registra os handlers do lobby e trata `SIGTERM`/`SIGINT` com encerramento
+  gracioso.
+
+### `api.js`
+
+Expõe os endpoints REST da aplicação:
+
+- `GET /api/status`: verifica conectividade com o MySQL (`SELECT 1`) e retorna
+  `503` durante o encerramento do processo;
+- `GET /api/perguntas`: lista perguntas sem o campo `resposta_correta`;
+- `POST /api/perguntas`: cadastra nova pergunta com validação de campos,
+  protegido pelo cabeçalho `X-Question-Admin-Token` (`QUESTION_ADMIN_TOKEN`).
+
+### `config/db.js`
+
+- valida `DB_PORT` e cria o pool `mysql2/promise`;
+- configura TLS obrigatório (`rejectUnauthorized: true`) quando `DB_SSL=true`,
+  carregando o certificado CA de `DB_CA_PATH` ou `DB_CA_CERT`.
 
 ### `lobby.js`
 
 Coordena salas, sockets e eventos multiplayer:
 
-- cria, lista, entra, sai e fecha salas;
+- cria, lista, entra, sai e fecha salas (`close_room`);
+- aplica limites de frequência (rate limiting) por socket nos eventos sensíveis;
+- gerencia sessão temporária (`sessionToken`) e reconexão por até 60 segundos
+  (`resume_room` / `room_resumed`);
+- expira salas de espera inativas após 30 minutos;
 - valida perfis e permissões do anfitrião;
 - inicia a partida;
 - chama o motor para rolagem e movimentação;
@@ -75,11 +115,12 @@ Coordena salas, sockets e eventos multiplayer:
 
 Contém as regras puras do tabuleiro:
 
-- posições;
+- posições (trilha de 0 a 30);
 - ordem de turnos;
-- dado;
-- obstáculos;
-- rodadas;
+- dado de seis lados;
+- casas bônus de Impulso (+2) em 5, 10, 15, 20 e 25;
+- obstáculos em 7, 14, 21 e 28;
+- limite de 8 rodadas;
 - pontuação;
 - condição de término;
 - desempates.
@@ -121,8 +162,9 @@ enviados à sala.
 ## 5. Banco de dados
 
 O banco atual é MySQL no Aiven, com `defaultdb` como banco de aplicação
-confirmado para o protótipo. O script versionado está em
-`database/schema_e_seed.sql`.
+confirmado para o protótipo. Os scripts versionados estão em
+`database/schema_e_seed.sql` (schema + seed inicial das nove combinações) e
+`database/perguntas_expansao.sql` (expansão de perguntas).
 
 A tabela `perguntas` contém:
 
@@ -151,7 +193,8 @@ ambiente. Credenciais e certificados não pertencem ao repositório.
 - Start Command: `npm start`;
 - Health Check: `/api/status`;
 - variáveis: `PORT`, `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`,
-  `DB_NAME`, `DB_SSL`, `DB_CA_CERT` e `CLIENT_ORIGIN`.
+  `DB_NAME`, `DB_SSL`, `DB_CA_CERT`, `CLIENT_ORIGIN`, `QUESTION_ADMIN_TOKEN` e
+  `NODE_ENV=production`.
 - `NODE_ENV=production` deve ser configurado no serviço. Nesse modo, o
   processo não inicia sem `CLIENT_ORIGIN` explícito e não aceita `*`.
 

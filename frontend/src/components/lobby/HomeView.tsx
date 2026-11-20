@@ -2,7 +2,7 @@
 // Tela inicial do "Ludo Equidade (UFRRJ)" — seleção de avatar, nickname e ações.
 // Compatível com React Compiler. Sem shadow* no StyleSheet.
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   ScrollView,
   StyleSheet,
@@ -34,7 +34,7 @@ export interface HomeViewProps {
   onChangeAvatar: (id: string) => void;
   onJoinPublicRoom: () => void;
   onJoinPrivateRoom: () => void;
-  onCreateRoom: () => void;
+  onCreateRoom: (isPrivate: boolean) => void;
   palette: ThemePalette;
 }
 
@@ -55,6 +55,7 @@ export function HomeView({
   palette,
 }: HomeViewProps) {
   const reduceMotion = useReducedMotion();
+  const [isPrivateRoom, setIsPrivateRoom] = useState(false);
   const trimmedName = playerName.trim();
   const canCreate = trimmedName.length >= 2;
 
@@ -121,7 +122,9 @@ export function HomeView({
             style={[
               styles.nicknamePreview,
               {
-                backgroundColor: selectedMeta.bgTint,
+                backgroundColor: palette.isDark
+                  ? palette.surfaceAlt
+                  : selectedMeta.bgTint,
                 borderColor: selectedMeta.borderColor,
               },
             ]}
@@ -184,17 +187,60 @@ export function HomeView({
               palette={palette}
               accessibilityHint="Abre a tela para digitar o código da sala"
             />
+            <View style={styles.privacyWrap}>
+              <Text style={[styles.privacyLabel, { color: palette.textMuted }]}>
+                Visibilidade da nova sala
+              </Text>
+              <View style={styles.privacyRow}>
+                <DuoButton
+                  title="🌐 Pública"
+                  variant={!isPrivateRoom ? "secondary" : "ghost"}
+                  size="sm"
+                  selected={!isPrivateRoom}
+                  fullWidth={false}
+                  style={styles.privacyBtn}
+                  onPress={() => setIsPrivateRoom(false)}
+                  palette={palette}
+                  accessibilityLabel="Criar sala pública"
+                />
+                <DuoButton
+                  title="🔒 Privada"
+                  variant={isPrivateRoom ? "secondary" : "ghost"}
+                  size="sm"
+                  selected={isPrivateRoom}
+                  fullWidth={false}
+                  style={styles.privacyBtn}
+                  onPress={() => setIsPrivateRoom(true)}
+                  palette={palette}
+                  accessibilityLabel="Criar sala privada"
+                />
+              </View>
+            </View>
             <DuoButton
-              title="➕ Criar Nova Sala"
-              subtitle={canCreate ? "Você será o anfitrião" : "Informe seu apelido antes"}
+              title={
+                isPrivateRoom
+                  ? "🔒 Criar Sala Privada"
+                  : "➕ Criar Sala Pública"
+              }
+              subtitle={
+                canCreate
+                  ? isPrivateRoom
+                    ? "Acesso somente pelo código de 4 caracteres"
+                    : "Visível na lista de salas públicas"
+                  : "Informe seu apelido antes"
+              }
               icon="🚀"
               variant="primary"
               size="lg"
               fullWidth
               disabled={!canCreate}
-              onPress={onCreateRoom}
+              onPress={() => onCreateRoom(isPrivateRoom)}
               palette={palette}
-              accessibilityHint="Cria uma nova sala privada com você como anfitrião"
+              accessibilityHint={
+                isPrivateRoom
+                  ? "Cria uma nova sala privada com você como anfitrião"
+                  : "Cria uma nova sala pública com você como anfitrião"
+              }
             />
           </View>
         </DuoCard>
@@ -320,6 +366,22 @@ const styles = StyleSheet.create({
   actionsWrap: {
     gap: 12,
     marginTop: 4,
+  },
+  privacyWrap: {
+    gap: 6,
+    marginTop: 4,
+  },
+  privacyLabel: {
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.2,
+  },
+  privacyRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  privacyBtn: {
+    flex: 1,
   },
   howToPlayWrap: {
     width: "100%",

@@ -25,10 +25,10 @@ const TOTAL_ROWS = Math.ceil(TOTAL_HOUSES / HOUSES_PER_ROW); // 11
 const FINISH_HOUSE = TOTAL_HOUSES - 1; // 30
 const START_HOUSE = 0;
 
-interface CellData {
+type CellData = {
   house: number;
   arrow: string | null;
-}
+} | null;
 
 function buildBoardRows(): CellData[][] {
   const rows: CellData[][] = [];
@@ -38,9 +38,12 @@ function buildBoardRows(): CellData[][] {
     const housesInVisualOrder = isEvenRow
       ? [base, base + 1, base + 2]
       : [base + 2, base + 1, base];
-    const lastVisitedHouse = base + HOUSES_PER_ROW - 1;
+    const lastVisitedHouse = Math.min(FINISH_HOUSE, base + HOUSES_PER_ROW - 1);
 
     const cells: CellData[] = housesInVisualOrder.map((house) => {
+      if (house > FINISH_HOUSE) {
+        return null;
+      }
       let arrow: string | null = null;
       if (house !== FINISH_HOUSE) {
         if (house === lastVisitedHouse) {
@@ -115,7 +118,15 @@ export function BoardTrack({
     >
       {BOARD_ROWS.map((rowCells, rowIndex) => (
         <View key={`row-${rowIndex}`} style={styles.row}>
-          {rowCells.map((cell) => {
+          {rowCells.map((cell, cellIndex) => {
+            if (cell === null) {
+              return (
+                <View
+                  key={`spacer-${rowIndex}-${cellIndex}`}
+                  style={styles.cellSpacer}
+                />
+              );
+            }
             const obstacle = OBSTACLE_META[cell.house];
             const bonus = BONUS_META[cell.house];
             const isStart = cell.house === START_HOUSE;
@@ -288,6 +299,9 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     justifyContent: "space-between",
     alignItems: "stretch",
+  },
+  cellSpacer: {
+    flex: 1,
   },
   cellTopRow: {
     flexDirection: "row",

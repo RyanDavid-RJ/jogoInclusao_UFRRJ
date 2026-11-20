@@ -17,39 +17,49 @@ reduzem riscos técnicos e pedagógicos.
 - [x] Papéis privados e revelação final.
 - [x] Lobby visual responsivo com lista pública e entrada por código.
 - [x] Tema claro/escuro, modo daltônico e feedback de erros/conexão.
-- [x] 70 testes backend aprovados.
+- [x] 72 testes backend aprovados.
 - [x] TypeScript e lint aprovados.
 - [x] Export web de produção aprovado.
 - [x] Teste manual com quatro jogadores.
 
-## Fase 1 — Confiabilidade do piloto
+## Fase 1 — Estabilização e confiabilidade do piloto
 
 **Prioridade: alta**
 
-- [ ] Confirmar CORS restrito ao domínio publicado.
-- [ ] Monitorar `/api/status` continuamente.
+- [x] Corrigir fluxo de leitura do `quiz_result`/`quiz_error` antes da limpeza por `quiz_round_ended`.
+- [x] Corrigir reconexão durante quiz ativo (`quizRound.disconnected` e remapeamento de `quizRound.questions`).
+- [x] Corrigir retorno do `GameOverModal` (limpeza completa de estado/referências e saída da sala).
+- [x] Remover casas extras `31` e `32` da última linha visual do `BoardTrack`.
+- [x] Ajustar contraste de cartões/badges pastéis no modo escuro.
+- [x] Expor escolha de sala pública/privada ao criar sala e ação de fechar sala (`close_room`) para o anfitrião.
+- [x] Confirmar CORS restrito ao domínio publicado (`CLIENT_ORIGIN` + `NODE_ENV=production`) e `QUESTION_ADMIN_TOKEN` no Render.
 - [x] Definir política para salas abandonadas: salas de espera inativas expiram
       após 30 minutos.
-- [ ] Testar deploy/reinício durante uma partida.
-- [ ] Testar perda e retorno da conexão do jogador.
-- [ ] Validar o fluxo em dispositivo Android e iOS.
+- [ ] Publicar ajustes na Vercel/Render e retestar rolagem e reconexão no Safari (iPhone físico) e em navegador Android.
+- [ ] Monitorar `/api/status` continuamente.
+- [ ] Migrar hospedagem MySQL antes do encerramento do Aiven Free Tier em **2026-12-21** (backup local já preservado).
+- [ ] Testar deploy/reinício durante uma partida e perda/retorno da conexão durante quiz ativo.
 - [ ] Validar visualmente timeout, `quiz_error`, explicação ausente e fim de jogo.
+- [ ] Validar o fluxo nativo em Expo Go (Android e iOS) quando o foco avançar além do piloto web.
 
-**Critério de saída:** um grupo pequeno consegue completar partidas no web e
-em pelo menos um dispositivo móvel, com mensagens claras nos cenários de
-falha.
+**Critério de saída:** um grupo pequeno consegue completar partidas no navegador
+(desktop e mobile), com leitura clara do resultado/explicação do quiz, boa
+legibilidade nos temas claro/escuro e banco hospedado em provedor estável além
+de 2026-12-21.
 
 ## Fase 2 — Conteúdo e acessibilidade
 
 **Prioridade: alta**
 
-- [ ] Expandir as perguntas por etapa e nível.
+- [x] Aplicar e limpar `database/perguntas_expansao.sql` em `defaultdb` (27 perguntas únicas, 3 por combinação etapa × nível; script versionado idempotente e com gabarito do ID 14 corrigido).
+- [ ] Evitar repetição de perguntas na mesma partida e expandir ainda mais o banco por etapa e nível.
 - [ ] Revisar o banco com professores.
 - [ ] Revisar linguagem, matriz e obstáculos com pessoas com deficiência.
-- [ ] Adicionar suporte a leitor de tela e teclado.
-- [ ] Verificar contraste e comunicação sem depender apenas de cor.
-- [ ] Respeitar redução de movimento e oferecer alternativas a alertas sonoros.
-- [ ] Criar tela final de reflexão pedagógica.
+- [ ] Adicionar suporte completo a leitor de tela e navegação por teclado.
+- [ ] Verificar contraste (WCAG) em ambos os temas e comunicação sem depender apenas de cor.
+- [x] Respeitar redução de movimento (`useReducedMotion` nos componentes animados).
+- [ ] Oferecer alternativas textuais/visuais caso alertas sonoros sejam introduzidos.
+- [ ] Evoluir a tela final de reflexão pedagógica (`GameOverModal`) com métricas observadas da partida e ilustrações validadas.
 
 **Critério de saída:** o jogo é compreensível, utilizável e pedagogicamente
 defensável para o público definido, com registro das decisões de validação.
@@ -87,7 +97,7 @@ dados.
 
 ## Fora do escopo imediato
 
-- casas bônus e multiplicadores;
+- multiplicadores (casas bônus de Impulso +2 já estão implementadas);
 - persistência do estado ativo das partidas;
 - escala horizontal sem necessidade comprovada;
 - coleta ampla de analytics;
