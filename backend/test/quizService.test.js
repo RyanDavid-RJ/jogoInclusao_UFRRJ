@@ -148,3 +148,42 @@ test("propagates repository failures without converting them to missing question
     (error) => error === databaseFailure,
   );
 });
+
+test("excludes previously used question IDs across and within a quiz round", async () => {
+  const calls = [];
+  const poolByLevel = {
+    1: [
+      { ...question, id: 101, enunciado: "N1-A" },
+      { ...question, id: 102, enunciado: "N1-B" },
+    ],
+    2: [{ ...question, id: 201, enunciado: "N2-A" }],
+    3: [{ ...question, id: 301, enunciado: "N3-A" }],
+  };
+  const service = createQuizService({
+    async findRandomQuestion(filters) {
+      calls.push(filters);
+      const excluded = new Set(filters.excludeIds ?? []);
+      const candidates = poolByLevel[filters.nivelEstrutural];
+      return candidates.find((item) => !excluded.has(item.id)) ?? candidates[0];
+    },
+  });
+
+  const prepared = await service.prepareQuestions({
+    schoolStage: "Fundamental",
+    position: 7,
+    participantIds: ["p1", "p2", "p3", "p4"],
+    playerConditions: {
+      p1: "surdo",
+      p2: "neuroatipico",
+      p3: "cego",
+      p4: "cadeirante",
+    },
+    usedQuestionIds: new Set([99]),
+  });
+
+  assert.equal(prepared.get("p1").id, 101);
+  assert.equal(prepared.get("p2").id, 102);
+  assert.deepEqual(calls[0].excludeIds, [99]);
+  assert.deepEqual(calls[1].excludeIds, [99, 101]);
+  assert.deepEqual(calls[2].excludeIds, [99, 101, 102]);
+});

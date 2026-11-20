@@ -59,7 +59,32 @@ export function GameOverModal({
     [gameOver.winners, playerIds, ownPlayerId, playerProfiles]
   );
 
-  const reveal = gameOver.reveal ?? [];
+  const reveal = useMemo(() => gameOver.reveal ?? [], [gameOver.reveal]);
+
+  const groupMetrics = useMemo(() => {
+    let totalBonuses = 0;
+    let totalObstacles = 0;
+    let totalAnswered = 0;
+    let totalCorrect = 0;
+    let hasStats = false;
+
+    for (const item of reveal) {
+      if (!item.stats) continue;
+      hasStats = true;
+      totalBonuses += item.stats.bonusTriggered;
+      totalObstacles += item.stats.obstaclesTriggered;
+      totalAnswered += item.stats.quizAnswered;
+      totalCorrect += item.stats.quizCorrect;
+    }
+
+    return {
+      hasStats,
+      totalBonuses,
+      totalObstacles,
+      totalAnswered,
+      totalCorrect,
+    };
+  }, [reveal]);
 
   return (
     <View style={styles.overlay} accessibilityViewIsModal>
@@ -264,6 +289,103 @@ export function GameOverModal({
                         </View>
                       </View>
 
+                      {item.stats ? (
+                        <View style={styles.metricsRow}>
+                          {item.stats.diceRolls > 0 ? (
+                            <View
+                              style={[
+                                styles.metricChip,
+                                {
+                                  backgroundColor: palette.cardBg,
+                                  borderColor: palette.cardBorder,
+                                },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.metricText,
+                                  { color: palette.textMuted },
+                                ]}
+                              >
+                                🎲 Média{" "}
+                                {(item.stats.diceTotal / item.stats.diceRolls)
+                                  .toFixed(1)
+                                  .replace(".", ",")}{" "}
+                                ({item.stats.diceRolls}x)
+                              </Text>
+                            </View>
+                          ) : null}
+                          {item.stats.bonusTriggered > 0 ? (
+                            <View
+                              style={[
+                                styles.metricChip,
+                                {
+                                  backgroundColor: palette.cardBg,
+                                  borderColor: palette.primaryBorder,
+                                },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.metricText,
+                                  { color: palette.textMain },
+                                ]}
+                              >
+                                🚀 Impulsos: {item.stats.bonusTriggered}
+                              </Text>
+                            </View>
+                          ) : null}
+                          {item.stats.quizLevels[1] +
+                            item.stats.quizLevels[2] +
+                            item.stats.quizLevels[3] >
+                          0 ? (
+                            <>
+                              <View
+                                style={[
+                                  styles.metricChip,
+                                  {
+                                    backgroundColor: palette.cardBg,
+                                    borderColor: palette.cardBorder,
+                                  },
+                                ]}
+                              >
+                                <Text
+                                  style={[
+                                    styles.metricText,
+                                    { color: palette.textMain },
+                                  ]}
+                                >
+                                  📝 Acertos: {item.stats.quizCorrect}/
+                                  {item.stats.quizLevels[1] +
+                                    item.stats.quizLevels[2] +
+                                    item.stats.quizLevels[3]}
+                                </Text>
+                              </View>
+                              <View
+                                style={[
+                                  styles.metricChip,
+                                  {
+                                    backgroundColor: palette.cardBg,
+                                    borderColor: palette.purpleBorder,
+                                  },
+                                ]}
+                              >
+                                <Text
+                                  style={[
+                                    styles.metricText,
+                                    { color: palette.textMain },
+                                  ]}
+                                >
+                                  📊 N1:{item.stats.quizLevels[1]} · N2:
+                                  {item.stats.quizLevels[2]} · N3:
+                                  {item.stats.quizLevels[3]}
+                                </Text>
+                              </View>
+                            </>
+                          ) : null}
+                        </View>
+                      ) : null}
+
                       <Text
                         style={[
                           styles.conditionSummary,
@@ -286,20 +408,39 @@ export function GameOverModal({
             >
               💭 Momento de Reflexão
             </Text>
+            {groupMetrics.hasStats ? (
+              <Text
+                style={[styles.reflectionSummary, { color: palette.textMain }]}
+              >
+                Nesta partida: {groupMetrics.totalObstacles} obstáculo(s)
+                ativado(s) · {groupMetrics.totalBonuses} impulso(s) ·{" "}
+                {groupMetrics.totalCorrect}/{groupMetrics.totalAnswered} respostas
+                corretas nos quizzes.
+              </Text>
+            ) : null}
             <Text
               style={[styles.reflectionLine, { color: palette.textMain }]}
             >
-              • Como a sorte nos dados influenciou o resultado?
+              • Como a sorte nos dados e os impulsos influenciaram o resultado?
             </Text>
             <Text
               style={[styles.reflectionLine, { color: palette.textMain }]}
             >
-              • E os obstáculos encontrados pelo caminho?
+              • Os níveis dos desafios diante dos mesmos obstáculos pesaram de
+              forma diferente para cada papel?
             </Text>
             <Text
               style={[styles.reflectionLine, { color: palette.textMain }]}
             >
-              • O desempenho nos quizzes explica tudo?
+              • O desempenho nos quizzes explica tudo, ou equidade depende
+              também de remover barreiras?
+            </Text>
+            <Text
+              style={[styles.reflectionDisclaimer, { color: palette.textMuted }]}
+            >
+              Nota pedagógica: estes indicadores resumem apenas fatos observados
+              nesta partida, sem provar causalidade nem representar de forma
+              universal a experiência de pessoas reais.
             </Text>
           </DuoCard>
 
@@ -475,6 +616,22 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: 0.3,
   },
+  metricsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 6,
+  },
+  metricChip: {
+    borderRadius: 10,
+    borderWidth: 1.5,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  metricText: {
+    fontSize: 11,
+    fontWeight: "800",
+  },
   conditionSummary: {
     fontSize: 12,
     fontWeight: "700",
@@ -489,10 +646,22 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
     marginBottom: 8,
   },
+  reflectionSummary: {
+    fontSize: 12,
+    fontWeight: "800",
+    lineHeight: 18,
+    marginBottom: 8,
+  },
   reflectionLine: {
     fontSize: 13,
     fontWeight: "700",
     lineHeight: 19,
     marginBottom: 4,
+  },
+  reflectionDisclaimer: {
+    fontSize: 11,
+    fontWeight: "700",
+    lineHeight: 16,
+    marginTop: 8,
   },
 });

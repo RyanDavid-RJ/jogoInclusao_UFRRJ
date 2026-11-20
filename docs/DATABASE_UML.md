@@ -10,7 +10,7 @@
 > `POST /api/perguntas` autenticado por `X-Question-Admin-Token`). O motor atual
 > usa trilha de 0 a 30, Impulso (+2) em 5/10/15/20/25 e obstáculos em 7/14/21/28
 > (mantendo aliases legados 4/8/12/16 em `quizService.js`). Salas e partidas
-> continuam em memória no Render, com **72/72 testes backend aprovados**. Nota
+> continuam em memória no Render, com **76/76 testes backend aprovados**. Nota
 > operacional: o Aiven MySQL Free Tier encerra em **2026-12-21** (backup local
 > já salvo; planejar migração antes do prazo). Para a visão geral atualizada,
 > consulte [Status do Projeto](./STATUS_PROJETO.md) e

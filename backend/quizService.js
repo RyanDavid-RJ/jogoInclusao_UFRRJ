@@ -62,35 +62,58 @@ function createQuizService(questionRepository) {
     position,
     participantIds,
     playerConditions,
+    usedQuestionIds,
   }) {
     const obstacle = getObstacleForPosition(position);
     if (!obstacle || !Array.isArray(participantIds) || participantIds.length === 0) {
       throw new QuizQuestionsUnavailableError();
     }
 
-    const questions = await Promise.all(
-      participantIds.map(async (playerId) => {
-        const nivelEstrutural = getStructuralLevel(
-          position,
-          playerConditions[playerId],
-        );
-        if (!nivelEstrutural) {
-          throw new QuizQuestionsUnavailableError();
+    const roundExcludedIds = new Set();
+    if (usedQuestionIds) {
+      for (const id of usedQuestionIds) {
+        if (Number.isSafeInteger(id) && id > 0) {
+          roundExcludedIds.add(id);
         }
+      }
+    }
 
-        const question = await questionRepository.findRandomQuestion({
-          etapaEscolar: schoolStage,
-          nivelEstrutural,
-        });
-        if (!isValidQuestion(question)) {
-          throw new QuizQuestionsUnavailableError();
-        }
+    const entries = [];
+    let hasUnavailableQuestion = false;
 
-        return [playerId, question];
-      }),
-    );
+    for (const playerId of participantIds) {
+      const nivelEstrutural = getStructuralLevel(
+        position,
+        playerConditions[playerId],
+      );
+      if (!nivelEstrutural) {
+        throw new QuizQuestionsUnavailableError();
+      }
 
-    return new Map(questions);
+      const filters = {
+        etapaEscolar: schoolStage,
+        nivelEstrutural,
+        ...(roundExcludedIds.size > 0
+          ? { excludeIds: [...roundExcludedIds] }
+          : {}),
+      };
+      const question = await questionRepository.findRandomQuestion(filters);
+      if (!isValidQuestion(question)) {
+        hasUnavailableQuestion = true;
+        continue;
+      }
+
+      if (Number.isSafeInteger(question.id) && question.id > 0) {
+        roundExcludedIds.add(question.id);
+      }
+      entries.push([playerId, question]);
+    }
+
+    if (hasUnavailableQuestion) {
+      throw new QuizQuestionsUnavailableError();
+    }
+
+    return new Map(entries);
   }
 
   return { prepareQuestions };

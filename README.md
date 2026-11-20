@@ -16,10 +16,11 @@ Socket.IO e MySQL no backend.
 - Interface responsiva com tema claro/escuro, modo daltônico, respeito à redução de movimento, feedback de conexão e mensagens de erro acessíveis.
 
 **Estado atual (2026-11-20):** o MVP web está publicado (Render + Vercel) e
-validado com quatro jogadores. O ciclo de sala pública/privada, turnos,
-movimento, obstáculos, quiz, reconexão e encerramento está funcional. O backend
-passou 72/72 testes, TypeScript e lint do frontend passaram, e o banco em
-produção conta com 27 perguntas únicas balanceadas (3 por combinação de etapa
+validado com quatro jogadores (desktop e Safari no iPhone físico). O ciclo de
+sala pública/privada, turnos, movimento, obstáculos, quiz sem repetição na
+partida, reconexão e encerramento com métricas observadas está funcional. O
+backend passou 76/76 testes, TypeScript e lint do frontend passaram, e o banco
+em produção conta com 27 perguntas únicas balanceadas (3 por combinação de etapa
 escolar × nível estrutural). O estado das salas ainda fica em memória em uma
 única instância; por isso, recuperação após reinício continua fora do MVP.
 Quedas transitórias podem ser retomadas por até 60 segundos. Consulte

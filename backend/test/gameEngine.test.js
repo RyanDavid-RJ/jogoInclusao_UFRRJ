@@ -5,6 +5,7 @@ const {
   completeObstaclePause,
   createGameState,
   getPublicGameState,
+  recordQuizOutcome,
   rollDice,
 } = require("../gameEngine");
 
@@ -165,4 +166,34 @@ test("publishes only the public game state", () => {
   assert.equal("turnOrder" in publicState, false);
   assert.equal("obstaclePending" in publicState, false);
   assert.equal("winners" in publicState, false);
+  assert.equal("stats" in publicState, false);
+});
+
+test("tracks observed per-player movement, bonus, obstacle, and quiz stats privately", () => {
+  const gameState = createState();
+  gameState.positions.p1 = 2;
+  rollDice(gameState, diceSequence([3])); // lands on 5 (bonus -> 7, no obstacle)
+  gameState.positions.p2 = 1;
+  rollDice(gameState, diceSequence([6])); // lands on 7 (obstacle)
+  recordQuizOutcome(gameState, "p1", { level: 3, answered: true, correct: true });
+  recordQuizOutcome(gameState, "p2", { level: 1, answered: true, correct: false });
+
+  assert.deepEqual(gameState.stats.p1, {
+    diceRolls: 1,
+    diceTotal: 3,
+    bonusTriggered: 1,
+    obstaclesTriggered: 0,
+    quizAnswered: 1,
+    quizCorrect: 1,
+    quizLevels: { 1: 0, 2: 0, 3: 1 },
+  });
+  assert.deepEqual(gameState.stats.p2, {
+    diceRolls: 1,
+    diceTotal: 6,
+    bonusTriggered: 0,
+    obstaclesTriggered: 1,
+    quizAnswered: 1,
+    quizCorrect: 0,
+    quizLevels: { 1: 1, 2: 0, 3: 0 },
+  });
 });

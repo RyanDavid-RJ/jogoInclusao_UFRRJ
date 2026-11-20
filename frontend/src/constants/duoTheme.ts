@@ -41,11 +41,21 @@ export const CONDITION_META: Record<string, { label: string; personaIcon: string
   neuroatipico: { label: "Pessoa Neuroatípica", personaIcon: "🧠", summary: "Perspectiva de processamento sensorial diante de ambientes sobrecarregados.", color: "#58CC02", bgTint: "#E9F9DF", darkBgTint: "#1D3514" },
 };
 
+export interface PlayerMatchStats {
+  diceRolls: number;
+  diceTotal: number;
+  bonusTriggered: number;
+  obstaclesTriggered: number;
+  quizAnswered: number;
+  quizCorrect: number;
+  quizLevels: Record<1 | 2 | 3, number>;
+}
+
 export interface PlayerProfile { playerId: string; name: string; avatarId: string; }
 export interface PublicRoomSummary { roomCode: string; playerCount: number; maxPlayers?: number; hostId: string; hostName: string; hostAvatarId: string; schoolStage: SchoolStage | null; isPrivate?: boolean; }
 export interface PublicGameState { positions: Record<string, number>; currentPlayerId: string | null; round: number; diceResult: number | null; status: "active" | "paused" | "finished"; quizPoints?: Record<string, number>; }
 export interface ObstaclePending { playerId: string; position: number; round: number; }
-export interface GameOver { winners: string[]; reason: "finish" | "round_limit"; roles: { playerId: string; condition: string }[]; reveal?: { playerId: string; name: string; avatarId: string; condition: string; position: number; quizPoints: number; summary?: string }[]; }
+export interface GameOver { winners: string[]; reason: "finish" | "round_limit"; roles: { playerId: string; condition: string }[]; reveal?: { playerId: string; name: string; avatarId: string; condition: string; position: number; quizPoints: number; summary?: string; stats?: PlayerMatchStats }[]; }
 export interface QuizQuestion { quizId: string; enunciado: string; alternativas: Record<QuizAnswer, string>; deadlineAt: number; }
 export interface QuizResult { quizId: string; alternativa: QuizAnswer | null; correta: boolean; pontos: number; respostaCorreta: QuizAnswer; explicacao?: string; }
 export interface QuizError { quizId: string; code: string; }

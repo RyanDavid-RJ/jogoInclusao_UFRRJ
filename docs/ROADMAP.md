@@ -17,7 +17,7 @@ reduzem riscos técnicos e pedagógicos.
 - [x] Papéis privados e revelação final.
 - [x] Lobby visual responsivo com lista pública e entrada por código.
 - [x] Tema claro/escuro, modo daltônico e feedback de erros/conexão.
-- [x] 72 testes backend aprovados.
+- [x] 76 testes backend aprovados.
 - [x] TypeScript e lint aprovados.
 - [x] Export web de produção aprovado.
 - [x] Teste manual com quatro jogadores.
@@ -35,11 +35,11 @@ reduzem riscos técnicos e pedagógicos.
 - [x] Confirmar CORS restrito ao domínio publicado (`CLIENT_ORIGIN` + `NODE_ENV=production`) e `QUESTION_ADMIN_TOKEN` no Render.
 - [x] Definir política para salas abandonadas: salas de espera inativas expiram
       após 30 minutos.
-- [ ] Publicar ajustes na Vercel/Render e retestar rolagem e reconexão no Safari (iPhone físico) e em navegador Android.
+- [x] Publicar ajustes de Prioridade 1 e 2 na Vercel/Render e retestar no Safari (iPhone físico).
+- [ ] Testar também em navegador Android e revalidar visualmente timeout, `quiz_error`, explicação ausente e métricas do `GameOverModal`.
 - [ ] Monitorar `/api/status` continuamente.
 - [ ] Migrar hospedagem MySQL antes do encerramento do Aiven Free Tier em **2026-12-21** (backup local já preservado).
-- [ ] Testar deploy/reinício durante uma partida e perda/retorno da conexão durante quiz ativo.
-- [ ] Validar visualmente timeout, `quiz_error`, explicação ausente e fim de jogo.
+- [ ] Testar deploy/reinício durante uma partida e perda/retorno da conexão durante quiz ativo em produção.
 - [ ] Validar o fluxo nativo em Expo Go (Android e iOS) quando o foco avançar além do piloto web.
 
 **Critério de saída:** um grupo pequeno consegue completar partidas no navegador
@@ -52,14 +52,16 @@ de 2026-12-21.
 **Prioridade: alta**
 
 - [x] Aplicar e limpar `database/perguntas_expansao.sql` em `defaultdb` (27 perguntas únicas, 3 por combinação etapa × nível; script versionado idempotente e com gabarito do ID 14 corrigido).
-- [ ] Evitar repetição de perguntas na mesma partida e expandir ainda mais o banco por etapa e nível.
+- [x] Evitar repetição de perguntas na mesma rodada e na mesma partida (`usedQuestionIds` com fallback automático).
+- [x] Enriquecer a tela final de reflexão pedagógica (`GameOverModal`) com métricas observadas da partida (média de dado, impulsos, acertos e níveis N1/N2/N3) e nota pedagógica.
+- [ ] Expandir ainda mais o banco por etapa e nível.
 - [ ] Revisar o banco com professores.
-- [ ] Revisar linguagem, matriz e obstáculos com pessoas com deficiência.
+- [ ] Revisar linguagem, matriz, métricas e obstáculos com pessoas com deficiência.
 - [ ] Adicionar suporte completo a leitor de tela e navegação por teclado.
 - [ ] Verificar contraste (WCAG) em ambos os temas e comunicação sem depender apenas de cor.
 - [x] Respeitar redução de movimento (`useReducedMotion` nos componentes animados).
 - [ ] Oferecer alternativas textuais/visuais caso alertas sonoros sejam introduzidos.
-- [ ] Evoluir a tela final de reflexão pedagógica (`GameOverModal`) com métricas observadas da partida e ilustrações validadas.
+- [ ] Validar ilustrações humanas diversas para a revelação pós-jogo com a comunidade.
 
 **Critério de saída:** o jogo é compreensível, utilizável e pedagogicamente
 defensável para o público definido, com registro das decisões de validação.

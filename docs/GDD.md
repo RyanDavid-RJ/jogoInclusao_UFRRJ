@@ -52,7 +52,7 @@ Os papéis cruzam-se com o obstáculo ativo para selecionar a intensidade do des
 - A síntese pode separar fatores observados: sorte e movimento (dados, casas bônus/multiplicadores), exposição a obstáculos e níveis estruturais, desempenho matemático (acertos, ordem de resposta e pontos) e progresso no tabuleiro.
 - Usar perguntas para estimular debate — por exemplo, se sorte, desafios enfrentados e desempenho matemático contribuíram de formas diferentes para o resultado — sem afirmar que os dados provam causalidade ou representam a experiência universal de uma deficiência.
 - No MVP, manter os indicadores somente no estado temporário; não é necessário persistir histórico no banco. Validar linguagem, matriz, personagens e dinâmica com pessoas com deficiência e educadores. A peça de quebra-cabeça para neurodivergência/autismo é debatida por pessoas autistas; não fechar esse símbolo sem consulta comunitária. [[1]](https://pubmed.ncbi.nlm.nih.gov/28823194/)
-- **Status (2026-11-20):** a associação jogador–papel é revelada após o encerramento por `game_over`, e `GameOverModal` já exibe a transição visual inicial e perguntas de reflexão. Ilustrações humanas diversas, métricas observadas da partida (dados/bônus/obstáculos/acertos) e validação pedagógica continuam propostas a evoluir e validar. [[1]](https://app.notion.com/chat?t=40cc1da9eec68082b1f200a9fe207e32)
+- **Status (2026-11-20):** a associação jogador–papel e as métricas observadas da partida (média nos dados, impulsos, acertos e níveis enfrentados N1/N2/N3) são reveladas após o encerramento por `game_over` e exibidas em `GameOverModal` junto das perguntas de reflexão e nota pedagógica. Ilustrações humanas diversas e validação comunitária com educadores e pessoas com deficiência seguem como próximos passos. [[1]](https://app.notion.com/chat?t=40cc1da9eec68082b1f200a9fe207e32)
 
 ## 3. Regras do Jogo — Rascunho Jogável
 
@@ -84,7 +84,7 @@ Os papéis cruzam-se com o obstáculo ativo para selecionar a intensidade do des
 - **Etapa escolar — implementada conforme relato:** Fundamental, Médio ou Superior é escolhida pelo anfitrião no lobby antes de iniciar a partida. É um filtro separado do nível estrutural; o servidor valida e guarda a escolha no estado da sala, propaga a seleção aos jogadores, exige valor válido para iniciar e bloqueia alterações após o início.
 - **API REST de perguntas — implementada:** `GET /api/perguntas` lista as perguntas disponíveis e `POST /api/perguntas` cadastra uma nova pergunta, com validação de etapa escolar, nível estrutural, alternativas e resposta correta.
 - **Ranking aprovado:** para N participantes, os acertos recebem N, N−1, ... até 1 ponto pela ordem de recebimento pelo servidor; erro e tempo esgotado valem zero.
-- **Decisões ainda em aberto:** quantidade/não-repetição de perguntas dentro da mesma partida; validação em campo da reconexão durante quiz ativo (janela de 60 segundos, reentrega da pergunta e aceite da resposta já implementados e cobertos por testes no backend).
+- **Política implementada (2026-11-20):** o servidor evita repetir perguntas já usadas dentro da mesma rodada e da mesma partida (`usedQuestionIds`), com fallback automático caso o acervo da combinação etapa × nível se esgote. A reconexão temporária (60s) reentrega a pergunta e aceita resposta durante quiz ativo.
 
 ## 6. Acessibilidade e Experiência
 

@@ -90,3 +90,39 @@ test("projects only the question and alternatives for public use", () => {
     opcao_d: "D",
   });
 });
+
+test("excludes already-used question IDs when provided and falls back if exhausted", async () => {
+  const calls = [];
+  const pool = {
+    async execute(sql, parameters) {
+      calls.push({ sql, parameters });
+      if (calls.length === 1) {
+        return [[{ id: 7, enunciado: "Inédita" }], []];
+      }
+      if (calls.length === 2) {
+        return [[], []];
+      }
+      return [[{ id: 1, enunciado: "Fallback" }], []];
+    },
+  };
+  const repository = createQuestionRepository(pool);
+
+  const uniqueResult = await repository.findRandomQuestion({
+    etapaEscolar: "Fundamental",
+    nivelEstrutural: 1,
+    excludeIds: [1, 2, 1],
+  });
+  assert.equal(uniqueResult.id, 7);
+  assert.match(calls[0].sql, /AND id NOT IN \(\?, \?\)/);
+  assert.deepEqual(calls[0].parameters, ["Fundamental", 1, 1, 2]);
+
+  const fallbackResult = await repository.findRandomQuestion({
+    etapaEscolar: "Fundamental",
+    nivelEstrutural: 1,
+    excludeIds: new Set([1, 2, 7]),
+  });
+  assert.equal(fallbackResult.id, 1);
+  assert.equal(calls.length, 3);
+  assert.doesNotMatch(calls[2].sql, /NOT IN/);
+  assert.deepEqual(calls[2].parameters, ["Fundamental", 1]);
+});

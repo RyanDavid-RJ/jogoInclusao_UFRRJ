@@ -28,13 +28,16 @@ TypeScript, React Compiler (`experiments.reactCompiler: true`) e
 
 Estrutura principal em `frontend/src/`:
 
-- `app/index.tsx`: orquestração de conexão Socket.IO, estado de sessão/sala/jogo,
-  reconexão via `AppState` e composição responsiva desktop/mobile;
+- `app/index.tsx`: composição responsiva desktop/mobile, tema claro/escuro e
+  modo daltônico;
+- `hooks/useGameSession.ts`: conexão Socket.IO, estado de sessão/sala/jogo,
+  reconexão via `AppState` e temporizador do quiz;
 - `components/lobby/` (`SplashView`, `HomeView`, `RoomsView`): carregamento,
-  perfil local, listagem pública, entrada por código e sala de espera;
+  perfil local, criação pública/privada, cópia do código, listagem pública,
+  entrada por código e sala de espera (com fechamento pelo anfitrião);
 - `components/game/` (`BoardTrack`, `DicePanel`, `PlayersSidebar`, `QuizModal`,
-  `GameOverModal`): trilha 0–30, dado animado com gesto, ranking/perspectiva,
-  quiz simultâneo e revelação/reflexão final;
+  `GameOverModal`): trilha 0–30, dado animado com gesto e rodada, ranking/perspectiva,
+  quiz simultâneo e revelação/reflexão final com métricas observadas;
 - `components/ui/DuoComponents.tsx` e `constants/duoTheme.ts`: design system
   Duo-Equidade (profundidade por `borderWidth`/`borderBottomWidth`, sem `shadow*`)
   e paletas claro/escuro/daltônico.

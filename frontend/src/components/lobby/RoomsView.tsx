@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import Animated, { FadeIn, useReducedMotion } from "react-native-reanimated";
 import {
@@ -48,6 +48,36 @@ export function RoomsView({
   const reduceMotion = useReducedMotion();
   const [code, setCode] = useState("");
   const [confirmingClose, setConfirmingClose] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) {
+        clearTimeout(copyTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleCopyCode = () => {
+    const clipboard = (
+      globalThis as {
+        navigator?: { clipboard?: { writeText?: (text: string) => Promise<void> } };
+      }
+    ).navigator?.clipboard;
+    if (!roomCode || typeof clipboard?.writeText !== "function") {
+      return;
+    }
+    void clipboard.writeText(roomCode).then(() => {
+      setCopiedCode(true);
+      if (copyTimerRef.current) {
+        clearTimeout(copyTimerRef.current);
+      }
+      copyTimerRef.current = setTimeout(() => {
+        setCopiedCode(false);
+      }, 2000);
+    }).catch(() => {});
+  };
 
   return (
     <ScrollView
@@ -129,6 +159,17 @@ export function RoomsView({
         {viewState === "waiting_room" && (
           <DuoCard palette={palette} padding={20}>
             <Text style={[styles.title, { color: palette.textMain }]}>Sala: {roomCode}</Text>
+            <View style={styles.copyCodeRow}>
+              <DuoButton
+                title={copiedCode ? "✅ Código copiado!" : "📋 Copiar código"}
+                variant={copiedCode ? "primary" : "ghost"}
+                size="sm"
+                fullWidth={false}
+                onPress={handleCopyCode}
+                palette={palette}
+                accessibilityLabel={`Copiar código da sala ${roomCode}`}
+              />
+            </View>
             <View style={styles.roomMetaRow}>
               <View
                 style={[
@@ -272,6 +313,7 @@ const styles = StyleSheet.create({
   emptySlot: { width: 64, height: 64, borderRadius: 32, borderWidth: 2, borderStyle: "dashed", borderColor: "#CCC", alignItems: "center", justifyContent: "center" },
   stageWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center", marginBottom: 20 },
   roomMetaRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 8, marginBottom: 16 },
+  copyCodeRow: { alignItems: "center", marginBottom: 12 },
   metaPill: { borderRadius: 999, borderWidth: 2, paddingHorizontal: 10, paddingVertical: 4 },
   metaPillText: { fontSize: 12, fontWeight: "800" },
   roomActions: { marginTop: 12, gap: 10 },

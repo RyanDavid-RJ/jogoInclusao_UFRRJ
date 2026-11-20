@@ -5,6 +5,16 @@ const MAX_ROUNDS = 8;
 const OBSTACLE_POSITIONS = new Set([7, 14, 21, 28]);
 const BONUS_POSITIONS = new Set([5, 10, 15, 20, 25]);
 
+const createPlayerStats = () => ({
+  diceRolls: 0,
+  diceTotal: 0,
+  bonusTriggered: 0,
+  obstaclesTriggered: 0,
+  quizAnswered: 0,
+  quizCorrect: 0,
+  quizLevels: { 1: 0, 2: 0, 3: 0 },
+});
+
 const createGameState = (playerIds, randomInt = secureRandomInt) => {
   const turnOrder = [...playerIds];
 
@@ -20,6 +30,9 @@ const createGameState = (playerIds, randomInt = secureRandomInt) => {
     turnOrder,
     positions: Object.fromEntries(playerIds.map((playerId) => [playerId, 0])),
     quizPoints: Object.fromEntries(playerIds.map((playerId) => [playerId, 0])),
+    stats: Object.fromEntries(
+      playerIds.map((playerId) => [playerId, createPlayerStats()]),
+    ),
     currentTurnIndex: 0,
     round: 1,
     diceResult: null,
@@ -78,12 +91,22 @@ const rollDice = (gameState, randomInt = secureRandomInt) => {
     FINISH_POSITION,
     gameState.positions[playerId] + result,
   );
-  const newPosition = BONUS_POSITIONS.has(landedPosition)
+  const landedOnBonus = BONUS_POSITIONS.has(landedPosition);
+  const newPosition = landedOnBonus
     ? Math.min(FINISH_POSITION, landedPosition + 2)
     : landedPosition;
 
   gameState.diceResult = result;
   gameState.positions[playerId] = newPosition;
+
+  const playerStats = gameState.stats?.[playerId];
+  if (playerStats) {
+    playerStats.diceRolls += 1;
+    playerStats.diceTotal += result;
+    if (landedOnBonus) {
+      playerStats.bonusTriggered += 1;
+    }
+  }
 
   if (newPosition === FINISH_POSITION) {
     finishGame(gameState, [playerId], "finish");
@@ -91,6 +114,9 @@ const rollDice = (gameState, randomInt = secureRandomInt) => {
   }
 
   if (OBSTACLE_POSITIONS.has(landedPosition)) {
+    if (playerStats) {
+      playerStats.obstaclesTriggered += 1;
+    }
     gameState.status = "paused";
     gameState.obstaclePending = { playerId, position: landedPosition };
     return { accepted: true, playerId, landedOnObstacle: true, gameOver: false };
@@ -129,6 +155,28 @@ const addQuizPoints = (gameState, playerId, points) => {
   return true;
 };
 
+const recordQuizOutcome = (
+  gameState,
+  playerId,
+  { level, answered = false, correct = false } = {},
+) => {
+  const playerStats = gameState.stats?.[playerId];
+  if (!playerStats) {
+    return false;
+  }
+
+  if (answered) {
+    playerStats.quizAnswered += 1;
+  }
+  if (correct) {
+    playerStats.quizCorrect += 1;
+  }
+  if (level === 1 || level === 2 || level === 3) {
+    playerStats.quizLevels[level] += 1;
+  }
+  return true;
+};
+
 const removePlayerFromGame = (gameState, playerId) => {
   const playerIndex = gameState.turnOrder.indexOf(playerId);
   if (playerIndex === -1) {
@@ -144,6 +192,9 @@ const removePlayerFromGame = (gameState, playerId) => {
   gameState.turnOrder.splice(playerIndex, 1);
   delete gameState.positions[playerId];
   delete gameState.quizPoints[playerId];
+  if (gameState.stats) {
+    delete gameState.stats[playerId];
+  }
 
   if (wasFinished) {
     return true;
@@ -191,6 +242,7 @@ module.exports = {
   completeObstaclePause,
   createGameState,
   getPublicGameState,
+  recordQuizOutcome,
   removePlayerFromGame,
   rollDice,
 };

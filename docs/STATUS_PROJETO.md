@@ -57,7 +57,9 @@ ciclo.
 
 ### Quiz e banco
 
-- Pergunta individual para cada participante conectado.
+- Pergunta individual para cada participante conectado, evitando repetição de
+  questões dentro da mesma rodada e ao longo da mesma partida (`usedQuestionIds`
+  com fallback automático se o acervo da combinação se esgotar).
 - Prazo comum de 30 segundos controlado pelo servidor.
 - Uma resposta por jogador.
 - Gabarito mantido no backend até a validação.
@@ -89,15 +91,20 @@ ciclo.
 
 - Frontend Expo/React Native (React Compiler ativo) exportado para web.
 - Lobby responsivo com criação de sala pública ou privada, lista pública, entrada
-  por código e opção de fechar sala (`close_room`) com confirmação para o anfitrião.
+  por código, botão para copiar código da sala e opção de fechar sala (`close_room`)
+  com confirmação para o anfitrião.
+- Sessão Socket.IO, reconexão (`AppState` + `resume_room`) e timer de quiz
+  isolados no hook dedicado `frontend/src/hooks/useGameSession.ts`.
 - Tema claro/escuro (com contraste ajustado em superfícies de destaque/alerta),
   modo daltônico, respeito à redução de movimento (`useReducedMotion`), área
   segura (`useSafeAreaInsets`), rolagem única no mobile (`ScrollView` sem
   aninhamento) e tentativa de reconexão ao retornar ao primeiro plano (`AppState`).
 - Tabuleiro sinuoso exato de 0 a 30 (`BoardTrack`), ranking ao vivo, dado com
-  gesto, modal de quiz com leitura do resultado/explicação até o clique em
-  "Continuar" (`QuizModal`), tela final de revelação com perguntas iniciais de
-  reflexão e retorno limpo à tela inicial (`GameOverModal`).
+  gesto e indicador de rodada (`Rodada X/8`), modal de quiz com leitura do
+  resultado/explicação até o clique em "Continuar" (`QuizModal`), tela final de
+  revelação com **métricas observadas da partida** (média de dado, impulsos,
+  acertos e níveis enfrentados N1/N2/N3), síntese do grupo, nota pedagógica e
+  retorno limpo à tela inicial (`GameOverModal`).
 - Backend Node.js/Express/Socket.IO publicado no Render.
 - Frontend publicado na Vercel em:
   <https://jogoinclusaoufrrj.vercel.app/>
@@ -106,18 +113,17 @@ ciclo.
 
 ## 3. Evidências de validação
 
-Em 2026-11-20, a suíte automatizada foi validada com **72/72 testes aprovados**
+Em 2026-11-20, a suíte automatizada foi validada com **76/76 testes aprovados**
 no backend (`node --test`), além de aprovação sem erros em:
 
 - `npx tsc --noEmit` no frontend;
 - `npm run lint` no frontend;
 - `npm run build:web` no frontend (validado no ciclo de publicação);
 - validação manual multiplayer no Expo Web e em produção (Render + Vercel) com quatro jogadores;
-- teste exploratório inicial no Safari em iPhone físico (correções de rolagem e
-  reconexão aplicadas localmente, aguardando publicação na Vercel para reteste);
-- perguntas privadas, respostas, prazo, pausa e retomada do turno;
+- validação no Safari em iPhone físico após publicação das correções de rolagem e reconexão;
+- perguntas privadas sem repetição na partida, respostas, prazo, pausa e retomada do turno;
 - autorização da rolagem somente para o jogador correto;
-- encerramento e revelação do resultado.
+- encerramento e revelação do resultado com métricas observadas.
 
 O fluxo publicado foi exercitado com quatro sessões independentes e funcionou
 adequadamente para o cenário de piloto.

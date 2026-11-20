@@ -516,6 +516,7 @@ test("initializes turn state after the existing start validations and emits a wi
       condition: room.playerConditions[playerId],
       position: room.gameState.positions[playerId],
       quizPoints: room.gameState.quizPoints[playerId],
+      stats: room.gameState.stats[playerId],
     })),
   );
   assert.deepEqual(Object.keys(lobby.io.emissions.at(-1).payload).sort(), [
@@ -1242,4 +1243,61 @@ test("the transferred host can choose the stage and continue before the game sta
   assert.equal(lobby.rooms.get(lobby.roomCode).schoolStage, "Superior");
   assert.equal(lobby.rooms.get(lobby.roomCode).started, true);
   assert.equal(lobby.io.emissions.filter(({ eventName }) => eventName === "game_started").length, 4);
+});
+
+test("tracks used question IDs across quiz rounds and includes observed match stats in game_over reveal", async () => {
+  const seenExcludeIds = [];
+  let nextQuestionId = 10;
+  const lobby = await startLobbyAtObstacle(7, {
+    questionRepository: {
+      async findRandomQuestion(filters) {
+        seenExcludeIds.push(filters.excludeIds ?? []);
+        return { ...question, id: nextQuestionId++ };
+      },
+    },
+  });
+  const room = lobby.room;
+  const { quizId, participants } = room.quizRound;
+  assert.equal(room.usedQuestionIds.size, 4);
+
+  for (const playerId of participants) {
+    assert.deepEqual(
+      submitAnswer(lobby.io.sockets.get(playerId), quizId, "A"),
+      { success: true },
+    );
+  }
+
+  // Trigger a second obstacle round and verify prior question IDs are excluded
+  const currentPlayerId = room.gameState.turnOrder[room.gameState.currentTurnIndex];
+  room.gameState.positions[currentPlayerId] = 8;
+  await lobby.io.sockets.get(currentPlayerId).clientEmit("roll_dice", {
+    roomCode: lobby.roomCode,
+  });
+  assert.equal(seenExcludeIds[4].length, 4);
+  assert.equal(room.usedQuestionIds.size, 8);
+  answerAllPlayers(lobby);
+
+  // Finish the game and check reveal stats
+  const finisherId = room.gameState.turnOrder[room.gameState.currentTurnIndex];
+  room.gameState.positions[finisherId] = 29;
+  await lobby.io.sockets.get(finisherId).clientEmit("roll_dice", {
+    roomCode: lobby.roomCode,
+  });
+
+  const gameOver = lobby.io.emissions.find(
+    ({ eventName }) => eventName === "game_over",
+  )?.payload;
+  assert.ok(gameOver);
+  assert.equal(gameOver.reveal.length, 4);
+  for (const entry of gameOver.reveal) {
+    assert.ok(entry.stats);
+    assert.equal(entry.stats.quizAnswered, 2);
+    assert.equal(entry.stats.quizCorrect, 2);
+    assert.equal(
+      entry.stats.quizLevels[1] +
+        entry.stats.quizLevels[2] +
+        entry.stats.quizLevels[3],
+      2,
+    );
+  }
 });

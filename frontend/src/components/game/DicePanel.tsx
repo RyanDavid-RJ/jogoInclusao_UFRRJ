@@ -19,8 +19,12 @@ import Animated, {
 import { DICE_FACES, type ThemePalette } from "../../constants/duoTheme";
 import { DuoButton, DuoCard } from "../ui/DuoComponents";
 
+const MAX_ROUNDS = 8;
+
 export interface DicePanelProps {
   diceResult: number | null;
+  round?: number;
+  status?: "active" | "paused" | "finished";
   isMyTurn: boolean;
   currentPlayerName: string;
   onRollDice: () => void;
@@ -29,6 +33,8 @@ export interface DicePanelProps {
 
 export function DicePanel({
   diceResult,
+  round,
+  status = "active",
   isMyTurn,
   currentPlayerName,
   onRollDice,
@@ -98,6 +104,24 @@ export function DicePanel({
       padding={18}
       style={cardStyle}
     >
+      {typeof round === "number" ? (
+        <View style={styles.roundRow}>
+          <View
+            style={[
+              styles.roundPill,
+              {
+                backgroundColor: palette.surfaceAlt,
+                borderColor: palette.cardBorder,
+              },
+            ]}
+          >
+            <Text style={[styles.roundText, { color: palette.textMain }]}>
+              🏁 Rodada {round}/{MAX_ROUNDS}
+            </Text>
+          </View>
+        </View>
+      ) : null}
+
       <View style={styles.diceCenter}>
         <GestureDetector gesture={pan}>
           <Animated.View
@@ -142,7 +166,11 @@ export function DicePanel({
             style={[styles.waitingText, { color: palette.textMuted }]}
             numberOfLines={2}
           >
-            ⏳ Aguardando o turno de {currentPlayerName}...
+            {status === "paused"
+              ? "🚧 Partida pausada no obstáculo..."
+              : status === "finished"
+                ? "🏆 Partida encerrada!"
+                : `⏳ Aguardando o turno de ${currentPlayerName}...`}
           </Text>
           <DuoButton
             title="Rolar dado"
@@ -161,6 +189,21 @@ export function DicePanel({
 }
 
 const styles = StyleSheet.create({
+  roundRow: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+  },
+  roundPill: {
+    borderRadius: 999,
+    borderWidth: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  roundText: {
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 0.3,
+  },
   diceCenter: {
     alignItems: "center",
     justifyContent: "center",

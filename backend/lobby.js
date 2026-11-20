@@ -7,10 +7,14 @@ const {
   completeObstaclePause,
   createGameState,
   getPublicGameState,
+  recordQuizOutcome,
   removePlayerFromGame,
   rollDice,
 } = require("./gameEngine");
-const { QuizQuestionsUnavailableError } = require("./quizService");
+const {
+  QuizQuestionsUnavailableError,
+  getStructuralLevel,
+} = require("./quizService");
 
 const MIN_PLAYERS = 4;
 const MAX_PLAYERS = 8;
@@ -130,13 +134,24 @@ const emitGameOver = (io, roomCode, room) => {
       playerId,
       condition: room.playerConditions[playerId],
     })),
-    reveal: room.players.map((playerId) => ({
-      playerId,
-      ...room.playerProfiles[playerId],
-      condition: room.playerConditions[playerId],
-      position: room.gameState.positions[playerId],
-      quizPoints: room.gameState.quizPoints[playerId] || 0,
-    })),
+    reveal: room.players.map((playerId) => {
+      const playerStats = room.gameState.stats?.[playerId];
+      return {
+        playerId,
+        ...room.playerProfiles[playerId],
+        condition: room.playerConditions[playerId],
+        position: room.gameState.positions[playerId],
+        quizPoints: room.gameState.quizPoints[playerId] || 0,
+        ...(playerStats
+          ? {
+              stats: {
+                ...playerStats,
+                quizLevels: { ...playerStats.quizLevels },
+              },
+            }
+          : {}),
+      };
+    }),
   });
 };
 
@@ -252,6 +267,10 @@ function attachLobbyHandlers(
         room.gameState.quizPoints[oldPlayerId];
       delete room.gameState.positions[oldPlayerId];
       delete room.gameState.quizPoints[oldPlayerId];
+      if (room.gameState.stats?.[oldPlayerId]) {
+        room.gameState.stats[newPlayerId] = room.gameState.stats[oldPlayerId];
+        delete room.gameState.stats[oldPlayerId];
+      }
       if (room.gameState.obstaclePending?.playerId === oldPlayerId) {
         room.gameState.obstaclePending.playerId = newPlayerId;
       }
@@ -413,6 +432,7 @@ function attachLobbyHandlers(
         started: false,
         playerConditions: null,
         quizRound: null,
+        usedQuestionIds: new Set(),
         playerProfiles: {
           [socket.id]: profileResult.profile,
         },
@@ -691,6 +711,7 @@ function attachLobbyHandlers(
       }
 
       room.gameState = createGameState(room.players, randomInt);
+      room.usedQuestionIds = new Set();
       clearRoomExpiration(room);
       room.started = true;
       emitRoomUpdated(io, roomCode, room);
@@ -894,9 +915,11 @@ function attachLobbyHandlers(
   };
 
   function beginQuizRound(roomCode, room, result) {
+    const obstaclePosition = room.gameState.positions[result.playerId];
     const round = {
       quizId: createQuizId(),
       status: "preparing",
+      obstaclePosition,
       participants: [...room.players],
       participantCount: room.players.length,
       answers: new Map(),
@@ -925,9 +948,10 @@ function attachLobbyHandlers(
       .then(() =>
         quizService.prepareQuestions({
           schoolStage: room.schoolStage,
-          position: room.gameState.positions[result.playerId],
+          position: obstaclePosition,
           participantIds: round.participants,
           playerConditions: room.playerConditions,
+          usedQuestionIds: room.usedQuestionIds,
         }),
       )
       .then((questions) => {
@@ -945,6 +969,9 @@ function attachLobbyHandlers(
         const remappedQuestions = new Map();
         for (const [playerId, question] of questions.entries()) {
           remappedQuestions.set(resolveCurrentPlayerId(playerId), question);
+          if (Number.isSafeInteger(question?.id) && question.id > 0) {
+            room.usedQuestionIds?.add(question.id);
+          }
         }
         round.questions = remappedQuestions;
         round.deadlineAt = now() + QUIZ_DURATION_MS;
@@ -1062,11 +1089,22 @@ function attachLobbyHandlers(
           continue;
         }
         const answer = round.answers.get(playerId);
+        const isCorrect = answer?.alternativa === question.resposta_correta;
         const points = pointsByPlayer.get(playerId) || 0;
+        if (scoreAnswers) {
+          recordQuizOutcome(room.gameState, playerId, {
+            level: getStructuralLevel(
+              round.obstaclePosition,
+              room.playerConditions?.[playerId],
+            ),
+            answered: Boolean(answer),
+            correct: isCorrect,
+          });
+        }
         io.to(playerId).emit("quiz_result", {
           quizId: round.quizId,
           alternativa: answer?.alternativa ?? null,
-          correta: answer?.alternativa === question.resposta_correta,
+          correta: isCorrect,
           pontos: points,
           respostaCorreta: question.resposta_correta,
           ...(question.explicacao !== null
