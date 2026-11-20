@@ -126,18 +126,26 @@ Contém as regras puras do tabuleiro:
 - limite de 8 rodadas;
 - pontuação;
 - condição de término;
-- desempates.
+- desempates;
+- estatísticas privadas por participante (`stats` e `recordQuizOutcome`:
+  rolagens e soma dos dados, impulsos, obstáculos, acertos e níveis enfrentados
+  N1/N2/N3), mantidas fora de `getPublicGameState` para preservar o sigilo do
+  papel e reveladas somente em `game_over.reveal[i].stats`.
 
 ### `quizService.js`
 
 Coordena a preparação das perguntas, derivando o nível estrutural conforme o
-obstáculo e o papel do jogador. O serviço garante que o backend não envie
-gabarito antes da resposta ser validada.
+obstáculo e o papel do jogador. Evita repetição dentro da mesma rodada e da
+mesma partida propagando `usedQuestionIds` como exclusão (com fallback
+automático caso o acervo da combinação se esgote) e garante que o backend não
+envie gabarito antes da resposta ser validada.
 
 ### `questionRepository.js`
 
-Executa consultas parametrizadas em `perguntas`, filtrando por etapa escolar e
-nível estrutural. A projeção pública contém apenas enunciado e alternativas.
+Executa consultas parametrizadas em `perguntas`, filtrando por etapa escolar,
+nível estrutural e lista opcional `excludeIds` (`AND id NOT IN (...)`, com
+fallback automático sem exclusão se não houver novas questões). A projeção
+pública contém apenas enunciado e alternativas.
 
 ## 4. Estado e ciclo de uma partida
 
@@ -165,9 +173,11 @@ enviados à sala.
 ## 5. Banco de dados
 
 O banco atual é MySQL no Aiven, com `defaultdb` como banco de aplicação
-confirmado para o protótipo. Os scripts versionados estão em
-`database/schema_e_seed.sql` (schema + seed inicial das nove combinações) e
-`database/perguntas_expansao.sql` (expansão de perguntas).
+confirmado para o protótipo, populado com **27 perguntas únicas balanceadas**
+(3 para cada uma das 9 combinações de etapa escolar × nível estrutural). Os
+scripts versionados estão em `database/schema_e_seed.sql` (schema + seed
+inicial das nove combinações) e `database/perguntas_expansao.sql` (expansão de
+perguntas), ambos idempotentes contra inserções duplicadas.
 
 A tabela `perguntas` contém:
 
@@ -217,7 +227,9 @@ instância. Portanto:
 - deploy durante uma partida desconecta os jogadores;
 - escala horizontal exige armazenamento compartilhado e adapter Socket.IO;
 - a reconexão temporária restaura a sessão por até 60 segundos, mas não
-  sobrevive a reinício ou deploy.
+  sobrevive a reinício ou deploy;
+- o **Aiven MySQL Free Tier encerra em 2026-12-21** (backup local salvo;
+  migração de provedor MySQL planejada antes desse prazo).
 
 Essas limitações são aceitas para o MVP e devem ser resolvidas antes de um
 lançamento com tráfego imprevisível.

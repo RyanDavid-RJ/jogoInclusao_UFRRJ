@@ -143,9 +143,11 @@ Consequências e riscos operacionais conhecidos:
 - múltiplas instâncias do backend não devem ser usadas sem estado compartilhado;
 - **Aiven MySQL Free Tier encerra em 2026-12-21** (backup local já salvo;
   planejar migração de hospedagem MySQL antes dessa data);
-- as correções recentes de frontend (Safari iPhone, quiz, tabuleiro, contraste e
-  sala privada) precisam ser publicadas na Vercel para reteste em celular físico;
-- a validação nativa em Expo Go e em Android ainda precisa ser feita;
+- as melhorias mais recentes de Prioridade 3 (`useGameSession`, perguntas sem
+  repetição, métricas observadas no `GameOverModal`, botão de copiar código e
+  indicador de rodada) já foram enviadas ao repositório (`main`) e aguardam
+  validação visual em produção (desktop, Safari iPhone e navegador Android);
+- a validação nativa em Expo Go e em navegador Android ainda precisa ser feita;
 - a matriz de obstáculos e papéis ainda precisa de validação com pessoas com
   deficiência e educadores.
 
@@ -153,24 +155,27 @@ Consequências e riscos operacionais conhecidos:
 
 ### Próxima etapa — confiabilidade do piloto e publicação
 
-- Publicar as correções recentes na Vercel e no Render e retestar no Safari
-  (iPhone físico), em Android e em desktop.
+- Validar em produção (Vercel/Render) as melhorias de Prioridade 3: métricas
+  observadas do `GameOverModal`, perguntas sem repetição, timeout, `quiz_error`,
+  explicação ausente e reconexão durante quiz em desktop, Safari (iPhone) e
+  navegador Android.
 - Monitorar `/api/status` continuamente.
 - Planejar e executar a migração do banco MySQL antes do encerramento do
   Aiven Free Tier em **2026-12-21**.
-- Testar visualmente timeout, erro do quiz, explicação ausente, reconexão
-  durante quiz e fim de jogo em navegador desktop e mobile.
+- Validar o fluxo nativo em Expo Go (Android e iOS) quando o foco avançar além
+  do piloto web.
 
 ### Etapa seguinte — conteúdo e acessibilidade
 
-- Evitar repetição de perguntas dentro da mesma partida e continuar expandindo o
-  banco além das 27 questões atuais.
+- Continuar expandindo o banco de perguntas além das 27 questões atuais (a
+  prevenção de repetição dentro da mesma partida já está implementada).
 - Revisar perguntas com professores.
-- Validar a matriz com pessoas com deficiência e especialistas.
+- Validar a matriz e as métricas de reflexão com pessoas com deficiência e
+  especialistas.
 - Completar suporte a leitor de tela, navegação por teclado e alternativas para
   eventuais alertas sonoros.
-- Evoluir a tela final de reflexão pedagógica com métricas observadas da partida
-  (dados, bônus, obstáculos, níveis e acertos) e ilustrações diversas validadas.
+- Validar com a comunidade ilustrações humanas diversas para a revelação
+  pós-jogo.
 
 ### Evolução de produção
 

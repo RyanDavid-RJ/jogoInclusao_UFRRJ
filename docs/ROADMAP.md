@@ -36,7 +36,7 @@ reduzem riscos técnicos e pedagógicos.
 - [x] Definir política para salas abandonadas: salas de espera inativas expiram
       após 30 minutos.
 - [x] Publicar ajustes de Prioridade 1 e 2 na Vercel/Render e retestar no Safari (iPhone físico).
-- [ ] Testar também em navegador Android e revalidar visualmente timeout, `quiz_error`, explicação ausente e métricas do `GameOverModal`.
+- [ ] Validar em produção (Vercel/Render) o lote de Prioridade 3 (`useGameSession`, métricas observadas, perguntas sem repetição, copiar código e indicador de rodada) e testar também em navegador Android (incluindo timeout, `quiz_error`, explicação ausente e `GameOverModal`).
 - [ ] Monitorar `/api/status` continuamente.
 - [ ] Migrar hospedagem MySQL antes do encerramento do Aiven Free Tier em **2026-12-21** (backup local já preservado).
 - [ ] Testar deploy/reinício durante uma partida e perda/retorno da conexão durante quiz ativo em produção.

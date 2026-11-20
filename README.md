@@ -6,11 +6,11 @@ Socket.IO e MySQL no backend.
 
 ## Funcionalidades
 
-- Criação de salas públicas e privadas, listagem pública e entrada por código de 4 caracteres.
+- Criação de salas públicas e privadas, listagem pública, entrada por código de 4 caracteres e botão de cópia rápida do código.
 - Partidas para 4 a 8 participantes, com um anfitrião que escolhe a etapa escolar e inicia manualmente.
-- Tabuleiro compartilhado com posições de 0 a 30, turnos, rodadas e lançamento de dado (botão ou gesto).
+- Tabuleiro compartilhado com posições de 0 a 30, turnos, indicador de rodadas (`Rodada X/8`) e lançamento de dado (botão ou gesto).
 - Casas bônus de Impulso (+2 casas) nas posições 5, 10, 15, 20 e 25, com chegada limitada à casa 30.
-- Condição atribuída individualmente a cada participante, mantida em sigilo até a revelação final com perguntas de reflexão.
+- Condição atribuída individualmente a cada participante, mantida em sigilo até a revelação final com métricas observadas da partida e perguntas de reflexão.
 - Pausa coletiva quando alguém para nas casas-obstáculo 7, 14, 21 ou 28, disparando quiz simultâneo de 30 segundos.
 - Reconexão automática de sessão por até 60 segundos em quedas transitórias e expiração de salas de espera inativas após 30 minutos.
 - Interface responsiva com tema claro/escuro, modo daltônico, respeito à redução de movimento, feedback de conexão e mensagens de erro acessíveis.
@@ -153,7 +153,7 @@ Push-Location backend; npm test; Pop-Location; Push-Location frontend; npx tsc -
 
 O piloto publicado utiliza:
 
-- **Aiven:** MySQL com o schema e seed de `database/schema_e_seed.sql`.
+- **Aiven:** MySQL (`defaultdb`) populado com 27 perguntas únicas balanceadas via `database/schema_e_seed.sql` e `database/perguntas_expansao.sql` (migração de provedor prevista antes do encerramento do Free Tier em 2026-12-21).
 - **Render:** Web Service Node.js executando o backend Socket.IO.
 - **Vercel:** export estático do frontend web Expo.
 
@@ -250,8 +250,13 @@ Aiven Free Tier (2026-12-21) seguem no roadmap.
 
 ## Limitações e próximos passos
 
-O MVP ainda precisa de recuperação após reinício, validação em dispositivo
-móvel, testes de acessibilidade, revisão da matriz pedagógica e mais perguntas. Não implemente login Google, ranking ou histórico sem antes
-definir identidade, consentimento e política de dados.
+Os próximos focos do projeto são: migrar a hospedagem MySQL antes do encerramento
+do Aiven Free Tier (`2026-12-21`), validar o app em navegador Android e Expo Go
+nativo, completar a acessibilidade (leitor de tela, navegação por teclado e
+contraste WCAG), ampliar e revisar o banco de perguntas com professores e
+validar a matriz pedagógica e ilustrações com pessoas com deficiência. Recuperação
+após reinício do servidor (Redis/adapter) segue fora do MVP; não implemente
+login Google, ranking ou histórico sem antes definir identidade, consentimento
+e política de dados.
 
 Consulte [`docs/ROADMAP.md`](docs/ROADMAP.md) para a sequência recomendada.
