@@ -342,3 +342,38 @@ test("enforces RBAC on teacher question management, duplicate conflict, classes,
   assert.equal(promoOk.status, 200);
   assert.equal(promoOk.body.user.role, "professor");
 });
+
+test("normalizes trailing slash in CORS origin and allows Authorization preflight", async (t) => {
+  const server = http.createServer(
+    createApiApp({
+      pool: { async query() { return [[{ 1: 1 }]]; } },
+      questionAdminToken: "admin-token",
+      corsOrigin: ["https://jogoinclusaoufrrj.vercel.app/"],
+    }),
+  );
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const res = await httpRequest(server, "/api/status", {
+    headers: { origin: "https://jogoinclusaoufrrj.vercel.app" },
+  });
+  assert.equal(res.status, 200);
+  assert.equal(
+    res.headers.get("access-control-allow-origin"),
+    "https://jogoinclusaoufrrj.vercel.app",
+  );
+
+  const preflight = await httpRequest(server, "/api/auth/google", {
+    method: "OPTIONS",
+    headers: {
+      origin: "https://jogoinclusaoufrrj.vercel.app",
+      "access-control-request-method": "POST",
+      "access-control-request-headers": "content-type,authorization",
+    },
+  });
+  assert.equal(preflight.status, 204);
+  assert.equal(
+    preflight.headers.get("access-control-allow-origin"),
+    "https://jogoinclusaoufrrj.vercel.app",
+  );
+});

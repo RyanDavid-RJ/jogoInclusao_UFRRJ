@@ -3,6 +3,7 @@
 // Layout responsivo (2 colunas em desktop, pilha em mobile), Google OAuth + Convidado,
 // consentimento LGPD para pesquisa acadêmica e configurações rápidas de sala.
 
+import { Link, type Href } from "expo-router";
 import { useMemo, useState } from "react";
 import {
   Pressable,
@@ -611,10 +612,27 @@ export function HomeView({
         </View>
       </Animated.View>
 
-      <Text style={[styles.footer, { color: palette.textMuted }]}>
-        Ludo Equidade v2.0 · Instituto de Ciências Exatas (ICE) — UFRRJ ·
-        Acessibilidade, Matemática e Inclusão.
-      </Text>
+      <View style={styles.footerWrap}>
+        <Text style={[styles.footer, { color: palette.textMuted }]}>
+          Ludo Equidade v2.0 · Instituto de Ciências Exatas (ICE) — UFRRJ ·
+          Acessibilidade, Matemática e Inclusão.
+        </Text>
+        <View style={styles.legalLinksRow}>
+          <Link
+            href={"/privacidade" as Href}
+            style={[styles.legalLink, { color: palette.secondaryBorder }]}
+          >
+            Política de Privacidade (LGPD)
+          </Link>
+          <Text style={[styles.footer, { color: palette.textMuted }]}>·</Text>
+          <Link
+            href={"/termos" as Href}
+            style={[styles.legalLink, { color: palette.secondaryBorder }]}
+          >
+            Termos de Uso
+          </Link>
+        </View>
+      </View>
     </ScrollView>
   );
 }
@@ -876,11 +894,27 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     lineHeight: 17,
   },
+  footerWrap: {
+    alignItems: "center",
+    gap: 6,
+    marginTop: 6,
+    paddingHorizontal: 12,
+  },
   footer: {
     fontSize: 12,
     fontWeight: "700",
     textAlign: "center",
-    marginTop: 6,
-    paddingHorizontal: 12,
+  },
+  legalLinksRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  legalLink: {
+    fontSize: 12,
+    fontWeight: "900",
+    textDecorationLine: "underline",
   },
 });

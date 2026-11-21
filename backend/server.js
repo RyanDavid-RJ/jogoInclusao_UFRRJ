@@ -21,9 +21,10 @@ const defaultOrigins =
   process.env.NODE_ENV === "production"
     ? ""
     : "http://localhost:3000,http://localhost:8081,http://localhost:19006";
+const normalizeOrigin = (value) => value.trim().replace(/\/+$/, "");
 const configuredOrigins = (process.env.CLIENT_ORIGIN || defaultOrigins)
   .split(",")
-  .map((origin) => origin.trim())
+  .map(normalizeOrigin)
   .filter(Boolean);
 if (
   process.env.NODE_ENV === "production" &&

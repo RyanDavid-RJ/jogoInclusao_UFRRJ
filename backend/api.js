@@ -30,7 +30,24 @@ const createApiApp = ({
   logger = null,
 }) => {
   const app = express();
-  app.use(cors({ origin: corsOrigin }));
+  const normalizedCorsOrigin = Array.isArray(corsOrigin)
+    ? corsOrigin.map((origin) =>
+        typeof origin === "string" ? origin.trim().replace(/\/+$/, "") : origin,
+      )
+    : typeof corsOrigin === "string" && corsOrigin !== "*"
+      ? corsOrigin.trim().replace(/\/+$/, "")
+      : corsOrigin;
+  app.use(
+    cors({
+      origin: normalizedCorsOrigin,
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+      allowedHeaders: [
+        "Content-Type",
+        "Authorization",
+        "X-Question-Admin-Token",
+      ],
+    }),
+  );
   app.use((_req, res, next) => {
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("X-Frame-Options", "DENY");
