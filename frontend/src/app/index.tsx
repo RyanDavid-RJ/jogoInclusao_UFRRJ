@@ -48,6 +48,14 @@ export default function IndexScreen() {
     document.body.classList.toggle("daltonico-mode", isDaltonico);
   }, [themeMode, isDaltonico]);
 
+  // Recarrega /api/status e sessão Google salva assim que o servidor acorda (cold start no Render)
+  const { refreshOnReconnect } = auth;
+  useEffect(() => {
+    if (session.isConnected) {
+      refreshOnReconnect();
+    }
+  }, [session.isConnected, refreshOnReconnect]);
+
   // Se o usuário entra em uma sala ou partida, volta automaticamente para a aba "Jogar"
   const effectiveSection: AppSection =
     session.isInRoom || session.gameState
@@ -169,7 +177,12 @@ export default function IndexScreen() {
         <ProfileView
           user={auth.user}
           authToken={auth.authToken}
-          onUpdatePreferences={auth.updateUserPreferences}
+          onUpdatePreferences={async (patch) => {
+            const updated = await auth.updateUserPreferences(patch);
+            if (patch.apelidoPadrao) session.setPlayerName(updated.apelidoPadrao);
+            if (patch.avatarPadrao) session.setAvatarId(updated.avatarPadrao);
+            return updated;
+          }}
           onSignOut={() => {
             auth.signOut();
             setActiveSection("play");
@@ -185,6 +198,8 @@ export default function IndexScreen() {
           isTeacherAccess={auth.isTeacherAccess}
           isAdmin={auth.isAdmin}
           serverGoogleEnabled={auth.serverGoogleEnabled}
+          isLoadingAuth={auth.isLoadingUser}
+          isCheckingAuthStatus={auth.isCheckingStatus}
           onGoogleCredential={auth.signInWithGoogleCredential}
           onUnlockWithAdminToken={auth.unlockWithAdminToken}
           onClearAdminToken={auth.clearAdminToken}
@@ -201,6 +216,8 @@ export default function IndexScreen() {
           publicRoomsCount={session.publicRooms.length}
           authUser={auth.user}
           serverGoogleEnabled={auth.serverGoogleEnabled}
+          isLoadingAuth={auth.isLoadingUser}
+          isCheckingAuthStatus={auth.isCheckingStatus}
           consentResearch={auth.effectiveConsentResearch}
           onToggleConsentResearch={(next) => {
             void auth.toggleResearchConsent(next);

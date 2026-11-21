@@ -46,6 +46,8 @@ export interface HomeViewProps {
   publicRoomsCount: number;
   authUser: AuthUser | null;
   serverGoogleEnabled: boolean;
+  isLoadingAuth?: boolean;
+  isCheckingAuthStatus?: boolean;
   consentResearch: boolean;
   onToggleConsentResearch: (next: boolean) => void;
   onGoogleCredential: (idToken: string) => unknown;
@@ -88,6 +90,8 @@ export function HomeView({
   publicRoomsCount,
   authUser,
   serverGoogleEnabled,
+  isLoadingAuth = false,
+  isCheckingAuthStatus = false,
   consentResearch,
   onToggleConsentResearch,
   onGoogleCredential,
@@ -230,6 +234,8 @@ export function HomeView({
                 <GoogleSignInButton
                   onCredential={onGoogleCredential}
                   serverGoogleEnabled={serverGoogleEnabled}
+                  isLoading={isLoadingAuth}
+                  isCheckingStatus={isCheckingAuthStatus}
                   palette={palette}
                 />
               </View>

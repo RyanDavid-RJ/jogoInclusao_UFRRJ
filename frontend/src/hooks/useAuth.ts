@@ -44,63 +44,71 @@ export function useAuth() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [adminToken, setAdminToken] = useState<string>("");
   const [isLoadingUser, setIsLoadingUser] = useState<boolean>(false);
+  const [isCheckingStatus, setIsCheckingStatus] = useState<boolean>(
+    Boolean(GOOGLE_WEB_CLIENT_ID),
+  );
   const [authError, setAuthError] = useState<string>("");
   const [serverGoogleEnabled, setServerGoogleEnabled] = useState<boolean>(false);
   const [guestConsentResearch, setGuestConsentResearchState] = useState<boolean>(
     () => readWebStorage(STORAGE_GUEST_CONSENT_KEY) === "1",
   );
 
-  useEffect(() => {
-    let active = true;
-    apiClient
-      .getServerStatus()
-      .then((status) => {
-        if (active) {
-          setServerGoogleEnabled(Boolean(status.googleAuthEnabled));
-        }
-      })
-      .catch(() => {
-        // server might still be waking up on Render
-      });
-    return () => {
-      active = false;
-    };
+  const checkServerStatus = useCallback(async () => {
+    try {
+      const status = await apiClient.getServerStatus();
+      setServerGoogleEnabled(Boolean(status.googleAuthEnabled));
+    } catch {
+      // server might still be waking up on Render; retried on socket connect
+    } finally {
+      setIsCheckingStatus(false);
+    }
   }, []);
+
+  const hydrateUserFromToken = useCallback(async (token: string) => {
+    setIsLoadingUser(true);
+    try {
+      const { user: fetched } = await apiClient.getCurrentUser(token);
+      setUser(fetched);
+      setAuthError("");
+    } catch (error) {
+      if (error instanceof ApiRequestError && error.status === 401) {
+        writeWebStorage(STORAGE_TOKEN_KEY, null);
+        setAuthToken(null);
+        setUser(null);
+      }
+    } finally {
+      setIsLoadingUser(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void checkServerStatus();
+  }, [checkServerStatus]);
 
   useEffect(() => {
     if (!authToken) {
       setUser(null);
       return;
     }
+    void hydrateUserFromToken(authToken);
+  }, [authToken, hydrateUserFromToken]);
 
-    let active = true;
-    setIsLoadingUser(true);
-    apiClient
-      .getCurrentUser(authToken)
-      .then(({ user: fetched }) => {
-        if (active) {
-          setUser(fetched);
-          setAuthError("");
-        }
-      })
-      .catch((error) => {
-        if (!active) return;
-        if (error instanceof ApiRequestError && error.status === 401) {
-          writeWebStorage(STORAGE_TOKEN_KEY, null);
-          setAuthToken(null);
-          setUser(null);
-        }
-      })
-      .finally(() => {
-        if (active) {
-          setIsLoadingUser(false);
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [authToken]);
+  // Recarrega /api/status e sessão salva automaticamente após acordar o Render (cold start)
+  const refreshOnReconnect = useCallback(() => {
+    if (!serverGoogleEnabled) {
+      void checkServerStatus();
+    }
+    if (authToken && !user && !isLoadingUser) {
+      void hydrateUserFromToken(authToken);
+    }
+  }, [
+    serverGoogleEnabled,
+    checkServerStatus,
+    authToken,
+    user,
+    isLoadingUser,
+    hydrateUserFromToken,
+  ]);
 
   const setGuestConsentResearch = useCallback((value: boolean) => {
     setGuestConsentResearchState(value);
@@ -151,7 +159,16 @@ export function useAuth() {
   const toggleResearchConsent = useCallback(
     async (nextValue: boolean) => {
       if (user && authToken) {
-        await updateUserPreferences({ consentimentoPesquisa: nextValue });
+        try {
+          await updateUserPreferences({ consentimentoPesquisa: nextValue });
+          setAuthError("");
+        } catch (error) {
+          setAuthError(
+            error instanceof Error
+              ? error.message
+              : "Não foi possível atualizar o consentimento de pesquisa.",
+          );
+        }
       } else {
         setGuestConsentResearch(nextValue);
       }
@@ -199,6 +216,7 @@ export function useAuth() {
     user,
     adminToken,
     isLoadingUser,
+    isCheckingStatus,
     authError,
     dismissAuthError: () => setAuthError(""),
     serverGoogleEnabled,
@@ -207,6 +225,7 @@ export function useAuth() {
     effectiveConsentResearch,
     isTeacherAccess,
     isAdmin,
+    refreshOnReconnect,
     signInWithGoogleCredential,
     updateUserPreferences,
     toggleResearchConsent,

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Platform, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Platform, StyleSheet, Text, View } from "react-native";
 
 import type { ThemePalette } from "../../constants/duoTheme";
 import { GOOGLE_WEB_CLIENT_ID } from "../../hooks/useAuth";
@@ -33,6 +33,8 @@ declare global {
 export interface GoogleSignInButtonProps {
   onCredential: (idToken: string) => unknown;
   serverGoogleEnabled: boolean;
+  isLoading?: boolean;
+  isCheckingStatus?: boolean;
   palette: ThemePalette;
 }
 
@@ -41,6 +43,8 @@ const GIS_SCRIPT_ID = "google-identity-services-script";
 export function GoogleSignInButton({
   onCredential,
   serverGoogleEnabled,
+  isLoading = false,
+  isCheckingStatus = false,
   palette,
 }: GoogleSignInButtonProps) {
   const containerRef = useRef<View | null>(null);
@@ -57,25 +61,34 @@ export function GoogleSignInButton({
     serverGoogleEnabled;
 
   useEffect(() => {
-    if (!isConfigured || typeof window === "undefined" || typeof document === "undefined") {
+    if (
+      !isConfigured ||
+      isLoading ||
+      typeof window === "undefined" ||
+      typeof document === "undefined"
+    ) {
       return;
     }
 
     let cancelled = false;
+    let rendered = false;
 
     const renderButton = () => {
-      if (cancelled) return;
+      if (cancelled || rendered) return;
       const gsi = window.google?.accounts?.id;
       const element = containerRef.current as unknown as HTMLElement | null;
       if (!gsi || !element) {
         return;
       }
+      rendered = true;
       element.innerHTML = "";
       gsi.initialize({
         client_id: GOOGLE_WEB_CLIENT_ID,
         callback: (response) => {
           if (response.credential) {
-            void onCredentialRef.current(response.credential);
+            void Promise.resolve(onCredentialRef.current(response.credential)).catch(
+              () => {},
+            );
           }
         },
       });
@@ -85,6 +98,7 @@ export function GoogleSignInButton({
         shape: "pill",
         text: "continue_with",
         locale: "pt-BR",
+        width: 280,
       });
     };
 
@@ -95,7 +109,9 @@ export function GoogleSignInButton({
       };
     }
 
-    let script = document.getElementById(GIS_SCRIPT_ID) as HTMLScriptElement | null;
+    let script = document.getElementById(
+      GIS_SCRIPT_ID,
+    ) as HTMLScriptElement | null;
     if (!script) {
       script = document.createElement("script");
       script.id = GIS_SCRIPT_ID;
@@ -113,12 +129,63 @@ export function GoogleSignInButton({
     script.addEventListener("load", handleLoad);
     script.addEventListener("error", handleError);
 
+    // Fallback caso o script tenha concluído logo antes de anexar o listener
+    const retryTimer = window.setInterval(() => {
+      if (window.google?.accounts?.id) {
+        renderButton();
+        window.clearInterval(retryTimer);
+      }
+    }, 250);
+    const stopTimer = window.setTimeout(() => {
+      window.clearInterval(retryTimer);
+    }, 5000);
+
     return () => {
       cancelled = true;
       script?.removeEventListener("load", handleLoad);
       script?.removeEventListener("error", handleError);
+      window.clearInterval(retryTimer);
+      window.clearTimeout(stopTimer);
     };
-  }, [isConfigured, palette.isDark]);
+  }, [isConfigured, isLoading, palette.isDark]);
+
+  if (isLoading) {
+    return (
+      <View
+        style={[
+          styles.loadingBox,
+          {
+            backgroundColor: palette.secondaryBg,
+            borderColor: palette.secondaryBorder,
+          },
+        ]}
+      >
+        <ActivityIndicator size="small" color={palette.secondary} />
+        <Text style={[styles.loadingText, { color: palette.textMain }]}>
+          Autenticando com o Google...
+        </Text>
+      </View>
+    );
+  }
+
+  if (Platform.OS === "web" && Boolean(GOOGLE_WEB_CLIENT_ID) && isCheckingStatus) {
+    return (
+      <View
+        style={[
+          styles.loadingBox,
+          {
+            backgroundColor: palette.surfaceAlt,
+            borderColor: palette.cardBorder,
+          },
+        ]}
+      >
+        <ActivityIndicator size="small" color={palette.secondary} />
+        <Text style={[styles.loadingText, { color: palette.textMuted }]}>
+          Verificando Login com Google...
+        </Text>
+      </View>
+    );
+  }
 
   if (!isConfigured) {
     return (
@@ -172,12 +239,28 @@ const styles = StyleSheet.create({
   gisWrap: {
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 44,
+    minHeight: 46,
+    width: "100%",
   },
   gisMount: {
-    minHeight: 42,
+    minHeight: 44,
+    minWidth: 220,
     alignItems: "center",
     justifyContent: "center",
+  },
+  loadingBox: {
+    borderRadius: 14,
+    borderWidth: 2,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+  },
+  loadingText: {
+    fontSize: 13,
+    fontWeight: "800",
   },
   fallbackBox: {
     borderRadius: 14,

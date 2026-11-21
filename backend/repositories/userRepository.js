@@ -158,16 +158,15 @@ function createUserRepository(pool, { bootstrapAdminEmails = [] } = {}) {
   }
 
   async function listUsers({ limit = 50, offset = 0 } = {}) {
-    const safeLimit = Math.max(1, Math.min(200, Number(limit) || 50));
-    const safeOffset = Math.max(0, Number(offset) || 0);
+    const safeLimit = Math.max(1, Math.min(200, Math.trunc(Number(limit)) || 50));
+    const safeOffset = Math.max(0, Math.min(10000, Math.trunc(Number(offset)) || 0));
     const [rows] = await pool.query(
       `SELECT id, uuid, email, nome, apelido_padrao, avatar_padrao, foto_url,
               papel_sistema, consentimento_pesquisa, consentimento_em, ativo,
               ultimo_login_em, criado_em
        FROM usuarios
        ORDER BY criado_em DESC
-       LIMIT ? OFFSET ?`,
-      [safeLimit, safeOffset],
+       LIMIT ${safeLimit} OFFSET ${safeOffset}`,
     );
     return rows.map(toSafeUser);
   }

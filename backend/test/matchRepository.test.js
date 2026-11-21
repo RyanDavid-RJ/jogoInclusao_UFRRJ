@@ -180,3 +180,33 @@ test("matchPersistenceService degrades safely if analytics tables are not yet mi
   assert.deepEqual(outcome, { persisted: false, reason: "SCHEMA_NOT_MIGRATED" });
   assert.equal(warnings.length, 1);
 });
+
+test("getUserMatchHistory uses MySQL 8.4-safe integer LIMIT/OFFSET literals and returns summary", async () => {
+  const calls = [];
+  const repo = createMatchRepository({
+    async execute(sql, params) {
+      calls.push({ sql, params });
+      if (/FROM partida_participantes AS pp/i.test(sql)) {
+        return [[{ partida_uuid: "uuid-1", condicao: "cadeirante", vencedor: 1 }]];
+      }
+      if (/COUNT\(\*\) AS total_partidas/i.test(sql)) {
+        return [[{
+          total_partidas: 1,
+          total_vitorias: 1,
+          total_destaques_quiz: 0,
+          total_respondidos: 2,
+          total_corretos: 2,
+        }]];
+      }
+      return [[{ condicao: "cadeirante" }]];
+    },
+  });
+
+  const history = await repo.getUserMatchHistory(7, { limit: "15", offset: "5" });
+  assert.equal(calls.length, 3);
+  assert.match(calls[0].sql, /LIMIT 15 OFFSET 5/);
+  assert.deepEqual(calls[0].params, [7]);
+  assert.equal(history.summary.totalPartidas, 1);
+  assert.deepEqual(history.summary.perspectivasVivenciadas, ["cadeirante"]);
+  assert.equal(history.matches.length, 1);
+});

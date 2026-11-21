@@ -209,8 +209,8 @@ function createMatchRepository(pool) {
   }
 
   async function getUserMatchHistory(usuarioId, { limit = 20, offset = 0 } = {}) {
-    const safeLimit = Math.max(1, Math.min(100, Number(limit) || 20));
-    const safeOffset = Math.max(0, Number(offset) || 0);
+    const safeLimit = Math.max(1, Math.min(100, Math.trunc(Number(limit)) || 20));
+    const safeOffset = Math.max(0, Math.min(10000, Math.trunc(Number(offset)) || 0));
 
     const [matches] = await pool.execute(
       `SELECT pa.uuid AS partida_uuid,
@@ -238,8 +238,8 @@ function createMatchRepository(pool) {
        LEFT JOIN turmas AS t ON t.id = pa.turma_id
        WHERE pp.usuario_id = ?
        ORDER BY pa.finalizada_em DESC
-       LIMIT ? OFFSET ?`,
-      [usuarioId, safeLimit, safeOffset],
+       LIMIT ${safeLimit} OFFSET ${safeOffset}`,
+      [usuarioId],
     );
 
     const [summaryRows] = await pool.execute(
