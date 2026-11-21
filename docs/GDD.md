@@ -1,94 +1,199 @@
-# GDD - JOGO DA INCLUSAO
+# 🎲 GDD — Ludo Equidade (v2.0)
 
-# 🎲 GDD — Ludo Equidade (nome provisório)
+- **Instituição de referência:** Instituto de Ciências Exatas (ICE) — Departamento de Matemática — UFRRJ
+- **Repositório:** [jogoInclusao_UFRRJ](https://github.com/RyanDavid-RJ/jogoInclusao_UFRRJ)
+- **Última revisão:** 2026-11-21
+- **Estágio atual:** MVP web publicado em produção (v1.0) · Arquitetura v2.0 especificada para evolução de produto, painel docente e pesquisa científica (IC)
 
-## 1. Visão Geral
+---
 
-- **Gênero:** jogo de tabuleiro educativo, multiplayer online e assimétrico.
-- **Participantes — regra aprovada e implementada:** mínimo de 4 e máximo de 8; a partida começa manualmente pelo anfitrião, sem início automático ao chegar a quatro. Se o anfitrião desconectar, a função passa ao próximo jogador da sala. [[1]](https://app.notion.com/chat?t=40cc1da9eec68082b1f200a9fe207e32)
-- **Plataforma-alvo:** mobile, com React Native e Expo Router.
-- **Objetivo:** ensinar matemática e promover reflexão sobre equidade e inclusão por meio de obstáculos inspirados em barreiras do cotidiano.
-- **Ciclo implementado no backend e integrado ao frontend:** entrar em uma sala → escolher etapa escolar → iniciar manualmente → receber papel privado → jogar em turnos → rolar o dado e avançar → ao aterrissar em obstáculo, responder a um quiz simultâneo de 30 segundos → pontuar e avançar o turno ou encerrar a partida. O frontend já exibe o tabuleiro, o quiz e o estado de fim; a validação visual de alguns cenários excepcionais e do app nativo continua pendente.
-- **Tecnologias:** frontend React Native/Expo; backend Node.js, Express e Socket.IO; MySQL no Aiven (banco ativo confirmado como `defaultdb` para o protótipo).
-- **Repositório:** [jogoInclusao_UFRRJ](https://github.com/RyanDavid-RJ/jogoInclusao_UFRRJ).
-- **Origem:** ideia inspirada na SNCT da UFRRJ e em um trabalho sobre educação especial de uma turma de licenciatura. O desenvolvedor é estudante de Matemática Aplicada e Computacional na UFRRJ, com formação técnica em Eletrônica e Desenvolvimento de Sistemas (SENAI) e experiência como desenvolvedor aprendiz no Petrobras CENPES.
+## 1. Visão Geral e Proposta de Valor
 
-### Princípio de design
+O **Ludo Equidade** é um jogo de tabuleiro educativo, multiplayer online e assimétrico, voltado ao ensino de **matemática** e à reflexão crítica sobre **inclusão, acessibilidade e equidade**.
 
-A condição sorteada representa uma perspectiva de jogo; não define a capacidade, inteligência ou dificuldade de aprendizagem de uma pessoa real. A matriz é uma abstração de barreiras ambientais para fins pedagógicos e deve ser validada com pessoas com deficiência, educadores e especialistas. O jogo deve oferecer acessibilidade para todos, sem transformar uma deficiência em estereótipo.
+### 1.1 Origem e Vocação Institucional (ICE — UFRRJ)
+Idealizado a partir de experiências na Semana Nacional de Ciência e Tecnologia (SNCT) da UFRRJ e em estudos de educação especial em turmas de licenciatura, o projeto foi concebido para atuar em **duas frentes complementares**:
 
-### Guia visual — Duo-Equidade
+1. **Produto Educacional & Social:** um jogo rápido, envolvente e acessível para salas de aula (Ensino Fundamental, Médio e Superior), oficinas, feiras de ciências e grupos de amigos.
+2. **Plataforma de Pesquisa & Iniciação Científica (ICE-UFRRJ):** um ambiente experimental controlado que gera dados estruturados e anonimizados de alto valor para áreas do Instituto de Ciências Exatas:
+   - **Educação Matemática:** resolução de problemas em 3 etapas escolares e 3 níveis estruturais, com feedback imediato e explicação pedagógica.
+   - **Probabilidade e Processos Estocásticos:** tabuleiro linear modelável como uma *Cadeia de Markov absorvente* (estados `0..30`, transições por dado, impulsos determinísticos e bônus condicionais), permitindo comparar distribuições teóricas com trajetórias empíricas.
+   - **Estatística e Inferência:** atribuição aleatória de papéis, medição de tempo de resposta em milissegundos, taxas de acerto por item (Teoria Clássica dos Testes / base para TRI), análise de distratores e modelos inferenciais (*ex.: probabilidade de vitória condicionada a sorte no dado, exposição a barreiras e desempenho matemático*).
+   - **Ciência da Computação e Acessibilidade Digital:** arquitetura multiplayer autoritativa em tempo real, conformidade WCAG e governança ética de dados (LGPD).
 
-- **Direção:** geometria arredondada, minimalismo estrutural, cartões com hierarquia clara e microinterações leves; a interface deve parecer acolhedora e tátil sem competir com a leitura do jogo.
-- **Paleta principal:** verde `#58CC02`, azul `#1CB0F6`, amarelo `#FFC800`, roxo `#CE82FF` e vermelho `#FF4B4B`.
-- **Superfícies:** usar `#F7F9FA` e outros tons pastéis/off-white no lugar de cinza puro; reservar cores vibrantes para ações, estados, progresso e destaque.
-- **Profundidade e interação:** priorizar sombras planas com borda inferior tátil em `borderBottomWidth`; usar Reanimated apenas para feedback curto e compreensível, respeitando redução de movimento.
-- **Identidade do jogador:** durante a partida, nome e avatar animal/personagem são a identidade pública; o avatar não deve sugerir a condição secreta. A transformação visual para uma representação humana ilustrativa ocorre somente na revelação pós-jogo.
+### 1.2 Princípio Ético-Pedagógico Inegociável
+> A condição sorteada representa uma **perspectiva ambiental no jogo**, nunca a capacidade cognitiva, a inteligência ou o potencial de aprendizagem de uma pessoa real. A matriz de obstáculos é uma abstração didática de barreiras do cotidiano criada para evidenciar que *o mesmo ambiente impõe esforços diferentes a pessoas diferentes* e que **equidade significa remover barreiras e oferecer apoios adequados**.
 
-### Fluxo inicial, perfil e salas — requisito aprovado para a próxima fase
+- Nenhum avatar durante a partida sugere deficiência ou estereótipo.
+- A matriz de equidade é versionada (`v1.0-baseline`) e tratada como hipótese pedagógica aberta à validação comunitária com pessoas com deficiência, educadores e especialistas.
+- Os indicadores pós-jogo apresentam apenas **fatos observados na partida**, sem afirmar causalidade absoluta nem generalizar a vivência de pessoas reais.
 
-- **Splash:** ao abrir o app, exibir uma tela curta de carregamento com a identidade visual do jogo e encaminhar o jogador para a tela inicial.
-- **Tela inicial:** permitir escolher um avatar, informar um nick editável e acessar **Salas** ou **Criar sala**. O retorno de ambas as telas deve levar novamente à tela inicial.
-- **Login externo:** oferecer a alternativa de login com Google. Quando autenticado, usar o nome da conta como nick inicial e a foto de perfil como avatar inicial; ambos devem poder ser substituídos pelo jogador dentro das regras do produto. O logout deve ficar disponível na tela inicial autenticada.
-- **Lista de salas públicas:** mostrar somente salas públicas abertas, com avatar e nome do anfitrião e quantidade atual de participantes. A entrada deve exigir uma sala ainda disponível, respeitando o limite de 8 jogadores e a regra de início manual com no mínimo 4.
-- **Entrada privada:** disponibilizar na tela de salas um campo para informar o código de uma sala privada. Código inválido, sala inexistente ou sala lotada devem produzir feedback explícito, sem alterar o estado local para uma entrada bem-sucedida.
-- **Criação de sala:** permitir escolher entre sala pública, listada em **Salas**, e sala privada, acessível somente pelo código. Depois da criação, mostrar a sala com os participantes, seus avatares e nicks, a dificuldade/etapa escolhida pelo anfitrião e o estado de prontidão.
-- **Sala criada:** o anfitrião pode sair e fechar a sala antes do início; a ação deve pedir confirmação e limpar a sessão local. O botão de iniciar só fica habilitado com pelo menos 4 participantes e deve preservar o limite máximo de 8 e o início manual já definido.
-- **Referência visual:** as capturas de Gartic apresentadas por Ryan são referência de composição e hierarquia, não de cópia de identidade visual. Aplicar o guia Duo-Equidade e manter controles acessíveis, feedback textual e navegação de retorno.
-- **Escopo do MVP:** primeiro implementar o fluxo de splash, perfil local, salas públicas/privadas e navegação. Login Google exige definição do provedor OAuth, redirect/deep link e contrato de identidade antes de ser considerado concluído.
+---
 
-## 2. Papéis e Condições
+## 2. Público-Alvo e Modos de Uso
 
-- Papéis possíveis: cadeirante; pessoa com deficiência visual (cegueira/baixa visão); pessoa com deficiência auditiva (surdez); pessoa neuroatípica.
-- **Distribuição aprovada:** em cada partida, sortear os quatro papéis de modo que cada um apareça ao menos uma vez; participantes adicionais (até o máximo de 8) recebem um dos quatro papéis sorteado com repetição. [[1]](https://app.notion.com/chat?t=40cc1da9eec68082b1f200a9fe207e32)
-- **Sigilo e revelação implementados:** cada pessoa recebe somente o próprio papel durante a partida; após o encerramento, `game_over` revela publicamente o mapeamento jogador–papel junto do resultado final. [[1]](https://app.notion.com/chat?t=40cc1da9eec68082b1f200a9fe207e32)
+| Perfil | Objetivo principal | Acesso |
+| --- | --- | --- |
+| **Jogador Convidado** | Entrar em segundos via link ou código de sala, sem barreira de cadastro (ideal para feiras, SNCT e uso rápido em sala). | Sem login (sessão temporária) |
+| **Jogador Autenticado (Google)** | Salvar apelido/avatar, consultar histórico de partidas, acompanhar perspectivas já vivenciadas e optar pelo consentimento de pesquisa. | Login Google (OAuth 2.0) |
+| **Professor / Pesquisador** | Criar salas vinculadas a turmas, gerenciar e revisar o banco de perguntas, acompanhar indicadores empíricos por questão e exportar datasets anonimizados (CSV/JSON). | Login Google + papel `professor` |
+| **Administrador** | Promover professores, moderar o acervo institucional e publicar novas versões calibradas da Matriz de Equidade. | Login Google + papel `admin` |
 
-Os papéis cruzam-se com o obstáculo ativo para selecionar a intensidade do desafio matemático. As experiências são diversas; os rótulos da matriz são uma regra provisória do jogo, não uma descrição universal das pessoas representadas.
+---
 
-### Revelação e reflexão pós-jogo
+## 3. Core Loop e Rejogabilidade
 
-- Durante a partida, cada pessoa vê o próprio nome e um avatar lúdico (animal/personagem), sabe o próprio papel e não vê os papéis dos demais. O avatar não indica deficiência.
-- Depois de anunciar o campeão, revelar a correspondência jogador–papel e animar/apresentar cada avatar como uma figura humana ilustrativa do papel. Variar gênero, tom de pele, cabelo e outros traços com diversidade, sem sugerir que essa figura é a aparência real do jogador nem associar uma deficiência a uma raça ou gênero.
-- A síntese pode separar fatores observados: sorte e movimento (dados, casas bônus/multiplicadores), exposição a obstáculos e níveis estruturais, desempenho matemático (acertos, ordem de resposta e pontos) e progresso no tabuleiro.
-- Usar perguntas para estimular debate — por exemplo, se sorte, desafios enfrentados e desempenho matemático contribuíram de formas diferentes para o resultado — sem afirmar que os dados provam causalidade ou representam a experiência universal de uma deficiência.
-- No MVP, manter os indicadores somente no estado temporário; não é necessário persistir histórico no banco. Validar linguagem, matriz, personagens e dinâmica com pessoas com deficiência e educadores. A peça de quebra-cabeça para neurodivergência/autismo é debatida por pessoas autistas; não fechar esse símbolo sem consulta comunitária. [[1]](https://pubmed.ncbi.nlm.nih.gov/28823194/)
-- **Status (2026-11-20):** a associação jogador–papel e as métricas observadas da partida (média nos dados, impulsos, acertos e níveis enfrentados N1/N2/N3) são reveladas após o encerramento por `game_over` e exibidas em `GameOverModal` junto das perguntas de reflexão e nota pedagógica. Ilustrações humanas diversas e validação comunitária com educadores e pessoas com deficiência seguem como próximos passos. [[1]](https://app.notion.com/chat?t=40cc1da9eec68082b1f200a9fe207e32)
+### 3.1 Ciclo Principal da Partida
+```text
+Lobby (Convidado ou Google)
+   ↓
+Criar / Entrar em Sala (Pública, Privada ou Turma)
+   ↓
+Configuração pelo Anfitrião (Etapa Escolar + Regras da Sala) → Início Manual (4 a 8 jogadores)
+   ↓
+Sorteio Secreto de Papéis (garantindo os 4 papéis) + Ordem de Turnos
+   ↓
+Loop de Turnos (até chegada à casa 30 ou fim do limite de rodadas):
+   ├── Rolar Dado (1–6) → Avanço na trilha (0–30)
+   ├── Pouso em Impulso (5, 10, 15, 20, 25) → +2 casas
+   └── Pouso em Obstáculo (7, 14, 21, 28) → Pausa Coletiva + Quiz Simultâneo Assimétrico
+          ├── Cada jogador recebe questão inédita calibrada pela matriz (etapa × nível 1/2/3)
+          ├── Validação autoritativa no servidor (gabarito privado)
+          ├── Pontuação N..1 por ordem de acerto + Bônus de Avanço (v2.0)
+          └── Feedback individual (gabarito + explicação) → Retomada do turno
+   ↓
+Encerramento ("A Virada da Equidade"):
+   ├── Pódio (Vencedor da Corrida + Destaque de Conhecimento)
+   ├── Revelação dos Papéis + Métricas Observadas
+   ├── Momento de Reflexão Pedagógica
+   └── Revanche Instantânea ("Jogar Novamente" na mesma sala com rotação de papéis)
+```
 
-## 3. Regras do Jogo — Rascunho Jogável
+### 3.2 Diagnóstico de Engajamento e Decisões v2.0 para Rejogabilidade
+Para transformar o protótipo em um jogo que **as pessoas queiram jogar repetidamente** (referência de ritmo social do *Gartic.io* e clareza tátil do *Duolingo*), o GDD v2.0 consolida cinco pilares:
 
-1. **Sala — implementada:** a partida comporta de 4 a 8 jogadores e o anfitrião escolhe Fundamental, Médio ou Superior e inicia manualmente quando o grupo estiver pronto. Não há início automático ao chegar a quatro. Se o anfitrião desconectar, o próximo jogador assume. O servidor exige uma etapa válida para iniciar e bloqueia alterações depois do início.
-2. **Sorteio, sigilo e revelação — implementados:** os quatro papéis aparecem ao menos uma vez; participantes adicionais recebem papéis sorteados com repetição; cada jogador recebe privadamente apenas seu próprio papel durante a partida; `game_over` revela o mapa completo após o encerramento. [[1]](https://app.notion.com/chat?t=40cc1da9eec68082b1f200a9fe207e32)
-3. **Ordem e movimento — implementados no backend:** a ordem é sorteada uma vez ao iniciar; o servidor rola um dado de 6 lados e move o peão no percurso compartilhado da posição 0 à 30. Aterrissar exatamente nas posições 7, 14, 21 ou 28 pausa a partida e inicia a preparação do quiz; passar por cima não ativa. Movimento excedente é limitado à posição 30.
-4. **Casas bônus e quiz por obstáculo — implementados e integrados:** ao aterrissar exatamente nas casas 5, 10, 15, 20 ou 25, o jogador recebe **Impulso (+2 casas)**, limitado à chegada na casa 30. O impulso não reativa um obstáculo que tenha sido apenas ultrapassado; obstáculos só são acionados pelo pouso original exato em 7, 14, 21 ou 28. Nesse caso, o servidor deriva o nível pelo papel e pela matriz, busca uma pergunta para cada participante pela etapa da sala e só envia perguntas individuais depois que todas foram encontradas.
-5. **Quiz — integrado no backend:** todos os participantes conectados recebem uma pergunta individual; o servidor controla prazo comum de 30 segundos e aceita no máximo uma resposta por jogador. O gabarito e a explicação, quando disponível, são enviados apenas ao próprio jogador após a validação. Questões sem explicação são válidas; o resultado privado omite esse campo quando nulo.
-6. **Pontuação — implementada no backend:** para N participantes fixados no início da rodada, acertos pontuam N, N−1, ... pela ordem de recebimento no servidor; erro, timeout ou desconexão vale zero, sem recalcular N. O cliente não escolhe o gabarito. [[1]](https://app.notion.com/chat?t=40cc1da9eec68082b1f200a9fe207e32)
-7. **Fim e desempate — implementados no motor backend:** a partida termina imediatamente quando alguém chega à posição 30, inclusive após um Impulso (+2 casas). Se ninguém chegar ao fim após 8 rodadas completas, vence quem estiver mais avançado; em empate de posição, vence quem tiver mais pontos de quiz; persistindo o empate, há campeões compartilhados. Os pontos do quiz são acumulados no estado e usados no desempate. Validar duração e ritmo em playtest.
+1. **Quiz que importa de verdade na corrida (*Avanço por Equidade* — v2.0):**
+   - Na v1.0, os pontos do quiz serviam apenas como critério de desempate após 8 rodadas.
+   - Na **v2.0**, além dos pontos `N..1`, o **primeiro jogador a acertar** na rodada de quiz ganha **+1 casa de avanço** no tabuleiro (limitado à casa 30, sem acionar novo obstáculo em cascata). Assim, todo obstáculo gera tensão real na corrida e torna a assimetria das barreiras imediatamente perceptível no avanço dos peões.
+2. **Duplo Reconhecimento no Pódio (v2.0):**
+   - 🏆 **Vencedor da Corrida:** primeiro a alcançar a casa 30 (ou maior posição ao fim das rodadas, desempatado por pontos de quiz).
+   - ⭐ **Destaque do Quiz:** jogador com maior pontuação acumulada nos desafios matemáticos da partida. Isso valoriza quem enfrentou barreiras Nível 3 e brilhou nos cálculos, mesmo sem sorte nos dados.
+3. **Revanche Instantânea com Rotação de Papéis (v2.0):**
+   - Ao final da partida, o anfitrião pode acionar **"Jogar Novamente"** mantendo os mesmos participantes na sala (sem precisar recriar código).
+   - O servidor sorteia os novos papéis secretos dando **preferência para que cada jogador receba uma perspectiva diferente da partida anterior**, incentivando várias partidas em sequência para experimentar os 4 papéis.
+4. **Narrativa Viva do Turno (v2.0):**
+   - Barra/feed discreto de eventos em tempo real (*"🦊 Ana tirou 5 e ativou 🚀 Impulso (+2)!"*, *"🦉 João encontrou a 🪜 Escada — desafio coletivo!"*) mantém todos engajados mesmo aguardando a própria vez.
+5. **Configurações de Sala Acessíveis e Flexíveis (v2.0):**
+   - O anfitrião escolhe, antes de iniciar:
+     - **Etapa Escolar:** `Fundamental`, `Médio` ou `Superior` (obrigatória).
+     - **Duração da Partida:** `Rápida (6 rodadas)` ou `Padrão (8 rodadas)` (padrão: `8`).
+     - **Tempo do Quiz (Acessibilidade):** `30s` (padrão), `45s` ou `60s` (fundamental para turmas iniciantes, usuários de leitor de tela ou estudantes que precisem de tempo estendido).
+     - **Vínculo de Turma (opcional, para professores):** código da turma para agrupar os resultados analíticos daquela aula no Painel de Professores.
 
-## 4. Matriz de Equidade (rascunho para validação)
+---
 
-| Obstáculo da casa | Cadeirante | Surdo | Cego/baixa visão | Neuroatípico |
-| --- | --- | --- | --- | --- |
-| Escada (mobilidade) | Nível 3 | Nível 1 | Nível 2 | Nível 1 |
-| Alerta sonoro (audição) | Nível 1 | Nível 3 | Nível 1 | Nível 2 |
-| Multidão/barulho (sensorial) | Nível 1 | Nível 1 | Nível 2 | Nível 3 |
-| Placa ilegível (visão) | Nível 1 | Nível 1 | Nível 3 | Nível 1 |
-- **Nível 1:** desafio de menor complexidade estrutural; **Nível 2:** complexidade intermediária; **Nível 3:** maior complexidade estrutural. A dificuldade curricular deve respeitar a etapa escolar selecionada e não deve ser confundida com a condição da pessoa.
-- **Como ler:** na casa da escada, por exemplo, o rascunho associa nível 3 ao papel cadeirante e nível 1 ao papel surdo. Na casa do alerta sonoro, a associação se inverte para esses dois papéis.
-- **Intenção pedagógica:** tornar visível que uma mesma barreira pode ter impactos diferentes conforme o contexto, e que equidade pode exigir apoios diferentes.
-- **Validação pendente:** revisar os obstáculos, os níveis e a linguagem com pessoas com deficiência e profissionais de educação especial antes de tratar a matriz como definitiva.
+## 4. Papéis, Condições e Matriz de Equidade
 
-## 5. Quiz, Perguntas e Pontuação
+### 4.1 Papéis Privados
+- `cadeirante` — **Pessoa Cadeirante** (perspectiva de mobilidade física)
+- `cego` — **Pessoa com Deficiência Visual** (cegueira / baixa visão)
+- `surdo` — **Pessoa Surda** (perspectiva de comunicação visual)
+- `neuroatipico` — **Pessoa Neuroatípica** (perspectiva de processamento sensorial)
 
-- **Janela de resposta:** 30 segundos, com relógio controlado pelo servidor.
-- **Níveis estruturais:** Nível 1 — operações básicas diretas; Nível 2 — problemas de lógica intermediários; Nível 3 — equações mais complexas.
-- **Etapa escolar — implementada conforme relato:** Fundamental, Médio ou Superior é escolhida pelo anfitrião no lobby antes de iniciar a partida. É um filtro separado do nível estrutural; o servidor valida e guarda a escolha no estado da sala, propaga a seleção aos jogadores, exige valor válido para iniciar e bloqueia alterações após o início.
-- **API REST de perguntas — implementada:** `GET /api/perguntas` lista as perguntas disponíveis e `POST /api/perguntas` cadastra uma nova pergunta, com validação de etapa escolar, nível estrutural, alternativas e resposta correta.
-- **Ranking aprovado:** para N participantes, os acertos recebem N, N−1, ... até 1 ponto pela ordem de recebimento pelo servidor; erro e tempo esgotado valem zero.
-- **Política implementada (2026-11-20):** o servidor evita repetir perguntas já usadas dentro da mesma rodada e da mesma partida (`usedQuestionIds`), com fallback automático caso o acervo da combinação etapa × nível se esgote. A reconexão temporária (60s) reentrega a pergunta e aceita resposta durante quiz ativo.
+**Regra de distribuição (implementada):** em partidas de 4 a 8 jogadores, os quatro papéis aparecem obrigatoriamente ao menos uma vez; do 5º ao 8º participante, os papéis adicionais são sorteados com reposição. Na revanche (v2.0), o sorteio prioriza atribuir papéis ainda não vivenciados por cada jogador naquela sessão.
 
-## 6. Acessibilidade e Experiência
+### 4.2 Matriz de Equidade — Versão `v1.0-baseline` (versionada no banco)
 
-- Oferecer alternativas visuais e textuais para alertas sonoros; não depender apenas de cor para comunicar estado.
-- Planejar suporte a leitor de tela, contraste ajustável, textos legíveis, controles simples e tempo configurável ou opções de acessibilidade.
-- Evitar estímulos sonoros/visuais excessivos; permitir reduzir movimento e efeitos.
-- Testar protótipos com pessoas com diferentes necessidades de acesso e ajustar a matriz com base no retorno.
+| Casa | Obstáculo | Domínio da barreira | Cadeirante | Surdo | Cego / baixa visão | Neuroatípico |
+| --- | --- | --- | :---: | :---: | :---: | :---: |
+| `7` | **Escada** | Mobilidade | **Nível 3** | Nível 1 | Nível 2 | Nível 1 |
+| `14` | **Alerta Sonoro** | Audição | Nível 1 | **Nível 3** | Nível 1 | Nível 2 |
+| `21` | **Multidão e Barulho** | Sensorial | Nível 1 | Nível 1 | Nível 2 | **Nível 3** |
+| `28` | **Placa Ilegível** | Visão | Nível 1 | Nível 1 | **Nível 3** | Nível 1 |
+
+- **Nível 1:** operações básicas diretas / leitura imediata para a etapa escolhida.
+- **Nível 2:** problemas em etapas ou raciocínio intermediário.
+- **Nível 3:** modelagem, equações ou inferência de maior complexidade estrutural dentro da mesma etapa escolar.
+- **Calibração científica:** a tabela `matrizes_equidade` no banco permite criar e comparar versões futuras (ex.: `v1.1`, `v2.0`) após validação com pessoas com deficiência, professores de educação especial e análise estatística das partidas.
+
+---
+
+## 5. Regras Formais do Jogo
+
+1. **Sala e Participantes:** 4 a 8 jogadores; sala pública (listada no lobby) ou privada (código de 4 caracteres). Início manual exclusivamente pelo anfitrião. Se o anfitrião sair/desconectar antes do início, a liderança transfere ao próximo jogador; o anfitrião pode fechar a sala com confirmação. Salas de espera ociosas expiram após 30 minutos.
+2. **Sigilo e Revelação:** cada jogador vê apenas o próprio papel durante a partida; o estado público nunca expõe condições nem níveis estruturais dos demais. Tudo é revelado no evento `game_over`.
+3. **Movimento e Tabuleiro (`0..30`):**
+   - Ordem de turnos sorteada uma vez por partida (registrada para análise de possível vantagem posicional).
+   - Dado criptograficamente uniforme de 6 lados (`1..6`) rolado no servidor.
+   - Movimento excedente é limitado à casa `30`.
+   - **Impulso (+2):** pouso exato em `5, 10, 15, 20, 25` avança +2 casas (limitado à chegada `30`) e não aciona obstáculo ultrapassado.
+   - **Obstáculo:** pouso exato em `7, 14, 21, 28` pausa o tabuleiro e inicia a rodada de quiz simultâneo.
+4. **Quiz Simultâneo:**
+   - Todos os $N$ participantes conectados recebem individualmente uma questão inédita compatível com `etapa_escolar` e `nivel_estrutural` (sem repetição na rodada ou na partida, com fallback automático apenas se o acervo daquela célula se esgotar).
+   - Gabarito permanece exclusivamente no servidor até o encerramento da rodada.
+   - Janela comum controlada pelo servidor (`30s` padrão; `45s` ou `60s` configuráveis na v2.0), com no máximo 1 resposta por jogador e medição da latência em milissegundos (`tempo_resposta_ms`).
+   - Falha ou indisponibilidade de questão não inicia rodada parcial: emite `quiz_error`, pontua zero e libera o turno.
+5. **Pontuação e Avanço:**
+   - Para $N$ participantes fixados no início do quiz, respostas corretas recebem $N, N-1, \dots, 1$ pontos pela ordem de chegada ao servidor.
+   - Erro, prazo esgotado ou desconexão valem `0` pontos sem recalcular $N$.
+   - **v2.0 (Avanço por Equidade):** o 1º participante a acertar avança `+1` casa (limitado à casa `30`, sem reativar obstáculo). Se isso levar alguém à casa `30`, a partida encerra ao final do quiz.
+6. **Reconexão:** quedas transitórias preservam a vaga por até `60` segundos via `sessionToken` (`resume_room`), inclusive remapeando perguntas e respostas em quiz ativo.
+7. **Fim de Partida e Desempate:**
+   - Encerra imediatamente quando alguém atinge a casa `30` (por dado, Impulso ou Avanço por Equidade) ou após completar o limite de rodadas (`8` padrão / `6` rápido).
+   - Desempate no limite de rodadas: maior posição → maiores pontos de quiz → vitória compartilhada.
+8. **Revelação e Reflexão ("A Virada da Equidade"):**
+   - Exibe pódio (Vencedor da Corrida + Destaque do Quiz), revelação jogador–papel, métricas observadas individuais (média do dado, impulsos, acertos, distribuição `N1/N2/N3`), síntese do grupo, perguntas norteadoras para debate e botão de revanche (v2.0).
+
+---
+
+## 6. Painel de Professores, Contas e Pesquisa Científica (v2.0)
+
+### 6.1 Autenticação e Perfis
+- **Entrada sem atrito:** tela inicial oferece **Entrar com Google** e **Jogar como Convidado**.
+- **Perfil persistente (Google):** guarda apelido preferido, avatar lúdico escolhido, histórico de partidas, estatísticas pessoais (partidas jogadas, taxa de acerto por etapa, perspectivas já vivenciadas) e preferência explícita de **consentimento para pesquisa acadêmica**.
+
+### 6.2 Painel de Professores
+Área dedicada para usuários com papel `professor` ou `admin`:
+1. **Gestão Pedagógica de Questões:**
+   - Listagem com filtros (`etapa_escolar`, `nivel_estrutural`, `area_tematica`, `status_revisao`, busca textual).
+   - Criação, edição, revisão/aprovação e ativação/arquivamento de questões (com prevenção de duplicatas garantida no banco).
+   - **Diagnóstico psicométrico por questão:** número de aplicações, taxa de acerto ($p$), tempo médio de resposta, taxa de timeout e distribuição das marcações (`A/B/C/D`) para identificar questões mal formuladas ou distratores ineficazes.
+2. **Gestão de Turmas / Experimentos:**
+   - Criação de códigos de turma (ex.: `MAT101-2026A`) para vincular partidas aplicadas em aula ou oficina.
+3. **Laboratório Estatístico & Exportação:**
+   - Resumo descritivo de partidas, comparação de indicadores entre papéis e validação empírica da Matriz de Equidade (`obstáculo × papel × nível`).
+   - Exportação de datasets **100% anonimizados** em **CSV** e **JSON** (prontos para R, Python/pandas ou planilhas), contendo exclusivamente registros com consentimento explícito de pesquisa (`consentiu_pesquisa = 1`).
+
+### 6.3 Ética, LGPD e Anonimização
+- Dados civis (`email`, `nome`, `google_sub`) vivem isolados na tabela `usuarios` e **nunca** aparecem nas views analíticas nem nas exportações.
+- Cada participação recebe um `participante_anon_id` pseudonimizado; relatórios estatísticos exigem consentimento explícito (*opt-in*), alinhando o projeto desde a origem às boas práticas da LGPD e de submissão a Comitê de Ética em Pesquisa (CEP).
+
+---
+
+## 7. Direção Visual, UX e Acessibilidade
+
+- **Identidade base — Duo-Equidade (evoluível na Etapa 5):**
+  - Estética acolhedora, tátil e legível, com hierarquia clara entre área de ação, tabuleiro e placar (inspirada na agilidade social do *Gartic.io* e no polimento tátil do *Duolingo*).
+  - **Restrição técnica obrigatória (RN Web):** profundidade via `borderWidth` e `borderBottomWidth`, nunca propriedades `shadow*` depreciadas.
+  - Evolução prevista para a v2.0: substituir emojis críticos por ícones/ilustrações vetoriais consistentes (incluindo figuras humanas diversas validadas na tela de revelação, respeitando debates comunitários sobre símbolos como a peça de quebra-cabeça).
+- **Acessibilidade (WCAG 2.1 AA como meta):**
+  - Tema claro, tema escuro (contraste verificado) e modo daltônico (informação nunca dependente apenas de cor).
+  - Respeito nativo a `useReducedMotion`.
+  - Navegação completa por teclado na Web (`Tab`, foco visível, `A/B/C/D` e `Enter` no quiz, `Esc` nos modais) e semântica rigorosa para leitores de tela (`accessibilityRole`, `accessibilityLabel`, `accessibilityLiveRegion`).
+  - Tempo de quiz configurável na sala (`30s / 45s / 60s`).
+  - Alternativas textuais/visuais obrigatórias para quaisquer alertas sonoros futuros.
+
+---
+
+## 8. Mapa de Evolução: MVP v1.0 vs. v2.0
+
+| Capacidade | v1.0 (Em produção hoje) | v2.0 (Alvo institucional ICE-UFRRJ) |
+| --- | --- | --- |
+| Lobby, 4–8 jogadores, salas públicas/privadas | ✅ Entregue | ✅ Mantido + vínculo opcional de turma + regras configuráveis |
+| Tabuleiro 0–30, Impulso (+2), Obstáculos, Quiz 30s | ✅ Entregue | 🔜 +1 casa no 1º acerto, tempo configurável (`30/45/60s`), feed de turno |
+| Perguntas sem repetição na partida | ✅ Entregue | 🔜 Governança editorial, `area_tematica`, deduplicação no banco, expansão do acervo |
+| Revelação pós-jogo e métricas observadas | ✅ Entregue | 🔜 Duplo pódio (Corrida + Quiz), Revanche instantânea com rotação de papéis |
+| Contas e Login Google + Modo Convidado | ⏳ Planejado | 🔜 OAuth Google + JWT + Convidado sem atrito + histórico pessoal |
+| Persistência de Partidas e Telemetria Estatística | ⏳ Em memória | 🔜 Gravação transacional ao fim da partida (9 tabelas + 4 views analíticas) |
+| Painel de Professores & Exportação CSV/JSON | ⏳ Planejado | 🔜 CRUD/revisão de questões + diagnósticos empíricos + exportação anonimizada |
+| UX/UI Profissional + Teclado/WCAG completo | 🟡 Parcial | 🔜 Redesign visual, feedback vivo, atalhos de teclado e auditoria WCAG |

@@ -15,17 +15,17 @@ Socket.IO e MySQL no backend.
 - Reconexão automática de sessão por até 60 segundos em quedas transitórias e expiração de salas de espera inativas após 30 minutos.
 - Interface responsiva com tema claro/escuro, modo daltônico, respeito à redução de movimento, feedback de conexão e mensagens de erro acessíveis.
 
-**Estado atual (2026-11-20):** o MVP web está publicado (Render + Vercel) e
-validado com quatro jogadores (desktop e Safari no iPhone físico). O ciclo de
-sala pública/privada, turnos, movimento, obstáculos, quiz sem repetição na
-partida, reconexão e encerramento com métricas observadas está funcional. O
-backend passou 76/76 testes, TypeScript e lint do frontend passaram, e o banco
-em produção conta com 27 perguntas únicas balanceadas (3 por combinação de etapa
-escolar × nível estrutural). O estado das salas ainda fica em memória em uma
-única instância; por isso, recuperação após reinício continua fora do MVP.
-Quedas transitórias podem ser retomadas por até 60 segundos. Consulte
-[`docs/STATUS_PROJETO.md`](docs/STATUS_PROJETO.md) para detalhes operacionais
-(incluindo a migração planejada do MySQL antes de 2026-12-21).
+**Estado atual (2026-11-21):** o MVP web v1.0 está publicado (Render + Vercel) e
+validado com quatro jogadores (desktop e Safari no iPhone físico), com **76/76
+testes backend**, TypeScript e lint aprovados e **27 perguntas únicas
+balanceadas** no MySQL (`defaultdb`). A especificação e a base de dados da
+**v2.0 institucional (ICE — UFRRJ)** já estão versionadas em `docs/` e
+`database/migrations/` (rejogabilidade aprimorada, Login Google + Convidado,
+persistência transacional pós-partida, Painel de Professores e views analíticas
+anonimizadas para Estatística/Probabilidade/Inferência), prontas para
+implementação no backend (Etapa 4) e frontend (Etapa 5). Consulte
+[`docs/STATUS_PROJETO.md`](docs/STATUS_PROJETO.md) e
+[`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ## Documentação do projeto
 
@@ -232,31 +232,32 @@ domínio publicado.
 5. Confirme que apenas o jogador do turno atual vê **Rolar dado**.
 6. Quando um jogador parar em uma casa-obstáculo, confirme que todos veem a pausa e deixam de ver o botão de rolagem.
 
-## Banco de perguntas
+## Banco de perguntas e migrações
 
 O repositório inclui um `questionRepository` para consultar perguntas aleatórias
 na tabela `perguntas` do banco configurado, filtradas por `etapa_escolar` e
 `nivel_estrutural`. O fluxo de quiz está integrado à partida, com perguntas
-individuais, prazo controlado pelo servidor, pontuação e retomada do turno. Não
-inclua dados de acesso ao banco ou certificados no GitHub.
+individuais sem repetição, prazo controlado pelo servidor, pontuação e retomada
+do turno. Não inclua dados de acesso ao banco ou certificados no GitHub.
 
 O protótipo usa `defaultdb` como banco de aplicação confirmado no Aiven, hoje
 populado com **27 perguntas únicas balanceadas** (3 para cada uma das 9
 combinações de etapa escolar e nível estrutural) a partir de
 `database/schema_e_seed.sql` e `database/perguntas_expansao.sql` (ambos
-idempotentes contra inserções duplicadas). A revisão pedagógica com professores,
-ampliação futura do acervo e a migração de provedor antes do encerramento do
-Aiven Free Tier (2026-12-21) seguem no roadmap.
+idempotentes contra inserções duplicadas). As migrações da arquitetura v2.0
+(contas, turmas, matrizes versionadas, telemetria de partidas e 5 views
+analíticas anonimizadas) estão documentadas em
+[`database/README.md`](database/README.md) e `database/migrations/`.
 
 ## Limitações e próximos passos
 
-Os próximos focos do projeto são: migrar a hospedagem MySQL antes do encerramento
-do Aiven Free Tier (`2026-12-21`), validar o app em navegador Android e Expo Go
-nativo, completar a acessibilidade (leitor de tela, navegação por teclado e
-contraste WCAG), ampliar e revisar o banco de perguntas com professores e
-validar a matriz pedagógica e ilustrações com pessoas com deficiência. Recuperação
-após reinício do servidor (Redis/adapter) segue fora do MVP; não implemente
-login Google, ranking ou histórico sem antes definir identidade, consentimento
-e política de dados.
+Os próximos focos do projeto seguem o plano v2.0 voltado ao **ICE — UFRRJ**:
+aplicar as migrações de banco `001..003`, implementar o Backend v2.0 (regras de
+rejogabilidade, Google OAuth + Convidado, persistência pós-partida, Painel de
+Professores e exportação anonimizada CSV/JSON), expandir e revisar o acervo de
+perguntas e evoluir o Frontend com UX/UI profissional e conformidade WCAG 2.1 AA.
+A migração de provedor MySQL antes do encerramento do Aiven Free Tier
+(`2026-12-21`) e eventual escala horizontal com Redis ficam planejadas para a
+fase operacional.
 
-Consulte [`docs/ROADMAP.md`](docs/ROADMAP.md) para a sequência recomendada.
+Consulte [`docs/ROADMAP.md`](docs/ROADMAP.md) para a sequência completa.

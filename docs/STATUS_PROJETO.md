@@ -1,31 +1,31 @@
 # Status do Projeto — Ludo Equidade
 
-**Atualizado em:** 2026-11-20
-**Estado:** MVP web funcional em piloto controlado
+**Atualizado em:** 2026-11-21
+**Estado:** MVP web v1.0 funcional em produção · Fundação v2.0 (GDD, Banco Analítico/UML e Arquitetura ICE-UFRRJ) concluída e pronta para implementação
 
-## 1. O que queríamos construir
+## 1. Visão e Contexto Atual
 
 O Ludo Equidade é um jogo de tabuleiro educativo multiplayer sobre matemática,
-inclusão e acessibilidade. A proposta é mostrar que uma mesma barreira pode
-afetar pessoas de formas diferentes e estimular uma conversa sobre equidade,
-sem afirmar que os papéis do jogo representam a experiência universal de uma
-pessoa real.
+inclusão e acessibilidade, em evolução para apresentação institucional ao
+**Departamento de Matemática do Instituto de Ciências Exatas (ICE — UFRRJ)**
+como produto educacional e potencial projeto de **Iniciação Científica (IC)**.
 
-O primeiro ciclo definido para o MVP foi:
+A proposta alia ensino ativo de matemática e debate sobre equidade a uma
+arquitetura de dados projetada para estudos de **Estatística, Probabilidade,
+Processos Estocásticos e Inferência**, preservando rigor ético (LGPD,
+pseudonimização e consentimento explícito) e sem afirmar que papéis de jogo
+representam a experiência universal de pessoas reais.
 
-1. criar ou entrar em uma sala;
-2. reunir de 4 a 8 participantes;
-3. escolher a etapa escolar;
-4. sortear papéis privados;
-5. jogar em turnos em um tabuleiro de 0 a 30;
-6. receber Impulso (+2) nas casas 5, 10, 15, 20 e 25 e abrir um quiz
-   simultâneo ao pousar nas casas 7, 14, 21 ou 28;
-7. pontuar as respostas e retomar a partida;
-8. declarar o resultado e revelar os papéis no final.
+O ciclo **v1.0 (MVP publicado)** entregou uma partida multiplayer completa e
+validada em produção (Render + Vercel + MySQL/Aiven). Em **2026-11-21**, foi
+concluída a fundação de engenharia da **v2.0** ([GDD](./GDD.md),
+[DATABASE_UML](./DATABASE_UML.md), `database/migrations/001..003` e
+[ARQUITETURA_E_OPERACAO](./ARQUITETURA_E_OPERACAO.md)) para incorporar:
 
-O escopo inicial priorizou uma partida jogável e verificável. Login externo,
-histórico de partidas e escalabilidade horizontal ficaram fora do primeiro
-ciclo.
+1. melhorias de engajamento e rejogabilidade (*Avanço por Equidade*, duplo pódio, revanche instantânea com rotação de papéis, tempo configurável de quiz e feed de eventos);
+2. contas com **Login Google (OAuth 2.0)** + **Modo Convidado** e papéis RBAC (`jogador`, `professor`, `admin`);
+3. persistência transacional pós-partida (9 tabelas + 5 views analíticas e datasets anonimizados para R/Python);
+4. **Painel de Professores** (gestão/revisão de perguntas, turmas, indicadores empíricos e exportação CSV/JSON).
 
 ## 2. O que foi realizado
 
@@ -151,41 +151,31 @@ Consequências e riscos operacionais conhecidos:
 - a matriz de obstáculos e papéis ainda precisa de validação com pessoas com
   deficiência e educadores.
 
-## 5. Para onde queremos ir
+## 5. Para onde queremos ir (Próximas Etapas)
 
-### Próxima etapa — confiabilidade do piloto e publicação
+### Etapa 4 — Backend v2.0, Persistência Analítica, OAuth e Testes (próximo passo)
 
-- Validar em produção (Vercel/Render) as melhorias de Prioridade 3: métricas
-  observadas do `GameOverModal`, perguntas sem repetição, timeout, `quiz_error`,
-  explicação ausente e reconexão durante quiz em desktop, Safari (iPhone) e
-  navegador Android.
-- Monitorar `/api/status` continuamente.
-- Planejar e executar a migração do banco MySQL antes do encerramento do
-  Aiven Free Tier em **2026-12-21**.
-- Validar o fluxo nativo em Expo Go (Android e iOS) quando o foco avançar além
-  do piloto web.
+- Aplicar as migrações `database/migrations/001..003` no banco ativo (`defaultdb`).
+- Implementar gameplay v2.0 (Avanço por Equidade +1 casa no 1º acerto, duplo pódio, revanche na mesma sala com rotação de papéis, tempo de quiz `30/45/60s`, feed de turno e medição de `tempo_resposta_ms`).
+- Implementar Google OAuth + JWT + RBAC (`jogador`/`professor`/`admin`) mantendo o Modo Convidado sem atrito.
+- Implementar persistência transacional pós-partida, histórico pessoal, CRUD docente de perguntas, turmas e endpoints analíticos/exportação anonimizada CSV/JSON.
+- Adicionar logger estruturado e expandir a suíte de testes automatizados (`npm test`).
 
-### Etapa seguinte — conteúdo e acessibilidade
+### Expansão Pedagógica do Banco de Perguntas
 
-- Continuar expandindo o banco de perguntas além das 27 questões atuais (a
-  prevenção de repetição dentro da mesma partida já está implementada).
-- Revisar perguntas com professores.
-- Validar a matriz e as métricas de reflexão com pessoas com deficiência e
-  especialistas.
-- Completar suporte a leitor de tela, navegação por teclado e alternativas para
-  eventuais alertas sonoros.
-- Validar com a comunidade ilustrações humanas diversas para a revelação
-  pós-jogo.
+- Expandir o acervo de 27 para 54–90 questões únicas balanceadas com `area_tematica` preenchida e revisão pedagógica junto ao Departamento de Matemática (ICE-UFRRJ).
 
-### Evolução de produção
+### Etapa 5 — Frontend Profissional (UX/UI, Painel Docente e WCAG)
 
-- Usar Redis/Socket.IO Adapter se houver mais de uma instância.
-- Manter limites de frequência e ampliar a proteção contra abuso conforme o
-  tráfego real.
-- Criar credencial de banco específica para a aplicação, com privilégios
-  mínimos.
-- Avaliar persistência de partidas, ranking e autenticação somente quando
-  houver requisito real.
+- Evoluir a interface com foco em engajamento, clareza visual, narrativa viva do turno e acessibilidade WCAG 2.1 AA (navegação por teclado na Web, leitor de tela e contraste validado).
+- Integrar tela de Login Google / Convidado, perfil com histórico pessoal, fluxo de revanche e **Painel de Professores** com métricas empíricas e exportação anonimizada.
+- Validar em desktop, Safari iPhone, navegador Android e Expo Go nativo.
+
+### Operação Contínua
+
+- Migrar hospedagem MySQL antes do encerramento do Aiven Free Tier (**2026-12-21**) usando os scripts portáveis versionados.
+- Criar credencial de banco específica para a aplicação com privilégios mínimos e monitorar `/api/status`.
+- Avaliar Redis/Socket.IO Adapter quando houver necessidade de múltiplas instâncias.
 
 ## 6. Documentos relacionados
 
