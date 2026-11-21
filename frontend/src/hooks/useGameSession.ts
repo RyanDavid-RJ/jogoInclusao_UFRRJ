@@ -4,19 +4,20 @@ import { io, Socket } from "socket.io-client";
 
 import type {
   GameOver,
+  MaxRoundsOption,
   ObstaclePending,
   PlayerProfile,
   PublicGameState,
   PublicRoomSummary,
   QuizAnswer,
+  QuizDurationSec,
   QuizError,
   QuizQuestion,
   QuizResult,
+  QuizRoundEnded,
   SchoolStage,
 } from "../constants/duoTheme";
-
-const SERVER_URL =
-  process.env.EXPO_PUBLIC_SERVER_URL || "http://localhost:3000";
+import { SERVER_URL } from "../services/apiClient";
 
 export type ViewState = "home" | "public_list" | "private_join" | "waiting_room";
 
@@ -25,22 +26,48 @@ type RoomEvent = {
   hostId: string;
   isPrivate?: boolean;
   schoolStage: SchoolStage | null;
+  quizDurationSec?: QuizDurationSec;
+  maxRounds?: MaxRoundsOption;
+  turmaCodigo?: string | null;
   sessionToken?: string;
   condition?: string | null;
   started?: boolean;
   players?: PlayerProfile[];
 };
 
+export interface UseGameSessionOptions {
+  authToken?: string | null;
+  consentResearch?: boolean;
+  preferredName?: string;
+  preferredAvatar?: string;
+}
+
+export interface CreateRoomOptions {
+  quizDurationSec?: QuizDurationSec;
+  maxRounds?: MaxRoundsOption;
+  turmaCodigo?: string;
+}
+
 const createSessionToken = () =>
   globalThis.crypto?.randomUUID?.() ??
   `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 
-export function useGameSession() {
+export function useGameSession(options: UseGameSessionOptions = {}) {
+  const {
+    authToken = null,
+    consentResearch = false,
+    preferredName,
+    preferredAvatar,
+  } = options;
+
   const socketRef = useRef<Socket | null>(null);
   const quizLockRef = useRef(false);
   const roomCodeRef = useRef("");
   const sessionTokenRef = useRef<string>(createSessionToken());
   const resumeRequestedRef = useRef(false);
+  const authTokenRef = useRef<string | null>(authToken);
+  const consentResearchRef = useRef<boolean>(consentResearch);
+  const userEditedProfileRef = useRef(false);
 
   const [isLoaded, setIsLoaded] = useState(false);
   const [connectionWaitTime, setConnectionWaitTime] = useState(0);
@@ -51,11 +78,14 @@ export function useGameSession() {
   const [viewState, setViewState] = useState<ViewState>("home");
   const [roomCode, setRoomCode] = useState("");
   const [isPrivateRoom, setIsPrivateRoom] = useState(false);
-  const [playerName, setPlayerName] = useState("");
-  const [avatarId, setAvatarId] = useState("coelho");
+  const [playerName, setPlayerNameState] = useState("");
+  const [avatarId, setAvatarIdState] = useState("coelho");
   const [players, setPlayers] = useState<PlayerProfile[]>([]);
   const [hostId, setHostId] = useState("");
   const [schoolStage, setSchoolStage] = useState<SchoolStage | null>(null);
+  const [quizDurationSec, setQuizDurationSec] = useState<QuizDurationSec>(30);
+  const [maxRounds, setMaxRounds] = useState<MaxRoundsOption>(8);
+  const [turmaCodigo, setTurmaCodigo] = useState<string | null>(null);
   const [publicRooms, setPublicRooms] = useState<PublicRoomSummary[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -68,13 +98,42 @@ export function useGameSession() {
   const [quizResult, setQuizResult] = useState<QuizResult | null>(null);
   const [quizError, setQuizError] = useState<QuizError | null>(null);
   const [quizRemainingSeconds, setQuizRemainingSeconds] = useState(0);
+  const [fastestCorrectPlayerId, setFastestCorrectPlayerId] = useState<
+    string | null
+  >(null);
+
+  useEffect(() => {
+    consentResearchRef.current = consentResearch;
+  }, [consentResearch]);
+
+  useEffect(() => {
+    if (!userEditedProfileRef.current && preferredName) {
+      setPlayerNameState(preferredName.slice(0, 16));
+    }
+  }, [preferredName]);
+
+  useEffect(() => {
+    if (!userEditedProfileRef.current && preferredAvatar) {
+      setAvatarIdState(preferredAvatar);
+    }
+  }, [preferredAvatar]);
+
+  const setPlayerName = (name: string) => {
+    userEditedProfileRef.current = true;
+    setPlayerNameState(name);
+  };
+
+  const setAvatarId = (id: string) => {
+    userEditedProfileRef.current = true;
+    setAvatarIdState(id);
+  };
 
   useEffect(() => {
     const interval = setInterval(
       () => setConnectionWaitTime((value) => value + 1),
       1000,
     );
-    const timeout = setTimeout(() => setIsLoaded(true), 900);
+    const timeout = setTimeout(() => setIsLoaded(true), 800);
     return () => {
       clearInterval(interval);
       clearTimeout(timeout);
@@ -82,7 +141,12 @@ export function useGameSession() {
   }, []);
 
   useEffect(() => {
-    const socket = io(SERVER_URL, { transports: ["websocket", "polling"] });
+    const socket = io(SERVER_URL, {
+      transports: ["websocket", "polling"],
+      auth: (cb) => {
+        cb(authTokenRef.current ? { token: authTokenRef.current } : {});
+      },
+    });
     socketRef.current = socket;
 
     const clearGame = () => {
@@ -93,6 +157,7 @@ export function useGameSession() {
       setQuizQuestion(null);
       setQuizResult(null);
       setQuizError(null);
+      setFastestCorrectPlayerId(null);
       quizLockRef.current = false;
     };
 
@@ -105,8 +170,23 @@ export function useGameSession() {
       setIsPrivateRoom(false);
       setHostId("");
       setSchoolStage(null);
+      setQuizDurationSec(30);
+      setMaxRounds(8);
+      setTurmaCodigo(null);
       setPlayers([]);
       clearGame();
+    };
+
+    const applyRoomSettings = (data: RoomEvent) => {
+      if (data.quizDurationSec === 30 || data.quizDurationSec === 45 || data.quizDurationSec === 60) {
+        setQuizDurationSec(data.quizDurationSec);
+      }
+      if (data.maxRounds === 6 || data.maxRounds === 8) {
+        setMaxRounds(data.maxRounds);
+      }
+      if (data.turmaCodigo !== undefined) {
+        setTurmaCodigo(data.turmaCodigo ?? null);
+      }
     };
 
     socket.on("connect", () => {
@@ -128,7 +208,7 @@ export function useGameSession() {
       setErrorMessage(
         roomCodeRef.current
           ? "Conexão perdida. Tentando retomar sua sessão..."
-          : "Conexão perdida com o servidor. Tente novamente.",
+          : "Conexão perdida com o servidor. Tentando reconectar...",
       );
     });
     socket.on(
@@ -136,11 +216,9 @@ export function useGameSession() {
       ({
         rooms,
       }: {
-        rooms: (
-          Omit<PublicRoomSummary, "hostName" | "hostAvatarId"> & {
-            hostProfile?: { name: string; avatarId: string };
-          }
-        )[];
+        rooms: (Omit<PublicRoomSummary, "hostName" | "hostAvatarId"> & {
+          hostProfile?: { name: string; avatarId: string };
+        })[];
       }) => {
         setPublicRooms(
           Array.isArray(rooms)
@@ -162,6 +240,7 @@ export function useGameSession() {
       setIsPrivateRoom(data.isPrivate === true);
       setHostId(data.hostId);
       setSchoolStage(data.schoolStage);
+      applyRoomSettings(data);
       setPlayers(data.players ?? []);
       clearGame();
     });
@@ -174,6 +253,7 @@ export function useGameSession() {
       setIsPrivateRoom(data.isPrivate === true);
       setHostId(data.hostId);
       setSchoolStage(data.schoolStage);
+      applyRoomSettings(data);
       if (data.players) setPlayers(data.players);
       clearGame();
     });
@@ -186,6 +266,7 @@ export function useGameSession() {
       if (typeof data.isPrivate === "boolean") setIsPrivateRoom(data.isPrivate);
       setHostId(data.hostId);
       setSchoolStage(data.schoolStage);
+      applyRoomSettings(data);
       if (data.players) setPlayers(data.players);
       if (data.condition) setMyCondition(data.condition);
       setErrorMessage("");
@@ -194,6 +275,7 @@ export function useGameSession() {
       setHostId(data.hostId);
       if (typeof data.isPrivate === "boolean") setIsPrivateRoom(data.isPrivate);
       setSchoolStage(data.schoolStage);
+      applyRoomSettings(data);
       if (data.players) setPlayers(data.players);
     });
     socket.on("room_left", () => {
@@ -208,19 +290,30 @@ export function useGameSession() {
       if (resumeRequestedRef.current) {
         clearRoom();
       }
-      setErrorMessage(message || "Não foi possível concluir a operação da sala.");
+      setErrorMessage(
+        message || "Não foi possível concluir a operação da sala.",
+      );
     });
     socket.on("game_started", ({ condition }: { condition: string }) => {
       setMyCondition(condition);
+      setGameOver(null);
+      setObstaclePending(null);
+      setQuizQuestion(null);
+      setQuizResult(null);
+      setQuizError(null);
+      setFastestCorrectPlayerId(null);
+      quizLockRef.current = false;
     });
     socket.on("game_state_updated", (state: PublicGameState) => {
       setGameState(state);
       if (state.status !== "paused") setObstaclePending(null);
+      if (state.status === "active") setGameOver(null);
     });
     socket.on("obstacle_pending", (data: ObstaclePending) => {
       setObstaclePending(data);
       setQuizResult(null);
       setQuizError(null);
+      setFastestCorrectPlayerId(null);
     });
     socket.on("quiz_question", (question: QuizQuestion) => {
       quizLockRef.current = false;
@@ -238,9 +331,10 @@ export function useGameSession() {
       setQuizQuestion(null);
       setQuizError(error);
     });
-    socket.on("quiz_round_ended", () => {
+    socket.on("quiz_round_ended", (payload: QuizRoundEnded) => {
       quizLockRef.current = false;
       setQuizQuestion(null);
+      setFastestCorrectPlayerId(payload?.fastestCorrectPlayerId ?? null);
     });
     socket.on("game_over", (result: GameOver) => {
       setObstaclePending(null);
@@ -255,6 +349,16 @@ export function useGameSession() {
       socket.disconnect();
     };
   }, []);
+
+  // Re-authenticate socket handshake smoothly when user signs in/out while outside a room
+  useEffect(() => {
+    const previousToken = authTokenRef.current;
+    authTokenRef.current = authToken;
+    if (previousToken !== authToken && !roomCodeRef.current && socketRef.current) {
+      socketRef.current.disconnect();
+      socketRef.current.connect();
+    }
+  }, [authToken]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextAppState) => {
@@ -276,13 +380,14 @@ export function useGameSession() {
         Math.max(0, Math.ceil((quizQuestion.deadlineAt - Date.now()) / 1000)),
       );
     update();
-    const timer = setInterval(update, 1000);
+    const timer = setInterval(update, 500);
     return () => clearInterval(timer);
   }, [quizQuestion]);
 
   const emit = (event: string, payload?: object) =>
     socketRef.current?.emit(event, payload);
-  const validName = playerName.trim().length >= 2 && playerName.trim().length <= 16;
+  const validName =
+    playerName.trim().length >= 2 && playerName.trim().length <= 16;
 
   const leaveAndResetSession = () => {
     if (roomCodeRef.current) {
@@ -297,6 +402,9 @@ export function useGameSession() {
     setIsPrivateRoom(false);
     setHostId("");
     setSchoolStage(null);
+    setQuizDurationSec(30);
+    setMaxRounds(8);
+    setTurmaCodigo(null);
     setPlayers([]);
     setErrorMessage("");
     setMyCondition(null);
@@ -306,10 +414,11 @@ export function useGameSession() {
     setQuizQuestion(null);
     setQuizResult(null);
     setQuizError(null);
+    setFastestCorrectPlayerId(null);
     emit("list_rooms");
   };
 
-  const createRoom = (isPrivate: boolean) => {
+  const createRoom = (isPrivate: boolean, roomOpts: CreateRoomOptions = {}) => {
     if (!validName) {
       setErrorMessage("O apelido deve ter entre 2 e 16 caracteres.");
       return;
@@ -319,6 +428,12 @@ export function useGameSession() {
       name: playerName.trim(),
       avatarId,
       isPrivate,
+      quizDurationSec: roomOpts.quizDurationSec ?? 30,
+      maxRounds: roomOpts.maxRounds ?? 8,
+      turmaCodigo: roomOpts.turmaCodigo?.trim()
+        ? roomOpts.turmaCodigo.trim().toUpperCase()
+        : undefined,
+      consentResearch: consentResearchRef.current,
       sessionToken: sessionTokenRef.current,
     });
   };
@@ -337,12 +452,15 @@ export function useGameSession() {
       roomCode: code.trim().toUpperCase(),
       name: playerName.trim(),
       avatarId,
+      consentResearch: consentResearchRef.current,
       sessionToken: sessionTokenRef.current,
     });
   };
 
   const submitQuiz = (answer: QuizAnswer) => {
-    if (!quizQuestion || quizLockRef.current || quizRemainingSeconds <= 0) return;
+    if (!quizQuestion || quizLockRef.current || quizRemainingSeconds <= 0) {
+      return;
+    }
     quizLockRef.current = true;
     socketRef.current?.emit(
       "submit_quiz_answer",
@@ -369,7 +487,21 @@ export function useGameSession() {
   const selectSchoolStage = (stage: SchoolStage) =>
     emit("set_school_stage", { roomCode, schoolStage: stage });
 
+  const updateRoomSettings = (settings: {
+    quizDurationSec?: QuizDurationSec;
+    maxRounds?: MaxRoundsOption;
+    turmaCodigo?: string;
+  }) => {
+    if (!roomCode) return;
+    emit("update_room_settings", {
+      roomCode,
+      ...settings,
+    });
+  };
+
   const startGame = () => emit("start_game", { roomCode });
+
+  const playAgain = () => emit("play_again", { roomCode });
 
   const closeRoom = () => emit("close_room", { roomCode });
 
@@ -398,6 +530,9 @@ export function useGameSession() {
     players,
     hostId,
     schoolStage,
+    quizDurationSec,
+    maxRounds,
+    turmaCodigo,
     publicRooms,
     errorMessage,
     dismissError,
@@ -409,13 +544,16 @@ export function useGameSession() {
     quizResult,
     quizError,
     quizRemainingSeconds,
+    fastestCorrectPlayerId,
     createRoom,
     joinRoom,
     submitQuiz,
     openPublicRooms,
     openPrivateJoin,
     selectSchoolStage,
+    updateRoomSettings,
     startGame,
+    playAgain,
     closeRoom,
     rollDice,
     dismissQuizFeedback,

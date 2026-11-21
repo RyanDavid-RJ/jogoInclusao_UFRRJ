@@ -485,8 +485,10 @@ test("initializes turn state after the existing start validations and emits a wi
     "quizPoints",
     "currentPlayerId",
     "round",
+    "maxRounds",
     "diceResult",
     "status",
+    "lastEvent",
   ]);
   assert.equal(initialState.payload.status, "active");
   assert.deepEqual(room.gameState.turnOrder.slice().sort(), room.players.slice().sort());
@@ -516,10 +518,12 @@ test("initializes turn state after the existing start validations and emits a wi
       condition: room.playerConditions[playerId],
       position: room.gameState.positions[playerId],
       quizPoints: room.gameState.quizPoints[playerId],
+      destaqueQuiz: false,
       stats: room.gameState.stats[playerId],
     })),
   );
   assert.deepEqual(Object.keys(lobby.io.emissions.at(-1).payload).sort(), [
+    "quizHighlights",
     "reason",
     "reveal",
     "roles",
@@ -682,6 +686,7 @@ test("sends simultaneous private questions without answers or other players' que
     assert.deepEqual(Object.keys(event.payload).sort(), [
       "alternativas",
       "deadlineAt",
+      "durationSec",
       "enunciado",
       "quizId",
     ]);
@@ -1298,6 +1303,117 @@ test("tracks used question IDs across quiz rounds and includes observed match st
         entry.stats.quizLevels[2] +
         entry.stats.quizLevels[3],
       2,
+    );
+  }
+});
+
+test("awards +1 house to the fastest correct quiz answer and tracks response time", async () => {
+  const lobby = await startLobbyAtObstacle(7);
+  const room = lobby.room;
+  const { quizId, participants } = room.quizRound;
+  const fastestId = participants[1];
+  const initialPos = room.gameState.positions[fastestId];
+
+  lobby.clock.setTime(lobby.clock.now() + 2_500);
+  assert.deepEqual(submitAnswer(lobby.io.sockets.get(fastestId), quizId, "A"), {
+    success: true,
+  });
+  for (const playerId of participants) {
+    if (playerId !== fastestId) {
+      assert.deepEqual(submitAnswer(lobby.io.sockets.get(playerId), quizId, "B"), {
+        success: true,
+      });
+    }
+  }
+
+  assert.equal(room.gameState.positions[fastestId], initialPos + 1);
+  const fastestResult = lobby.io.emissions.find(
+    ({ target, eventName }) =>
+      target === fastestId && eventName === "quiz_result",
+  )?.payload;
+  assert.equal(fastestResult.bonusMove, 1);
+  assert.equal(fastestResult.tempoRespostaMs, 2_500);
+  const endedPayload = lobby.io.emissions.find(
+    ({ eventName }) => eventName === "quiz_round_ended",
+  )?.payload;
+  assert.equal(endedPayload.fastestCorrectPlayerId, fastestId);
+});
+
+test("supports configurable quizDurationSec, maxRounds, rematch play_again with role rotation, and persistence callback", async () => {
+  const persistedSnapshots = [];
+  const io = new FakeIo();
+  const rooms = new Map();
+  const clock = createFakeClock();
+  const quizService = createQuizService({
+    async findRandomQuestion() {
+      return { ...question, id: 77 };
+    },
+  });
+  attachLobbyHandlers(io, rooms, {
+    quizService,
+    now: clock.now,
+    setTimeoutFn: clock.setTimeoutFn,
+    clearTimeoutFn: clock.clearTimeoutFn,
+    matchPersistenceService: {
+      async persistMatch(snapshot) {
+        persistedSnapshots.push(snapshot);
+        return { persisted: true, partidaId: 1 };
+      },
+    },
+    randomInt: (minimum, maximum) => (minimum === 1 ? 6 : maximum - 1),
+  });
+
+  const host = io.connect("p1");
+  await host.clientEmit("create_room", {
+    name: "Ana",
+    quizDurationSec: 45,
+    maxRounds: 6,
+    consentResearch: true,
+  });
+  const roomCode = host.eventsFor("room_created")[0].payload.roomCode;
+  const p2 = io.connect("p2");
+  const p3 = io.connect("p3");
+  const p4 = io.connect("p4");
+  p2.clientEmit("join_room", { roomCode, name: "Bia", consentResearch: true });
+  p3.clientEmit("join_room", { roomCode, name: "Caio" });
+  p4.clientEmit("join_room", { roomCode, name: "Dani" });
+  await host.clientEmit("update_room_settings", {
+    roomCode,
+    quizDurationSec: 60,
+    maxRounds: 6,
+  });
+  host.clientEmit("set_school_stage", { roomCode, schoolStage: "Superior" });
+  host.clientEmit("start_game", { roomCode });
+
+  const room = rooms.get(roomCode);
+  assert.equal(room.quizDurationSec, 60);
+  assert.equal(room.maxRounds, 6);
+  const firstConditions = { ...room.playerConditions };
+
+  // Finish the match directly
+  const currentId = room.gameState.turnOrder[0];
+  room.gameState.positions[currentId] = 29;
+  await io.sockets.get(currentId).clientEmit("roll_dice", { roomCode });
+  assert.equal(room.gameState.status, "finished");
+
+  // Flush microtask for async persistence
+  await Promise.resolve();
+  assert.equal(persistedSnapshots.length, 1);
+  assert.equal(persistedSnapshots[0].schoolStage, "Superior");
+  assert.equal(persistedSnapshots[0].quizDurationSec, 60);
+  assert.equal(persistedSnapshots[0].maxRounds, 6);
+  assert.equal(persistedSnapshots[0].participants.length, 4);
+
+  // Host triggers instant rematch keeping all 4 players and rotating all 4 roles
+  host.clientEmit("play_again", { roomCode });
+  assert.equal(room.gameState.status, "active");
+  assert.equal(room.gameState.round, 1);
+  assert.equal(room.players.length, 4);
+  for (const playerId of room.players) {
+    assert.notEqual(
+      room.playerConditions[playerId],
+      firstConditions[playerId],
+      "4-player rematch should rotate every player to a new perspective",
     );
   }
 });

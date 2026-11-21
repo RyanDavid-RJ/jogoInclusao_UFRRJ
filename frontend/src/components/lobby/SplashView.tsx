@@ -1,6 +1,5 @@
 // frontend/src/components/lobby/SplashView.tsx
-// Tela de carregamento puramente visual do "Ludo Equidade (UFRRJ)".
-// Compatível com React Compiler. Sem shadow* no StyleSheet.
+// Tela de carregamento institucional do "Ludo Equidade (ICE • UFRRJ)".
 
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import Animated, {
@@ -25,9 +24,28 @@ export function SplashView({ palette, connectionWaitTime }: SplashViewProps) {
       style={[styles.container, { backgroundColor: palette.background }]}
     >
       <Animated.View
-        entering={reduceMotion ? undefined : FadeIn.duration(600)}
+        entering={reduceMotion ? undefined : FadeIn.duration(500)}
         style={styles.logoWrap}
       >
+        <View
+          style={[
+            styles.instPill,
+            {
+              backgroundColor: palette.secondaryBg,
+              borderColor: palette.secondaryBorder,
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.instText,
+              { color: palette.isDark ? "#7DD3FC" : palette.secondaryBorder },
+            ]}
+          >
+            INSTITUTO DE CIÊNCIAS EXATAS • UFRRJ
+          </Text>
+        </View>
+
         <View
           style={[
             styles.logoBadge,
@@ -42,7 +60,7 @@ export function SplashView({ palette, connectionWaitTime }: SplashViewProps) {
           </Text>
         </View>
         <Text style={[styles.subtitle, { color: palette.textMuted }]}>
-          Carregando motor do jogo...
+          Carregando motor multiplayer e acessibilidade...
         </Text>
       </Animated.View>
 
@@ -52,7 +70,7 @@ export function SplashView({ palette, connectionWaitTime }: SplashViewProps) {
 
       {showSlowServerNotice ? (
         <Animated.View
-          entering={reduceMotion ? undefined : SlideInDown.duration(400)}
+          entering={reduceMotion ? undefined : SlideInDown.duration(350)}
           style={[
             styles.slowCard,
             {
@@ -63,7 +81,7 @@ export function SplashView({ palette, connectionWaitTime }: SplashViewProps) {
         >
           <Text style={[styles.slowText, { color: palette.textMain }]}>
             Acordando o servidor gratuito no Render... Isso pode levar até 40
-            segundos. Aguarde ☕
+            segundos na primeira conexão. Aguarde ☕
           </Text>
         </Animated.View>
       ) : null}
@@ -77,21 +95,32 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 24,
-    gap: 24,
+    gap: 20,
   },
   logoWrap: {
     alignItems: "center",
     gap: 10,
   },
-  logoBadge: {
-    borderRadius: 18,
+  instPill: {
+    borderRadius: 999,
     borderWidth: 2,
-    borderBottomWidth: 5,
-    paddingHorizontal: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+  },
+  instText: {
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 0.6,
+  },
+  logoBadge: {
+    borderRadius: 20,
+    borderWidth: 2,
+    borderBottomWidth: 6,
+    paddingHorizontal: 24,
     paddingVertical: 14,
   },
   title: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: "900",
     letterSpacing: 0.6,
     textAlign: "center",
@@ -99,7 +128,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     fontWeight: "700",
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
     textAlign: "center",
   },
   spinnerWrap: {

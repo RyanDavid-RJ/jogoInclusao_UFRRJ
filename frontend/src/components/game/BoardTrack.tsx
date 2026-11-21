@@ -1,6 +1,5 @@
 // frontend/src/components/game/BoardTrack.tsx
-// Trilha sinuosa do tabuleiro do "Ludo Equidade (UFRRJ)".
-// Compatível com React Compiler. Sem shadow* no StyleSheet.
+// Trilha sinuosa do tabuleiro v2.0 com legenda visual e destaque do jogador ativo.
 
 import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
@@ -15,14 +14,10 @@ import {
 } from "../../constants/duoTheme";
 import { AvatarMedallion } from "../ui/DuoComponents";
 
-/* ------------------------------------------------------------------ */
-/* Configuração estática do tabuleiro                                  */
-/* ------------------------------------------------------------------ */
-
 const TOTAL_HOUSES = 31;
 const HOUSES_PER_ROW = 3;
-const TOTAL_ROWS = Math.ceil(TOTAL_HOUSES / HOUSES_PER_ROW); // 11
-const FINISH_HOUSE = TOTAL_HOUSES - 1; // 30
+const TOTAL_ROWS = Math.ceil(TOTAL_HOUSES / HOUSES_PER_ROW);
+const FINISH_HOUSE = TOTAL_HOUSES - 1;
 const START_HOUSE = 0;
 
 type CellData = {
@@ -63,31 +58,25 @@ function buildBoardRows(): CellData[][] {
 
 const BOARD_ROWS = buildBoardRows();
 
-/* ------------------------------------------------------------------ */
-/* Props                                                               */
-/* ------------------------------------------------------------------ */
-
 export interface BoardTrackProps {
   positions: Record<string, number>;
   ownPlayerId: string | undefined;
+  currentPlayerId?: string | null;
   playerProfiles: PlayerProfile[];
   palette: ThemePalette;
 }
 
-/* ------------------------------------------------------------------ */
-/* Componente                                                          */
-/* ------------------------------------------------------------------ */
-
 export function BoardTrack({
   positions,
   ownPlayerId,
+  currentPlayerId,
   playerProfiles,
   palette,
 }: BoardTrackProps) {
   const reduceMotion = useReducedMotion();
   const playerIds = useMemo(
     () => playerProfiles.map((profile) => profile.playerId),
-    [playerProfiles]
+    [playerProfiles],
   );
 
   const playersByHouse = useMemo(() => {
@@ -109,13 +98,36 @@ export function BoardTrack({
 
   const ownHouse =
     ownPlayerId !== undefined ? positions[ownPlayerId] : undefined;
-  const ownHighlightBg = `${palette.secondary}1A`;
+  const activeHouse =
+    currentPlayerId ? positions[currentPlayerId] : undefined;
 
   return (
     <Animated.View
-      entering={reduceMotion ? undefined : FadeIn.duration(400)}
-      style={[styles.container, { backgroundColor: palette.background }]}
+      entering={reduceMotion ? undefined : FadeIn.duration(350)}
+      style={[
+        styles.container,
+        {
+          backgroundColor: palette.boardBg,
+          borderColor: palette.boardBorder,
+        },
+      ]}
     >
+      {/* Legenda rápida do tabuleiro */}
+      <View style={styles.legendRow}>
+        <Text style={[styles.legendItem, { color: palette.textMuted }]}>
+          🏁 Início (0)
+        </Text>
+        <Text style={[styles.legendItem, { color: palette.primaryText }]}>
+          🚀 Impulso +2
+        </Text>
+        <Text style={[styles.legendItem, { color: palette.textMain }]}>
+          🚧 Obstáculo (Quiz)
+        </Text>
+        <Text style={[styles.legendItem, { color: palette.secondaryBorder }]}>
+          🏆 Chegada (30)
+        </Text>
+      </View>
+
       {BOARD_ROWS.map((rowCells, rowIndex) => (
         <View key={`row-${rowIndex}`} style={styles.row}>
           {rowCells.map((cell, cellIndex) => {
@@ -133,7 +145,9 @@ export function BoardTrack({
             const isFinish = cell.house === FINISH_HOUSE;
             const isObstacle = Boolean(obstacle);
             const isOwnHere = ownHouse === cell.house;
+            const isActiveHere = activeHouse === cell.house;
             const playersHere = playersByHouse.get(cell.house) ?? [];
+
             const houseDescription = [
               `Casa ${cell.house}`,
               isStart
@@ -141,9 +155,9 @@ export function BoardTrack({
                 : isFinish
                   ? "Chegada"
                   : obstacle
-                    ? `Obstáculo: ${obstacle.title}`
+                    ? `Obstáculo: ${obstacle.title} (${obstacle.domain})`
                     : bonus
-                      ? `Impulso: ${bonus.title}`
+                      ? `Impulso: avança 2 casas`
                       : null,
               playersHere.length > 0
                 ? `Jogadores: ${playersHere
@@ -158,20 +172,22 @@ export function BoardTrack({
             let borderColor = palette.cardBorder;
 
             if (isStart) {
-              bgColor = palette.surfaceAlt;
+              bgColor = palette.secondaryBg;
               borderColor = palette.secondaryBorder;
             } else if (isObstacle) {
               bgColor = palette.warningBg;
               borderColor = palette.warningBorder;
             } else if (bonus) {
-              bgColor = palette.surfaceAlt;
+              bgColor = palette.primaryBg;
               borderColor = palette.primaryBorder;
             } else if (isFinish) {
-              bgColor = palette.surfaceAlt;
-              borderColor = palette.primaryBorder;
+              bgColor = palette.purpleBg;
+              borderColor = palette.purpleBorder;
             } else if (isOwnHere) {
-              bgColor = ownHighlightBg;
+              bgColor = palette.secondaryBg;
               borderColor = palette.secondaryBorder;
+            } else if (isActiveHere) {
+              borderColor = palette.primaryBorder;
             }
 
             return (
@@ -185,11 +201,21 @@ export function BoardTrack({
                 accessibilityLabel={houseDescription}
               >
                 <View style={styles.cellTopRow}>
-                  <Text
-                    style={[styles.houseNumber, { color: palette.textMuted }]}
+                  <View
+                    style={[
+                      styles.houseBadge,
+                      {
+                        backgroundColor: palette.surfaceAlt,
+                        borderColor: palette.cardBorder,
+                      },
+                    ]}
                   >
-                    {cell.house}
-                  </Text>
+                    <Text
+                      style={[styles.houseNumber, { color: palette.textMain }]}
+                    >
+                      {cell.house}
+                    </Text>
+                  </View>
                   {cell.arrow ? (
                     <Text style={[styles.arrow, { color: palette.textMuted }]}>
                       {cell.arrow}
@@ -220,6 +246,15 @@ export function BoardTrack({
                       >
                         {obstacle.title}
                       </Text>
+                      <Text
+                        style={[
+                          styles.obstacleDomain,
+                          { color: palette.textMuted },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {obstacle.domain}
+                      </Text>
                     </>
                   ) : bonus ? (
                     <>
@@ -227,9 +262,9 @@ export function BoardTrack({
                       <Text
                         style={[
                           styles.bonusTitle,
-                          { color: palette.textMain },
+                          { color: palette.primaryText },
                         ]}
-                        numberOfLines={2}
+                        numberOfLines={1}
                       >
                         {bonus.title}
                       </Text>
@@ -238,7 +273,7 @@ export function BoardTrack({
                     <Text
                       style={[
                         styles.cellLabel,
-                        { color: palette.primaryBorder },
+                        { color: palette.purpleBorder },
                       ]}
                       numberOfLines={2}
                     >
@@ -254,10 +289,11 @@ export function BoardTrack({
                         key={profile.playerId}
                         avatarId={profile.avatarId}
                         size="sm"
+                        selected={profile.playerId === currentPlayerId}
                         markerText={getPlayerMarker(
                           profile.playerId,
                           playerIds,
-                          ownPlayerId
+                          ownPlayerId,
                         )}
                         palette={palette}
                       />
@@ -273,16 +309,25 @@ export function BoardTrack({
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Estilos                                                             */
-/* ------------------------------------------------------------------ */
-
 const styles = StyleSheet.create({
   container: {
     width: "100%",
     borderRadius: 20,
+    borderWidth: 2,
     padding: 10,
+    marginTop: 10,
     gap: 8,
+  },
+  legendRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 12,
+    paddingVertical: 2,
+  },
+  legendItem: {
+    fontSize: 11,
+    fontWeight: "800",
   },
   row: {
     flexDirection: "row",
@@ -290,7 +335,7 @@ const styles = StyleSheet.create({
   },
   cell: {
     flex: 1,
-    minHeight: 110,
+    minHeight: 112,
     borderRadius: 16,
     borderWidth: 2,
     borderBottomWidth: 5,
@@ -307,12 +352,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    minHeight: 14,
+    minHeight: 18,
+  },
+  houseBadge: {
+    borderRadius: 6,
+    borderWidth: 1,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
   },
   houseNumber: {
     fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 0.3,
+    fontWeight: "900",
   },
   arrow: {
     fontSize: 12,
@@ -322,7 +372,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 4,
+    paddingVertical: 3,
     gap: 2,
   },
   cellLabel: {
@@ -338,8 +388,12 @@ const styles = StyleSheet.create({
   },
   obstacleTitle: {
     fontSize: 10,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+  obstacleDomain: {
+    fontSize: 9,
     fontWeight: "800",
-    letterSpacing: 0.2,
     textAlign: "center",
   },
   bonusIcon: {
@@ -349,8 +403,7 @@ const styles = StyleSheet.create({
   },
   bonusTitle: {
     fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 0.2,
+    fontWeight: "900",
     textAlign: "center",
   },
   playersRow: {

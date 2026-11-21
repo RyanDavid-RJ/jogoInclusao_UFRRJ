@@ -1,5 +1,5 @@
 // frontend/src/components/ui/DuoComponents.tsx
-// Design System tátil do "Ludo Equidade (UFRRJ)".
+// Design System tátil do "Ludo Equidade (UFRRJ)" v2.0.
 // Sem shadow* (deprecados no RN Web) — profundidade via borderBottomWidth.
 
 import type { ReactNode } from "react";
@@ -14,6 +14,7 @@ import {
 
 import {
   getAvatarMeta,
+  type AuthUser,
   type ThemeMode,
   type ThemePalette,
 } from "../../constants/duoTheme";
@@ -56,7 +57,7 @@ interface ButtonColors {
 
 function resolveButtonColors(
   variant: DuoButtonVariant,
-  palette: ThemePalette
+  palette: ThemePalette,
 ): ButtonColors {
   switch (variant) {
     case "secondary":
@@ -69,7 +70,7 @@ function resolveButtonColors(
       return {
         bg: palette.warning,
         border: palette.warningBorder,
-        text: "#3C3C3C",
+        text: "#1F2937",
       };
     case "danger":
       return {
@@ -85,7 +86,7 @@ function resolveButtonColors(
       };
     case "ghost":
       return {
-        bg: "transparent",
+        bg: palette.cardBg,
         border: palette.cardBorder,
         text: palette.textMain,
       };
@@ -116,30 +117,30 @@ const BUTTON_SIZES: Record<DuoButtonSize, ButtonSizeConfig> = {
     paddingHorizontal: 14,
     fontSize: 13,
     subtitleSize: 11,
-    iconSize: 16,
+    iconSize: 15,
     borderRadius: 12,
     borderBottomWidth: 4,
     minHeight: 40,
   },
   md: {
     paddingVertical: 12,
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
     fontSize: 15,
     subtitleSize: 12,
     iconSize: 18,
     borderRadius: 16,
     borderBottomWidth: 5,
-    minHeight: 50,
+    minHeight: 48,
   },
   lg: {
-    paddingVertical: 16,
-    paddingHorizontal: 26,
-    fontSize: 17,
-    subtitleSize: 13,
-    iconSize: 22,
+    paddingVertical: 15,
+    paddingHorizontal: 24,
+    fontSize: 16,
+    subtitleSize: 12,
+    iconSize: 20,
     borderRadius: 18,
     borderBottomWidth: 6,
-    minHeight: 60,
+    minHeight: 56,
   },
 };
 
@@ -205,7 +206,7 @@ export function DuoButton({
               styles.buttonTitle,
               { color: colors.text, fontSize: sizeConfig.fontSize },
             ]}
-            numberOfLines={1}
+            numberOfLines={2}
           >
             {title}
           </Text>
@@ -215,7 +216,7 @@ export function DuoButton({
                 styles.buttonSubtitle,
                 { color: colors.text, fontSize: sizeConfig.subtitleSize },
               ]}
-              numberOfLines={1}
+              numberOfLines={2}
             >
               {subtitle}
             </Text>
@@ -230,7 +231,13 @@ export function DuoButton({
 /* 2. DuoCard                                                          */
 /* ================================================================== */
 
-export type DuoCardVariant = "default" | "highlight" | "warning" | "purple" | "danger";
+export type DuoCardVariant =
+  | "default"
+  | "highlight"
+  | "warning"
+  | "purple"
+  | "danger"
+  | "success";
 
 export interface DuoCardProps {
   children: ReactNode;
@@ -247,11 +254,13 @@ interface CardColors {
 
 function resolveCardColors(
   variant: DuoCardVariant,
-  palette: ThemePalette
+  palette: ThemePalette,
 ): CardColors {
   switch (variant) {
     case "highlight":
-      return { bg: palette.surfaceAlt, border: palette.secondaryBorder };
+      return { bg: palette.secondaryBg, border: palette.secondaryBorder };
+    case "success":
+      return { bg: palette.primaryBg, border: palette.primaryBorder };
     case "warning":
       return { bg: palette.warningBg, border: palette.warningBorder };
     case "purple":
@@ -291,7 +300,109 @@ export function DuoCard({
 }
 
 /* ================================================================== */
-/* 3. AvatarMedallion                                                  */
+/* 3. StatKpiCard & InfoPill                                           */
+/* ================================================================== */
+
+export interface StatKpiCardProps {
+  label: string;
+  value: string;
+  hint?: string;
+  icon?: string;
+  accentColor?: string;
+  palette: ThemePalette;
+}
+
+export function StatKpiCard({
+  label,
+  value,
+  hint,
+  icon,
+  accentColor,
+  palette,
+}: StatKpiCardProps) {
+  return (
+    <View
+      style={[
+        styles.kpiCard,
+        {
+          backgroundColor: palette.cardBg,
+          borderColor: accentColor ?? palette.cardBorder,
+        },
+      ]}
+    >
+      <View style={styles.kpiTopRow}>
+        <Text style={[styles.kpiLabel, { color: palette.textMuted }]} numberOfLines={2}>
+          {label}
+        </Text>
+        {icon ? <Text style={styles.kpiIcon}>{icon}</Text> : null}
+      </View>
+      <Text
+        style={[
+          styles.kpiValue,
+          { color: accentColor ?? palette.textMain },
+        ]}
+        numberOfLines={1}
+      >
+        {value}
+      </Text>
+      {hint ? (
+        <Text style={[styles.kpiHint, { color: palette.textMuted }]} numberOfLines={2}>
+          {hint}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+export interface InfoPillProps {
+  text: string;
+  tone?: "neutral" | "primary" | "secondary" | "warning" | "danger" | "purple";
+  palette: ThemePalette;
+}
+
+export function InfoPill({ text, tone = "neutral", palette }: InfoPillProps) {
+  let bg = palette.surfaceAlt;
+  let border = palette.cardBorder;
+  let color = palette.textMain;
+
+  if (tone === "primary") {
+    bg = palette.primaryBg;
+    border = palette.primaryBorder;
+    color = palette.primaryText;
+  } else if (tone === "secondary") {
+    bg = palette.secondaryBg;
+    border = palette.secondaryBorder;
+    color = palette.isDark ? "#7DD3FC" : palette.secondaryBorder;
+  } else if (tone === "warning") {
+    bg = palette.warningBg;
+    border = palette.warningBorder;
+    color = palette.textMain;
+  } else if (tone === "danger") {
+    bg = palette.dangerBg;
+    border = palette.dangerBorder;
+    color = palette.isDark ? "#FCA5A5" : palette.dangerBorder;
+  } else if (tone === "purple") {
+    bg = palette.purpleBg;
+    border = palette.purpleBorder;
+    color = palette.isDark ? "#E9D5FF" : palette.purpleBorder;
+  }
+
+  return (
+    <View
+      style={[
+        styles.infoPill,
+        { backgroundColor: bg, borderColor: border },
+      ]}
+    >
+      <Text style={[styles.infoPillText, { color }]} numberOfLines={1}>
+        {text}
+      </Text>
+    </View>
+  );
+}
+
+/* ================================================================== */
+/* 4. AvatarMedallion                                                  */
 /* ================================================================== */
 
 export type AvatarMedallionSize = "sm" | "md" | "lg";
@@ -314,9 +425,9 @@ interface AvatarSizeConfig {
 }
 
 const AVATAR_SIZES: Record<AvatarMedallionSize, AvatarSizeConfig> = {
-  sm: { circleSize: 48, emojiSize: 24, labelSize: 11 },
-  md: { circleSize: 64, emojiSize: 32, labelSize: 12 },
-  lg: { circleSize: 88, emojiSize: 44, labelSize: 14 },
+  sm: { circleSize: 44, emojiSize: 22, labelSize: 11 },
+  md: { circleSize: 60, emojiSize: 30, labelSize: 12 },
+  lg: { circleSize: 84, emojiSize: 42, labelSize: 14 },
 };
 
 export function AvatarMedallion({
@@ -333,7 +444,11 @@ export function AvatarMedallion({
   const config = AVATAR_SIZES[size];
 
   const circleBorder = selected ? palette.secondary : meta.borderColor;
-  const circleBackground = selected ? palette.surfaceAlt : meta.bgTint;
+  const circleBackground = selected
+    ? palette.secondaryBg
+    : palette.isDark
+      ? palette.surfaceAlt
+      : meta.bgTint;
 
   const inner = (
     <View style={styles.avatarWrap}>
@@ -346,6 +461,7 @@ export function AvatarMedallion({
             borderRadius: config.circleSize / 2,
             backgroundColor: circleBackground,
             borderColor: circleBorder,
+            borderWidth: selected ? 3 : 2,
             borderBottomWidth: selected ? 6 : 4,
           },
         ]}
@@ -377,7 +493,10 @@ export function AvatarMedallion({
         <Text
           style={[
             styles.avatarLabel,
-            { color: palette.textMain, fontSize: config.labelSize },
+            {
+              color: selected ? palette.secondaryBorder : palette.textMain,
+              fontSize: config.labelSize,
+            },
           ]}
           numberOfLines={1}
         >
@@ -405,7 +524,7 @@ export function AvatarMedallion({
 }
 
 /* ================================================================== */
-/* 4. ErrorBanner                                                      */
+/* 5. ErrorBanner                                                      */
 /* ================================================================== */
 
 export interface ErrorBannerProps {
@@ -455,12 +574,19 @@ export function ErrorBanner({ message, palette, onDismiss }: ErrorBannerProps) {
 }
 
 /* ================================================================== */
-/* 5. TopHeader                                                        */
+/* 6. TopHeader                                                        */
 /* ================================================================== */
+
+export type AppSection = "play" | "profile" | "teacher";
 
 export interface TopHeaderProps {
   isConnected: boolean;
   roomCode?: string;
+  inActiveMatch?: boolean;
+  activeSection?: AppSection;
+  onChangeSection?: (section: AppSection) => void;
+  authUser?: AuthUser | null;
+  isTeacherAccess?: boolean;
   themeMode: ThemeMode;
   isDaltonico: boolean;
   onToggleTheme: () => void;
@@ -471,20 +597,27 @@ export interface TopHeaderProps {
 export function TopHeader({
   isConnected,
   roomCode,
+  inActiveMatch = false,
+  activeSection = "play",
+  onChangeSection,
+  authUser,
+  isTeacherAccess = false,
   themeMode,
   isDaltonico,
   onToggleTheme,
   onToggleDaltonico,
   palette,
 }: TopHeaderProps) {
-  const connectionBg = isConnected ? palette.surfaceAlt : palette.dangerBg;
+  const connectionBg = isConnected ? palette.primaryBg : palette.dangerBg;
   const connectionBorder = isConnected
     ? palette.primaryBorder
     : palette.dangerBorder;
   const connectionText = isConnected
-    ? palette.primaryBorder
+    ? palette.primaryText
     : palette.dangerBorder;
-  const connectionLabel = isConnected ? "🟢 Online" : "🔴 Desconectado";
+  const connectionLabel = isConnected ? "● Online" : "● Offline";
+
+  const showNav = Boolean(onChangeSection) && !inActiveMatch;
 
   return (
     <View
@@ -496,8 +629,11 @@ export function TopHeader({
         },
       ]}
     >
-      <View style={styles.headerRow}>
-        <View
+      <View style={styles.headerTopLine}>
+        <Pressable
+          onPress={showNav ? () => onChangeSection?.("play") : undefined}
+          accessibilityRole={showNav ? "button" : "header"}
+          accessibilityLabel="Ludo Equidade ICE UFRRJ"
           style={[
             styles.titleBadge,
             {
@@ -510,104 +646,231 @@ export function TopHeader({
             style={[styles.titleText, { color: palette.textMain }]}
             numberOfLines={1}
           >
-            🎲 LUDO EQUIDADE • UFRRJ
+            🎲 LUDO EQUIDADE
           </Text>
-        </View>
-      </View>
+          <View
+            style={[
+              styles.instBadge,
+              {
+                backgroundColor: palette.secondaryBg,
+                borderColor: palette.secondaryBorder,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.instBadgeText,
+                { color: palette.isDark ? "#7DD3FC" : palette.secondaryBorder },
+              ]}
+            >
+              ICE • UFRRJ
+            </Text>
+          </View>
+        </Pressable>
 
-      <View style={styles.statusRow}>
-        <View
-          style={[
-            styles.statusPill,
-            {
-              backgroundColor: connectionBg,
-              borderColor: connectionBorder,
-            },
-          ]}
-          accessibilityLiveRegion="polite"
-        >
-          <Text style={[styles.statusText, { color: connectionText }]}>
-            {connectionLabel}
-          </Text>
-        </View>
+        {showNav ? (
+          <View style={styles.navRow} accessibilityRole="tablist">
+            <Pressable
+              onPress={() => onChangeSection?.("play")}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: activeSection === "play" }}
+              style={({ pressed }) => [
+                styles.navPill,
+                {
+                  backgroundColor:
+                    activeSection === "play"
+                      ? palette.primary
+                      : palette.surfaceAlt,
+                  borderColor:
+                    activeSection === "play"
+                      ? palette.primaryBorder
+                      : palette.cardBorder,
+                },
+                pressed && styles.togglePressed,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.navPillText,
+                  {
+                    color:
+                      activeSection === "play" ? "#FFFFFF" : palette.textMain,
+                  },
+                ]}
+              >
+                🎮 Jogar
+              </Text>
+            </Pressable>
 
-        {roomCode ? (
+            {authUser ? (
+              <Pressable
+                onPress={() => onChangeSection?.("profile")}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: activeSection === "profile" }}
+                style={({ pressed }) => [
+                  styles.navPill,
+                  {
+                    backgroundColor:
+                      activeSection === "profile"
+                        ? palette.secondary
+                        : palette.surfaceAlt,
+                    borderColor:
+                      activeSection === "profile"
+                        ? palette.secondaryBorder
+                        : palette.cardBorder,
+                  },
+                  pressed && styles.togglePressed,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.navPillText,
+                    {
+                      color:
+                        activeSection === "profile"
+                          ? "#FFFFFF"
+                          : palette.textMain,
+                    },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {getAvatarMeta(authUser.avatarPadrao).emoji}{" "}
+                  {authUser.apelidoPadrao}
+                </Text>
+              </Pressable>
+            ) : null}
+
+            <Pressable
+              onPress={() => onChangeSection?.("teacher")}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: activeSection === "teacher" }}
+              style={({ pressed }) => [
+                styles.navPill,
+                {
+                  backgroundColor:
+                    activeSection === "teacher"
+                      ? palette.purple
+                      : palette.surfaceAlt,
+                  borderColor:
+                    activeSection === "teacher"
+                      ? palette.purpleBorder
+                      : isTeacherAccess
+                        ? palette.purpleBorder
+                        : palette.cardBorder,
+                },
+                pressed && styles.togglePressed,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.navPillText,
+                  {
+                    color:
+                      activeSection === "teacher"
+                        ? "#FFFFFF"
+                        : palette.textMain,
+                  },
+                ]}
+              >
+                📊 Painel Docente
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        <View style={styles.statusRow}>
           <View
             style={[
               styles.statusPill,
               {
+                backgroundColor: connectionBg,
+                borderColor: connectionBorder,
+              },
+            ]}
+            accessibilityLiveRegion="polite"
+          >
+            <Text style={[styles.statusText, { color: connectionText }]}>
+              {connectionLabel}
+            </Text>
+          </View>
+
+          {roomCode ? (
+            <View
+              style={[
+                styles.statusPill,
+                {
+                  backgroundColor: palette.secondaryBg,
+                  borderColor: palette.secondaryBorder,
+                },
+              ]}
+            >
+              <Text style={[styles.statusText, { color: palette.textMain }]}>
+                Sala {roomCode}
+              </Text>
+            </View>
+          ) : null}
+
+          <Pressable
+            onPress={onToggleTheme}
+            accessibilityRole="button"
+            accessibilityLabel={
+              themeMode === "dark" ? "Ativar modo claro" : "Ativar modo escuro"
+            }
+            style={({ pressed }) => [
+              styles.iconToggle,
+              {
                 backgroundColor: palette.surfaceAlt,
                 borderColor: palette.cardBorder,
               },
+              pressed && styles.togglePressed,
             ]}
           >
-            <Text style={[styles.statusText, { color: palette.textMain }]}>
-              Sala: {roomCode}
+            <Text style={styles.iconToggleText}>
+              {themeMode === "dark" ? "☀️" : "🌙"}
             </Text>
-          </View>
-        ) : null}
+          </Pressable>
 
-        <Pressable
-          onPress={onToggleTheme}
-          accessibilityRole="button"
-          accessibilityLabel={
-            themeMode === "dark" ? "Ativar modo claro" : "Ativar modo escuro"
-          }
-          style={({ pressed }) => [
-            styles.iconToggle,
-            {
-              backgroundColor: palette.surfaceAlt,
-              borderColor: palette.cardBorder,
-            },
-            pressed && styles.togglePressed,
-          ]}
-        >
-          <Text style={styles.iconToggleText}>
-            {themeMode === "dark" ? "☀️" : "🌙"}
-          </Text>
-        </Pressable>
-
-        <Pressable
-          onPress={onToggleDaltonico}
-          accessibilityRole="button"
-          accessibilityLabel={
-            isDaltonico ? "Desativar modo daltônico" : "Ativar modo daltônico"
-          }
-          accessibilityState={{ selected: isDaltonico }}
-          style={({ pressed }) => [
-            styles.daltonicoToggle,
-            {
-              backgroundColor: isDaltonico
-                ? palette.secondary
-                : palette.surfaceAlt,
-              borderColor: isDaltonico
-                ? palette.secondaryBorder
-                : palette.cardBorder,
-            },
-            pressed && styles.togglePressed,
-          ]}
-        >
-          <Text
-            style={[
-              styles.daltonicoText,
-              { color: isDaltonico ? "#FFFFFF" : palette.textMain },
+          <Pressable
+            onPress={onToggleDaltonico}
+            accessibilityRole="button"
+            accessibilityLabel={
+              isDaltonico ? "Desativar modo daltônico" : "Ativar modo daltônico"
+            }
+            accessibilityState={{ selected: isDaltonico }}
+            style={({ pressed }) => [
+              styles.daltonicoToggle,
+              {
+                backgroundColor: isDaltonico
+                  ? palette.secondary
+                  : palette.surfaceAlt,
+                borderColor: isDaltonico
+                  ? palette.secondaryBorder
+                  : palette.cardBorder,
+              },
+              pressed && styles.togglePressed,
             ]}
-            numberOfLines={1}
           >
-            👁️ Daltônico
-          </Text>
-        </Pressable>
+            <Text
+              style={[
+                styles.daltonicoText,
+                { color: isDaltonico ? "#FFFFFF" : palette.textMain },
+              ]}
+              numberOfLines={1}
+            >
+              👁️ Daltônico
+            </Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   );
 }
 
 /* ================================================================== */
-/* 6. StyleSheet estático (sem shadow*, sem strings mágicas)           */
+/* 7. StyleSheet estático (sem shadow*)                                */
 /* ================================================================== */
 
 const styles = StyleSheet.create({
-  /* ---- DuoButton ---- */
   buttonBase: {
     borderWidth: 2,
     alignItems: "center",
@@ -617,7 +880,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   buttonPressed: {
-    transform: [{ translateY: 3 }],
+    transform: [{ translateY: 2 }],
   },
   buttonDisabled: {
     opacity: 0.5,
@@ -638,24 +901,70 @@ const styles = StyleSheet.create({
   },
   buttonTitle: {
     fontWeight: "900",
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
     textAlign: "center",
   },
   buttonSubtitle: {
     fontWeight: "600",
-    opacity: 0.9,
+    opacity: 0.92,
     marginTop: 2,
     textAlign: "center",
   },
 
-  /* ---- DuoCard ---- */
   cardBase: {
-    borderRadius: 22,
+    borderRadius: 20,
     borderWidth: 2,
-    borderBottomWidth: 6,
+    borderBottomWidth: 5,
   },
 
-  /* ---- AvatarMedallion ---- */
+  kpiCard: {
+    flexGrow: 1,
+    flexBasis: 148,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderBottomWidth: 4,
+    padding: 12,
+    gap: 4,
+  },
+  kpiTopRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 6,
+  },
+  kpiLabel: {
+    flex: 1,
+    fontSize: 11,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  kpiIcon: {
+    fontSize: 16,
+  },
+  kpiValue: {
+    fontSize: 22,
+    fontWeight: "900",
+    letterSpacing: 0.2,
+  },
+  kpiHint: {
+    fontSize: 11,
+    fontWeight: "700",
+    lineHeight: 15,
+  },
+
+  infoPill: {
+    borderRadius: 999,
+    borderWidth: 1.5,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  infoPillText: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.2,
+  },
+
   avatarWrap: {
     alignItems: "center",
     position: "relative",
@@ -663,7 +972,6 @@ const styles = StyleSheet.create({
   avatarCircle: {
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 2,
   },
   avatarPressed: {
     transform: [{ translateY: 2 }],
@@ -675,10 +983,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: 999,
     paddingHorizontal: 4,
-    paddingVertical: 2,
+    paddingVertical: 1,
   },
   hostBadgeText: {
-    fontSize: 14,
+    fontSize: 13,
   },
   markerPill: {
     position: "absolute",
@@ -686,9 +994,9 @@ const styles = StyleSheet.create({
     right: -4,
     borderRadius: 999,
     borderWidth: 2,
-    paddingHorizontal: 6,
+    paddingHorizontal: 5,
     paddingVertical: 1,
-    minWidth: 24,
+    minWidth: 22,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -696,52 +1004,54 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 10,
     fontWeight: "900",
-    letterSpacing: 0.4,
+    letterSpacing: 0.3,
   },
   avatarLabel: {
-    marginTop: 10,
+    marginTop: 7,
     fontWeight: "800",
     textAlign: "center",
   },
 
-  /* ---- ErrorBanner ---- */
   errorBanner: {
     flexDirection: "row",
     alignItems: "center",
     borderRadius: 14,
     borderWidth: 2,
     borderBottomWidth: 4,
-    padding: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginHorizontal: 12,
+    marginTop: 8,
     gap: 8,
   },
   errorText: {
     flex: 1,
     fontWeight: "700",
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 19,
   },
   dismissBtn: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 8,
   },
   dismissBtnPressed: {
     opacity: 0.6,
   },
   dismissBtnText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "900",
   },
 
-  /* ---- TopHeader ---- */
   headerWrap: {
     borderWidth: 2,
     borderBottomWidth: 4,
-    borderRadius: 16,
-    padding: 12,
-    gap: 10,
+    borderRadius: 18,
+    marginHorizontal: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
-  headerRow: {
+  headerTopLine: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -749,10 +1059,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   titleBadge: {
-    borderRadius: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderRadius: 12,
     borderWidth: 2,
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 5,
     flexShrink: 1,
   },
   titleText: {
@@ -760,11 +1073,41 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: 0.4,
   },
+  instBadge: {
+    borderRadius: 999,
+    borderWidth: 1.5,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  instBadgeText: {
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 0.4,
+  },
+  navRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  navPill: {
+    borderRadius: 12,
+    borderWidth: 2,
+    borderBottomWidth: 3,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    maxWidth: 180,
+  },
+  navPillText: {
+    fontSize: 12,
+    fontWeight: "900",
+    letterSpacing: 0.2,
+  },
   statusRow: {
     flexDirection: "row",
     alignItems: "center",
     flexWrap: "wrap",
-    gap: 8,
+    gap: 6,
   },
   statusPill: {
     borderRadius: 999,
@@ -773,16 +1116,17 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   statusText: {
-    fontSize: 12,
-    fontWeight: "800",
+    fontSize: 11,
+    fontWeight: "900",
     letterSpacing: 0.2,
   },
   iconToggle: {
     borderRadius: 10,
     borderWidth: 2,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    minWidth: 40,
+    borderBottomWidth: 3,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    minWidth: 36,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -792,17 +1136,19 @@ const styles = StyleSheet.create({
   daltonicoToggle: {
     borderRadius: 10,
     borderWidth: 2,
+    borderBottomWidth: 3,
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 5,
     alignItems: "center",
     justifyContent: "center",
   },
   daltonicoText: {
-    fontSize: 12,
-    fontWeight: "800",
+    fontSize: 11,
+    fontWeight: "900",
     letterSpacing: 0.2,
   },
   togglePressed: {
-    transform: [{ translateY: 2 }],
+    transform: [{ translateY: 1 }],
+    opacity: 0.9,
   },
 });

@@ -1,9 +1,16 @@
 // frontend/src/components/game/QuizModal.tsx
-// Overlay de quiz/obstáculo do "Ludo Equidade (UFRRJ)".
-// Compatível com React Compiler. Sem shadow* no StyleSheet.
+// Overlay de quiz/obstáculo v2.0 com tempo dinâmico (30/45/60s),
+// atalhos de teclado (A–D, Enter, Esc) na Web e feedback de Avanço por Equidade (+1 casa).
 
 import { useEffect, useState } from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import Animated, {
   FadeInDown,
   FadeOutDown,
@@ -13,6 +20,7 @@ import Animated, {
 import {
   OBSTACLE_META,
   QUIZ_ANSWERS,
+  formatSecondsFromMs,
   getQuizErrorMessage,
   type QuizAnswer,
   type QuizError,
@@ -20,9 +28,7 @@ import {
   type QuizResult,
   type ThemePalette,
 } from "../../constants/duoTheme";
-import { DuoButton, DuoCard } from "../ui/DuoComponents";
-
-const QUIZ_TOTAL_SECONDS = 30;
+import { DuoButton, DuoCard, InfoPill } from "../ui/DuoComponents";
 
 export interface QuizModalProps {
   question: QuizQuestion | null;
@@ -56,6 +62,48 @@ export function QuizModal({
     setIsSubmitting(false);
   }, [activeQuizId]);
 
+  // Acessibilidade por teclado na Web (A-D seleciona, Enter confirma/fecha, Esc fecha feedback)
+  useEffect(() => {
+    if (Platform.OS !== "web" || typeof window === "undefined") {
+      return;
+    }
+    if (!question && !result && !error) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      if (question && !result && !error && !isSubmitting) {
+        const key = event.key.toUpperCase();
+        if (key === "A" || key === "B" || key === "C" || key === "D") {
+          event.preventDefault();
+          setSelectedAnswer(key);
+        } else if (event.key === "Enter" && selectedAnswer) {
+          event.preventDefault();
+          setIsSubmitting(true);
+          onSubmit(selectedAnswer);
+        }
+      } else if ((result || error) && onDismiss) {
+        if (event.key === "Enter" || event.key === "Escape") {
+          event.preventDefault();
+          onDismiss();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [question, result, error, isSubmitting, selectedAnswer, onSubmit, onDismiss]);
+
   if (!question && !result && !error && !obstaclePending) {
     return null;
   }
@@ -64,18 +112,16 @@ export function QuizModal({
     ? OBSTACLE_META[obstaclePending.position]
     : null;
 
-  const clampedSeconds = Math.max(
-    0,
-    Math.min(remainingSeconds, QUIZ_TOTAL_SECONDS)
-  );
-  const progressPercent = (clampedSeconds / QUIZ_TOTAL_SECONDS) * 100;
+  const totalSeconds = question?.durationSec ?? 30;
+  const clampedSeconds = Math.max(0, Math.min(remainingSeconds, totalSeconds));
+  const progressPercent = (clampedSeconds / Math.max(1, totalSeconds)) * 100;
 
   let timerColor = palette.primary;
   let timerBorder = palette.primaryBorder;
   if (clampedSeconds <= 5) {
     timerColor = palette.danger;
     timerBorder = palette.dangerBorder;
-  } else if (clampedSeconds <= 15) {
+  } else if (clampedSeconds <= Math.ceil(totalSeconds / 2)) {
     timerColor = palette.warning;
     timerBorder = palette.warningBorder;
   }
@@ -90,254 +136,327 @@ export function QuizModal({
 
   return (
     <View style={styles.overlay} accessibilityViewIsModal>
-      <Animated.View
-        entering={reduceMotion ? undefined : FadeInDown.springify()}
-        exiting={reduceMotion ? undefined : FadeOutDown}
-        style={styles.modalWrap}
+      <ScrollView
+        contentContainerStyle={styles.scrollCenter}
+        keyboardShouldPersistTaps="handled"
       >
-        <DuoCard palette={palette} variant="default" padding={18}>
-          {/* Cabeçalho do obstáculo */}
-          {obstacle ? (
-            <View
-              style={[
-                styles.obstacleHeader,
-                {
-                  backgroundColor: palette.warningBg,
-                  borderColor: palette.warningBorder,
-                },
-              ]}
-            >
-              <Text
-                style={[styles.obstacleText, { color: palette.textMain }]}
-                numberOfLines={2}
-              >
-                Obstáculo: {obstacle.icon} {obstacle.title} - {obstacle.domain}
-              </Text>
-            </View>
-          ) : null}
-
-          {/* ESTADO: PREPARANDO DESAFIO */}
-          {!question && !result && !error && obstaclePending ? (
-            <View style={styles.preparingWrap}>
-              <ActivityIndicator size="small" color={palette.secondary} />
-              <Text
-                style={[styles.preparingText, { color: palette.textMuted }]}
-                accessibilityLiveRegion="polite"
-              >
-                Preparando o desafio para todos os jogadores...
-              </Text>
-            </View>
-          ) : null}
-
-          {/* ESTADO: PERGUNTA */}
-          {question && !result && !error ? (
-            <View style={styles.section}>
-              <View style={styles.timerHeader}>
-                <Text
-                  style={[styles.timerLabel, { color: palette.textMuted }]}
-                >
-                  ⏱️ {clampedSeconds}s
-                </Text>
-              </View>
-
+        <Animated.View
+          entering={reduceMotion ? undefined : FadeInDown.springify()}
+          exiting={reduceMotion ? undefined : FadeOutDown}
+          style={styles.modalWrap}
+        >
+          <DuoCard palette={palette} variant="default" padding={18}>
+            {/* Cabeçalho do obstáculo */}
+            {obstacle ? (
               <View
                 style={[
-                  styles.progressTrack,
-                  { backgroundColor: palette.cardBorder },
+                  styles.obstacleHeader,
+                  {
+                    backgroundColor: palette.warningBg,
+                    borderColor: palette.warningBorder,
+                  },
                 ]}
               >
+                <Text
+                  style={[styles.obstacleText, { color: palette.textMain }]}
+                  numberOfLines={2}
+                >
+                  Obstáculo: {obstacle.icon} {obstacle.title} · {obstacle.domain}
+                </Text>
+              </View>
+            ) : null}
+
+            {/* ESTADO: PREPARANDO DESAFIO */}
+            {!question && !result && !error && obstaclePending ? (
+              <View style={styles.preparingWrap}>
+                <ActivityIndicator size="small" color={palette.secondary} />
+                <Text
+                  style={[styles.preparingText, { color: palette.textMuted }]}
+                  accessibilityLiveRegion="polite"
+                >
+                  Preparando o desafio para todos os jogadores...
+                </Text>
+              </View>
+            ) : null}
+
+            {/* ESTADO: PERGUNTA */}
+            {question && !result && !error ? (
+              <View style={styles.section}>
+                <View style={styles.timerHeader}>
+                  <InfoPill
+                    text="⚡ 1º acerto = +1 casa"
+                    tone="purple"
+                    palette={palette}
+                  />
+                  <Text
+                    style={[
+                      styles.timerLabel,
+                      {
+                        color:
+                          clampedSeconds <= 5
+                            ? palette.danger
+                            : palette.textMain,
+                      },
+                    ]}
+                  >
+                    ⏱️ {clampedSeconds}s / {totalSeconds}s
+                  </Text>
+                </View>
+
                 <View
                   style={[
-                    styles.progressFill,
-                    {
-                      width: `${progressPercent}%`,
-                      backgroundColor: timerColor,
-                      borderColor: timerBorder,
-                    },
+                    styles.progressTrack,
+                    { backgroundColor: palette.cardBorder },
                   ]}
-                />
-              </View>
+                >
+                  <View
+                    style={[
+                      styles.progressFill,
+                      {
+                        width: `${progressPercent}%`,
+                        backgroundColor: timerColor,
+                        borderColor: timerBorder,
+                      },
+                    ]}
+                  />
+                </View>
 
-              <Text
-                style={[styles.questionText, { color: palette.textMain }]}
-              >
-                {question.enunciado}
-              </Text>
+                <Text style={[styles.questionText, { color: palette.textMain }]}>
+                  {question.enunciado}
+                </Text>
 
-              <View style={styles.answersWrap}>
-                {QUIZ_ANSWERS.map((key) => {
-                  const isSelected = selectedAnswer === key;
-                  const alternativeText = question.alternativas[key];
-                  return (
+                <View style={styles.answersWrap}>
+                  {QUIZ_ANSWERS.map((key) => {
+                    const isSelected = selectedAnswer === key;
+                    const alternativeText = question.alternativas[key];
+                    return (
+                      <DuoButton
+                        key={key}
+                        title={`${key}) ${alternativeText}`}
+                        variant={isSelected ? "primary" : "ghost"}
+                        size="md"
+                        fullWidth
+                        selected={isSelected}
+                        onPress={
+                          isSubmitting
+                            ? undefined
+                            : () => setSelectedAnswer(key)
+                        }
+                        disabled={isSubmitting}
+                        palette={palette}
+                        accessibilityLabel={`Alternativa ${key}: ${alternativeText}`}
+                      />
+                    );
+                  })}
+                </View>
+
+                {Platform.OS === "web" && !isSubmitting ? (
+                  <Text
+                    style={[styles.keyboardHint, { color: palette.textMuted }]}
+                  >
+                    ⌨️ Teclado: pressione A, B, C ou D para escolher e Enter para
+                    confirmar.
+                  </Text>
+                ) : null}
+
+                {isSubmitting ? (
+                  <View
+                    style={[
+                      styles.waitingBanner,
+                      {
+                        backgroundColor: palette.secondaryBg,
+                        borderColor: palette.secondaryBorder,
+                      },
+                    ]}
+                    accessibilityLiveRegion="polite"
+                  >
+                    <Text
+                      style={[styles.waitingText, { color: palette.textMain }]}
+                    >
+                      ⏳ Resposta enviada! Aguardando os demais jogadores...
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.confirmWrap}>
                     <DuoButton
-                      key={key}
-                      title={`${key}) ${alternativeText}`}
-                      variant={isSelected ? "primary" : "ghost"}
-                      size="md"
+                      title="Confirmar Resposta"
+                      icon="✅"
+                      variant="primary"
+                      size="lg"
                       fullWidth
-                      selected={isSelected}
-                      onPress={
-                        isSubmitting
-                          ? undefined
-                          : () => setSelectedAnswer(key)
-                      }
-                      disabled={isSubmitting}
+                      onPress={handleSubmit}
+                      disabled={!selectedAnswer || isSubmitting}
                       palette={palette}
-                      accessibilityLabel={`Alternativa ${key}: ${alternativeText}`}
+                      accessibilityLabel="Confirmar resposta selecionada"
+                      accessibilityHint="Envia sua resposta e aguarda o resultado da rodada"
                     />
-                  );
-                })}
+                  </View>
+                )}
               </View>
+            ) : null}
 
-              {isSubmitting ? (
-                <View
+            {/* ESTADO: RESULTADO */}
+            {result ? (
+              <View style={styles.section}>
+                <Text
                   style={[
-                    styles.waitingBanner,
+                    styles.resultTitle,
                     {
-                      backgroundColor: palette.surfaceAlt,
-                      borderColor: palette.secondaryBorder,
+                      color: result.correta
+                        ? palette.primaryText
+                        : palette.danger,
                     },
                   ]}
                   accessibilityLiveRegion="polite"
                 >
-                  <Text
-                    style={[styles.waitingText, { color: palette.textMain }]}
-                  >
-                    ⏳ Resposta enviada! Aguardando os demais jogadores...
-                  </Text>
-                </View>
-              ) : (
-                <View style={styles.confirmWrap}>
-                  <DuoButton
-                    title="Confirmar Resposta"
-                    icon="✅"
-                    variant="primary"
-                    size="lg"
-                    fullWidth
-                    onPress={handleSubmit}
-                    disabled={!selectedAnswer || isSubmitting}
-                    palette={palette}
-                    accessibilityLabel="Confirmar resposta selecionada"
-                    accessibilityHint="Envia sua resposta e aguarda o resultado da rodada"
-                  />
-                </View>
-              )}
-            </View>
-          ) : null}
+                  {result.correta ? "✅ Resposta Correta!" : "❌ Resposta Incorreta"}
+                </Text>
 
-          {/* ESTADO: RESULTADO */}
-          {result ? (
-            <View style={styles.section}>
-              <Text
-                style={[
-                  styles.resultTitle,
-                  {
-                    color: result.correta ? palette.primary : palette.danger,
-                  },
-                ]}
-                accessibilityLiveRegion="polite"
-              >
-                {result.correta ? "✅ Correto!" : "❌ Incorreto"}
-              </Text>
-
-              <Text style={[styles.resultLine, { color: palette.textMain }]}>
-                {result.alternativa
-                  ? `Sua resposta: ${result.alternativa} · Gabarito: ${result.respostaCorreta}`
-                  : `Sem resposta no prazo · Gabarito: ${result.respostaCorreta}`}
-              </Text>
-              <Text style={[styles.resultLine, { color: palette.textMain }]}>
-                Pontos ganhos: ⭐ {result.pontos}
-              </Text>
-
-              {result.explicacao ? (
-                <View
-                  style={[
-                    styles.explanationCard,
-                    {
-                      backgroundColor: palette.surfaceAlt,
-                      borderColor: palette.cardBorder,
-                    },
-                  ]}
-                >
-                  <Text
+                {result.bonusMove && result.bonusMove > 0 ? (
+                  <View
                     style={[
-                      styles.explanationText,
-                      { color: palette.textMain },
+                      styles.bonusBanner,
+                      {
+                        backgroundColor: palette.purpleBg,
+                        borderColor: palette.purpleBorder,
+                      },
                     ]}
                   >
-                    {result.explicacao}
+                    <Text
+                      style={[styles.bonusBannerText, { color: palette.textMain }]}
+                    >
+                      ⚡ Avanço por Equidade: você foi o 1º a acertar e avançou +
+                      {result.bonusMove} casa no tabuleiro!
+                    </Text>
+                  </View>
+                ) : null}
+
+                <View style={styles.resultPillsRow}>
+                  <InfoPill
+                    text={
+                      result.alternativa
+                        ? `Sua resposta: ${result.alternativa}`
+                        : "Tempo esgotado"
+                    }
+                    tone={result.correta ? "primary" : "danger"}
+                    palette={palette}
+                  />
+                  <InfoPill
+                    text={`Gabarito: ${result.respostaCorreta}`}
+                    tone="secondary"
+                    palette={palette}
+                  />
+                  <InfoPill
+                    text={`⭐ +${result.pontos} pts`}
+                    tone="warning"
+                    palette={palette}
+                  />
+                  {result.tempoRespostaMs !== undefined ? (
+                    <InfoPill
+                      text={`⏱️ ${formatSecondsFromMs(result.tempoRespostaMs)}`}
+                      tone="neutral"
+                      palette={palette}
+                    />
+                  ) : null}
+                </View>
+
+                {result.explicacao ? (
+                  <View
+                    style={[
+                      styles.explanationCard,
+                      {
+                        backgroundColor: palette.surfaceAlt,
+                        borderColor: palette.cardBorder,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.explanationLabel,
+                        { color: palette.textMuted },
+                      ]}
+                    >
+                      💡 Explicação pedagógica
+                    </Text>
+                    <Text
+                      style={[
+                        styles.explanationText,
+                        { color: palette.textMain },
+                      ]}
+                    >
+                      {result.explicacao}
+                    </Text>
+                  </View>
+                ) : null}
+
+                {onDismiss ? (
+                  <View style={styles.confirmWrap}>
+                    <DuoButton
+                      title="Continuar no Tabuleiro"
+                      variant="secondary"
+                      size="md"
+                      fullWidth
+                      onPress={onDismiss}
+                      palette={palette}
+                      accessibilityLabel="Fechar resultado do quiz e voltar ao tabuleiro"
+                    />
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
+
+            {/* ESTADO: ERRO */}
+            {error ? (
+              <View style={styles.section}>
+                <View
+                  style={[
+                    styles.errorBanner,
+                    {
+                      backgroundColor: palette.dangerBg,
+                      borderColor: palette.dangerBorder,
+                    },
+                  ]}
+                  accessibilityRole="alert"
+                  accessibilityLiveRegion="polite"
+                >
+                  <Text style={[styles.errorText, { color: palette.textMain }]}>
+                    ⚠️ {getQuizErrorMessage(error.code)}
                   </Text>
                 </View>
-              ) : null}
-
-              {onDismiss ? (
-                <View style={styles.confirmWrap}>
+                {onDismiss ? (
                   <DuoButton
                     title="Continuar"
-                    variant="secondary"
+                    variant="ghost"
                     size="md"
                     fullWidth
                     onPress={onDismiss}
                     palette={palette}
-                    accessibilityLabel="Fechar resultado do quiz e voltar ao tabuleiro"
+                    accessibilityLabel="Fechar aviso de erro do quiz"
                   />
-                </View>
-              ) : null}
-            </View>
-          ) : null}
-
-          {/* ESTADO: ERRO */}
-          {error ? (
-            <View style={styles.section}>
-              <View
-                style={[
-                  styles.errorBanner,
-                  {
-                    backgroundColor: palette.dangerBg,
-                    borderColor: palette.dangerBorder,
-                  },
-                ]}
-                accessibilityRole="alert"
-                accessibilityLiveRegion="polite"
-              >
-                <Text style={[styles.errorText, { color: palette.textMain }]}>
-                  ⚠️ {getQuizErrorMessage(error.code)}
-                </Text>
+                ) : null}
               </View>
-              {onDismiss ? (
-                <DuoButton
-                  title="Continuar"
-                  variant="ghost"
-                  size="md"
-                  fullWidth
-                  onPress={onDismiss}
-                  palette={palette}
-                  accessibilityLabel="Fechar aviso de erro do quiz"
-                />
-              ) : null}
-            </View>
-          ) : null}
-        </DuoCard>
-      </Animated.View>
+            ) : null}
+          </DuoCard>
+        </Animated.View>
+      </ScrollView>
     </View>
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Estilos                                                             */
-/* ------------------------------------------------------------------ */
-
 const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.6)",
+    backgroundColor: "rgba(15, 23, 42, 0.68)",
+  },
+  scrollCenter: {
+    flexGrow: 1,
     justifyContent: "center",
     alignItems: "center",
     padding: 16,
   },
   modalWrap: {
-    width: "90%",
-    maxWidth: 500,
+    width: "100%",
+    maxWidth: 540,
   },
   section: {
     gap: 12,
@@ -353,18 +472,19 @@ const styles = StyleSheet.create({
   obstacleText: {
     fontSize: 13,
     fontWeight: "900",
-    letterSpacing: 0.2,
     textAlign: "center",
   },
   timerHeader: {
     flexDirection: "row",
-    justifyContent: "flex-end",
+    justifyContent: "space-between",
     alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
   },
   timerLabel: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "900",
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
   },
   progressTrack: {
     width: "100%",
@@ -378,22 +498,26 @@ const styles = StyleSheet.create({
     borderRightWidth: 2,
   },
   questionText: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "800",
-    lineHeight: 22,
-    marginTop: 4,
-    marginBottom: 4,
+    lineHeight: 23,
+    marginVertical: 4,
   },
   answersWrap: {
     gap: 8,
   },
+  keyboardHint: {
+    fontSize: 11,
+    fontWeight: "700",
+    textAlign: "center",
+  },
   confirmWrap: {
-    marginTop: 6,
+    marginTop: 4,
   },
   preparingWrap: {
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 18,
+    paddingVertical: 20,
     gap: 10,
   },
   preparingText: {
@@ -402,7 +526,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   waitingBanner: {
-    marginTop: 6,
+    marginTop: 4,
     borderRadius: 12,
     borderWidth: 2,
     borderBottomWidth: 4,
@@ -415,24 +539,40 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   resultTitle: {
-    fontSize: 20,
+    fontSize: 21,
     fontWeight: "900",
-    letterSpacing: 0.4,
     textAlign: "center",
-    marginBottom: 4,
   },
-  resultLine: {
-    fontSize: 14,
-    fontWeight: "800",
-    letterSpacing: 0.2,
+  bonusBanner: {
+    borderRadius: 12,
+    borderWidth: 2,
+    borderBottomWidth: 4,
+    padding: 10,
+  },
+  bonusBannerText: {
+    fontSize: 13,
+    fontWeight: "900",
     textAlign: "center",
+    lineHeight: 18,
+  },
+  resultPillsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 6,
   },
   explanationCard: {
-    marginTop: 6,
     borderRadius: 12,
     borderWidth: 2,
     borderBottomWidth: 4,
     padding: 12,
+    gap: 4,
+  },
+  explanationLabel: {
+    fontSize: 11,
+    fontWeight: "900",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
   },
   explanationText: {
     fontSize: 13,
@@ -444,7 +584,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderBottomWidth: 4,
     padding: 12,
-    marginTop: 4,
   },
   errorText: {
     fontSize: 13,

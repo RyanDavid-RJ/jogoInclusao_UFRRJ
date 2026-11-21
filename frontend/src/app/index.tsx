@@ -1,8 +1,7 @@
-import { useState } from "react";
-import { ScrollView, useWindowDimensions, View } from "react-native";
+import { useEffect, useState } from "react";
+import { Platform, ScrollView, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { getThemePalette, type ThemeMode } from "../constants/duoTheme";
 import { BoardTrack } from "../components/game/BoardTrack";
 import { DicePanel } from "../components/game/DicePanel";
 import { GameOverModal } from "../components/game/GameOverModal";
@@ -11,19 +10,51 @@ import { QuizModal } from "../components/game/QuizModal";
 import { HomeView } from "../components/lobby/HomeView";
 import { RoomsView } from "../components/lobby/RoomsView";
 import { SplashView } from "../components/lobby/SplashView";
-import { ErrorBanner, TopHeader } from "../components/ui/DuoComponents";
+import { ProfileView } from "../components/profile/ProfileView";
+import { TeacherPanelView } from "../components/teacher/TeacherPanelView";
+import {
+  ErrorBanner,
+  TopHeader,
+  type AppSection,
+} from "../components/ui/DuoComponents";
+import { getThemePalette, type ThemeMode } from "../constants/duoTheme";
+import { useAuth } from "../hooks/useAuth";
 import { useGameSession } from "../hooks/useGameSession";
 
 export default function IndexScreen() {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const isDesktop = width >= 900;
+  const isDesktop = width >= 920;
 
   const [themeMode, setThemeMode] = useState<ThemeMode>("light");
   const [isDaltonico, setIsDaltonico] = useState(false);
+  const [activeSection, setActiveSection] = useState<AppSection>("play");
   const palette = getThemePalette(themeMode, isDaltonico);
 
-  const session = useGameSession();
+  const auth = useAuth();
+  const session = useGameSession({
+    authToken: auth.authToken,
+    consentResearch: auth.effectiveConsentResearch,
+    preferredName: auth.user?.apelidoPadrao,
+    preferredAvatar: auth.user?.avatarPadrao,
+  });
+
+  // Sincroniza classes CSS no <body> na Web para padrão de fundo e anel de foco WCAG
+  useEffect(() => {
+    if (Platform.OS !== "web" || typeof document === "undefined") {
+      return;
+    }
+    document.body.classList.toggle("dark-mode", themeMode === "dark");
+    document.body.classList.toggle("daltonico-mode", isDaltonico);
+  }, [themeMode, isDaltonico]);
+
+  // Se o usuário entra em uma sala ou partida, volta automaticamente para a aba "Jogar"
+  const effectiveSection: AppSection =
+    session.isInRoom || session.gameState
+      ? "play"
+      : activeSection === "profile" && !auth.user
+        ? "play"
+        : activeSection;
 
   if (!session.isLoaded) {
     return (
@@ -34,11 +65,25 @@ export default function IndexScreen() {
     );
   }
 
+  const combinedError = session.errorMessage || auth.authError;
+  const dismissCombinedError = () => {
+    session.dismissError();
+    auth.dismissAuthError();
+  };
+
+  const handleCreateRoomForClass = (turmaCodigo: string) => {
+    if (!session.playerName.trim() && auth.user?.apelidoPadrao) {
+      session.setPlayerName(auth.user.apelidoPadrao);
+    }
+    setActiveSection("play");
+    session.createRoom(false, { turmaCodigo });
+  };
+
   const gameContent = session.gameState ? (
     <>
       <View
         style={{
-          width: isDesktop ? 300 : "100%",
+          width: isDesktop ? 310 : "100%",
           height: isDesktop ? "100%" : undefined,
         }}
       >
@@ -47,6 +92,8 @@ export default function IndexScreen() {
           positions={session.gameState.positions}
           quizPoints={session.gameState.quizPoints ?? {}}
           myCondition={session.myCondition}
+          ownPlayerId={session.ownPlayerId}
+          currentPlayerId={session.gameState.currentPlayerId}
           palette={palette}
           scrollable={isDesktop}
         />
@@ -55,6 +102,7 @@ export default function IndexScreen() {
         <DicePanel
           diceResult={session.gameState.diceResult}
           round={session.gameState.round}
+          maxRounds={session.gameState.maxRounds ?? session.maxRounds}
           status={session.gameState.status}
           isMyTurn={
             session.gameState.status === "active" &&
@@ -66,12 +114,16 @@ export default function IndexScreen() {
                 player.playerId === session.gameState?.currentPlayerId,
             )?.name ?? ""
           }
+          lastEvent={session.gameState.lastEvent}
+          players={session.players}
+          ownPlayerId={session.ownPlayerId}
           onRollDice={session.rollDice}
           palette={palette}
         />
         <BoardTrack
           positions={session.gameState.positions}
           ownPlayerId={session.ownPlayerId}
+          currentPlayerId={session.gameState.currentPlayerId}
           playerProfiles={session.players}
           palette={palette}
         />
@@ -91,6 +143,11 @@ export default function IndexScreen() {
       <TopHeader
         isConnected={session.isConnected}
         roomCode={session.isInRoom ? session.roomCode : undefined}
+        inActiveMatch={Boolean(session.gameState)}
+        activeSection={effectiveSection}
+        onChangeSection={setActiveSection}
+        authUser={auth.user}
+        isTeacherAccess={auth.isTeacherAccess}
         themeMode={themeMode}
         isDaltonico={isDaltonico}
         onToggleTheme={() =>
@@ -99,19 +156,58 @@ export default function IndexScreen() {
         onToggleDaltonico={() => setIsDaltonico((value) => !value)}
         palette={palette}
       />
-      {session.errorMessage ? (
+
+      {combinedError ? (
         <ErrorBanner
-          message={session.errorMessage}
+          message={combinedError}
           palette={palette}
-          onDismiss={session.dismissError}
+          onDismiss={dismissCombinedError}
         />
       ) : null}
-      {!session.isInRoom && session.viewState === "home" ? (
+
+      {effectiveSection === "profile" && auth.user && auth.authToken ? (
+        <ProfileView
+          user={auth.user}
+          authToken={auth.authToken}
+          onUpdatePreferences={auth.updateUserPreferences}
+          onSignOut={() => {
+            auth.signOut();
+            setActiveSection("play");
+          }}
+          onBackToPlay={() => setActiveSection("play")}
+          palette={palette}
+        />
+      ) : effectiveSection === "teacher" ? (
+        <TeacherPanelView
+          authUser={auth.user}
+          authToken={auth.authToken}
+          adminToken={auth.adminToken}
+          isTeacherAccess={auth.isTeacherAccess}
+          isAdmin={auth.isAdmin}
+          serverGoogleEnabled={auth.serverGoogleEnabled}
+          onGoogleCredential={auth.signInWithGoogleCredential}
+          onUnlockWithAdminToken={auth.unlockWithAdminToken}
+          onClearAdminToken={auth.clearAdminToken}
+          onCreateRoomForClass={handleCreateRoomForClass}
+          onBackToPlay={() => setActiveSection("play")}
+          palette={palette}
+        />
+      ) : !session.isInRoom && session.viewState === "home" ? (
         <HomeView
           playerName={session.playerName}
           onChangeName={session.setPlayerName}
           avatarId={session.avatarId}
           onChangeAvatar={session.setAvatarId}
+          publicRoomsCount={session.publicRooms.length}
+          authUser={auth.user}
+          serverGoogleEnabled={auth.serverGoogleEnabled}
+          consentResearch={auth.effectiveConsentResearch}
+          onToggleConsentResearch={(next) => {
+            void auth.toggleResearchConsent(next);
+          }}
+          onGoogleCredential={auth.signInWithGoogleCredential}
+          onOpenProfile={() => setActiveSection("profile")}
+          onSignOut={auth.signOut}
           onJoinPublicRoom={session.openPublicRooms}
           onJoinPrivateRoom={session.openPrivateJoin}
           onCreateRoom={session.createRoom}
@@ -129,7 +225,11 @@ export default function IndexScreen() {
           hostId={session.hostId}
           ownPlayerId={session.ownPlayerId}
           schoolStage={session.schoolStage}
+          quizDurationSec={session.quizDurationSec}
+          maxRounds={session.maxRounds}
+          turmaCodigo={session.turmaCodigo}
           onSetSchoolStage={session.selectSchoolStage}
+          onUpdateRoomSettings={session.updateRoomSettings}
           onStartGame={session.startGame}
           onLeaveRoom={session.leaveAndResetSession}
           onCloseRoom={session.closeRoom}
@@ -166,6 +266,8 @@ export default function IndexScreen() {
               gameOver={session.gameOver}
               playerProfiles={session.players}
               ownPlayerId={session.ownPlayerId}
+              hostId={session.hostId}
+              onPlayAgain={session.playAgain}
               onBackToHome={session.leaveAndResetSession}
               palette={palette}
             />

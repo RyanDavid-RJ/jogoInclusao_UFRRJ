@@ -3,19 +3,20 @@
 :root {
   --font-primary: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-titles: "Fredoka", "Nunito", sans-serif;
-  --bg-primary: #F7F9FA;
-  --bg-pattern-dot: rgba(28, 176, 246, 0.10);
+  --bg-primary: #F4F7FA;
+  --bg-pattern-dot: rgba(28, 176, 246, 0.09);
   --duo-green: #58CC02;
   --duo-green-shadow: #46A302;
   --duo-blue: #1CB0F6;
   --duo-blue-shadow: #1899D6;
   --duo-yellow: #FFC800;
   --duo-yellow-shadow: #E5B400;
-  --duo-purple: #CE82FF;
-  --duo-purple-shadow: #A559D9;
+  --duo-purple: #A559D9;
+  --duo-purple-shadow: #8A3CB8;
   --duo-red: #FF4B4B;
   --duo-red-shadow: #EA2B2B;
   --duo-orange: #FF9600;
+  --focus-ring: #1899D6;
 }
 
 *, *::before, *::after {
@@ -33,13 +34,14 @@ html, body {
 body {
   font-family: var(--font-primary);
   background-color: var(--bg-primary);
-  background-image: radial-gradient(var(--bg-pattern-dot) 2px, transparent 2px);
-  background-size: 26px 26px;
+  background-image: radial-gradient(var(--bg-pattern-dot) 1.5px, transparent 1.5px);
+  background-size: 24px 24px;
 }
 
 body.dark-mode {
-  --bg-primary: #1F2428;
+  --bg-primary: #181D23;
   --bg-pattern-dot: rgba(255, 255, 255, 0.05);
+  --focus-ring: #4FC3F7;
 }
 
 body.daltonico-mode {
@@ -53,17 +55,26 @@ body.daltonico-mode {
   width: 8px;
   height: 8px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
-  background: #E5E5E5;
+  background: #CBD5E1;
   border-radius: 10px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: var(--duo-blue);
 }
 
-input:focus, textarea:focus {
+*:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+input:focus:not(:focus-visible),
+textarea:focus:not(:focus-visible) {
   outline: none;
 }

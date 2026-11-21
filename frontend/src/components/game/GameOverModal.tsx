@@ -1,6 +1,6 @@
 // frontend/src/components/game/GameOverModal.tsx
-// "A Virada da Equidade" — revelação final do "Ludo Equidade (UFRRJ)".
-// Compatível com React Compiler. Sem shadow* no StyleSheet.
+// "A Virada da Equidade" v2.0 — Pódio Duplo (Corrida + Destaque do Quiz),
+// indicadores observados e revanche instantânea com rotação de papéis.
 
 import { useMemo } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
@@ -18,45 +18,54 @@ import {
   type PlayerProfile,
   type ThemePalette,
 } from "../../constants/duoTheme";
-import { AvatarMedallion, DuoButton, DuoCard } from "../ui/DuoComponents";
+import {
+  AvatarMedallion,
+  DuoButton,
+  DuoCard,
+  InfoPill,
+} from "../ui/DuoComponents";
 
 const FINISH_HOUSE = 30;
-
-/* ------------------------------------------------------------------ */
-/* Props                                                               */
-/* ------------------------------------------------------------------ */
 
 export interface GameOverModalProps {
   gameOver: GameOver;
   playerProfiles: PlayerProfile[];
   ownPlayerId: string;
+  hostId: string;
+  onPlayAgain: () => void;
   onBackToHome: () => void;
   palette: ThemePalette;
 }
-
-/* ------------------------------------------------------------------ */
-/* Componente                                                          */
-/* ------------------------------------------------------------------ */
 
 export function GameOverModal({
   gameOver,
   playerProfiles,
   ownPlayerId,
+  hostId,
+  onPlayAgain,
   onBackToHome,
   palette,
 }: GameOverModalProps) {
   const reduceMotion = useReducedMotion();
   const playerIds = useMemo(
     () => playerProfiles.map((profile) => profile.playerId),
-    [playerProfiles]
+    [playerProfiles],
   );
 
   const winnerNames = useMemo(
     () =>
       gameOver.winners.map((id) =>
-        getPlayerLabel(id, playerIds, ownPlayerId, playerProfiles)
+        getPlayerLabel(id, playerIds, ownPlayerId, playerProfiles),
       ),
-    [gameOver.winners, playerIds, ownPlayerId, playerProfiles]
+    [gameOver.winners, playerIds, ownPlayerId, playerProfiles],
+  );
+
+  const quizHighlightNames = useMemo(
+    () =>
+      (gameOver.quizHighlights ?? []).map((id) =>
+        getPlayerLabel(id, playerIds, ownPlayerId, playerProfiles),
+      ),
+    [gameOver.quizHighlights, playerIds, ownPlayerId, playerProfiles],
   );
 
   const reveal = useMemo(() => gameOver.reveal ?? [], [gameOver.reveal]);
@@ -66,6 +75,7 @@ export function GameOverModal({
     let totalObstacles = 0;
     let totalAnswered = 0;
     let totalCorrect = 0;
+    let totalQuizBonusMoves = 0;
     let hasStats = false;
 
     for (const item of reveal) {
@@ -75,6 +85,7 @@ export function GameOverModal({
       totalObstacles += item.stats.obstaclesTriggered;
       totalAnswered += item.stats.quizAnswered;
       totalCorrect += item.stats.quizCorrect;
+      totalQuizBonusMoves += item.stats.quizBonusMoves ?? 0;
     }
 
     return {
@@ -83,8 +94,12 @@ export function GameOverModal({
       totalObstacles,
       totalAnswered,
       totalCorrect,
+      totalQuizBonusMoves,
     };
   }, [reveal]);
+
+  const isHost = ownPlayerId === hostId;
+  const canRematch = isHost && playerProfiles.length >= 4;
 
   return (
     <View style={styles.overlay} accessibilityViewIsModal>
@@ -94,46 +109,79 @@ export function GameOverModal({
       >
         <View style={styles.mainWrap}>
           <DuoCard palette={palette} variant="default" padding={20}>
-            {/* BANNER DE CAMPEÃO */}
+            {/* PÓDIO DUPLO: CORRIDA + DESTAQUE DO QUIZ */}
             <Animated.View
               entering={reduceMotion ? undefined : SlideInDown.springify()}
-              style={[
-                styles.championBanner,
-                {
-                  backgroundColor: palette.warningBg,
-                  borderColor: palette.warningBorder,
-                },
-              ]}
+              style={styles.podiumRow}
             >
-              <Text style={styles.championEmoji}>🏆</Text>
-              <Text
-                style={[styles.championTitle, { color: palette.textMain }]}
+              <View
+                style={[
+                  styles.podiumCard,
+                  {
+                    backgroundColor: palette.warningBg,
+                    borderColor: palette.warningBorder,
+                  },
+                ]}
               >
-                {winnerNames.length > 1
-                  ? "Vencedores da Partida"
-                  : "Vencedor da Partida"}
-              </Text>
-              <Text
-                style={[styles.championNames, { color: palette.textMain }]}
-                numberOfLines={3}
-              >
-                {winnerNames.length > 0
-                  ? winnerNames.join(" • ")
-                  : "Nenhum vencedor registrado"}
-              </Text>
+                <Text style={styles.podiumEmoji}>🏆</Text>
+                <Text
+                  style={[styles.podiumTitle, { color: palette.textMain }]}
+                >
+                  {winnerNames.length > 1
+                    ? "Vencedores da Corrida"
+                    : "Vencedor da Corrida"}
+                </Text>
+                <Text
+                  style={[styles.podiumNames, { color: palette.textMain }]}
+                  numberOfLines={3}
+                >
+                  {winnerNames.length > 0
+                    ? winnerNames.join(" • ")
+                    : "Nenhum vencedor registrado"}
+                </Text>
+                <Text style={[styles.podiumMeta, { color: palette.textMuted }]}>
+                  {gameOver.reason === "finish"
+                    ? "Chegou à casa 30"
+                    : "Critério de desempate ao final das rodadas"}
+                </Text>
+              </View>
+
+              {quizHighlightNames.length > 0 ? (
+                <View
+                  style={[
+                    styles.podiumCard,
+                    {
+                      backgroundColor: palette.purpleBg,
+                      borderColor: palette.purpleBorder,
+                    },
+                  ]}
+                >
+                  <Text style={styles.podiumEmoji}>⭐</Text>
+                  <Text
+                    style={[styles.podiumTitle, { color: palette.textMain }]}
+                  >
+                    Destaque do Quiz
+                  </Text>
+                  <Text
+                    style={[styles.podiumNames, { color: palette.textMain }]}
+                    numberOfLines={3}
+                  >
+                    {quizHighlightNames.join(" • ")}
+                  </Text>
+                  <Text style={[styles.podiumMeta, { color: palette.textMuted }]}>
+                    Maior pontuação acumulada nos desafios
+                  </Text>
+                </View>
+              ) : null}
             </Animated.View>
 
             {/* SEÇÃO: A VIRADA DA EQUIDADE */}
-            <Text
-              style={[styles.sectionTitle, { color: palette.textMain }]}
-            >
-              A Virada da Equidade: Quem era quem?
+            <Text style={[styles.sectionTitle, { color: palette.textMain }]}>
+              🎭 A Virada da Equidade: Quem era quem?
             </Text>
 
             {reveal.length === 0 ? (
-              <Text
-                style={[styles.emptyText, { color: palette.textMuted }]}
-              >
+              <Text style={[styles.emptyText, { color: palette.textMuted }]}>
                 Nenhum dado de revelação disponível.
               </Text>
             ) : (
@@ -145,9 +193,10 @@ export function GameOverModal({
                     item.playerId,
                     playerIds,
                     ownPlayerId,
-                    playerProfiles
+                    playerProfiles,
                   );
                   const isOwn = item.playerId === ownPlayerId;
+                  const isWinner = gameOver.winners.includes(item.playerId);
                   const summary = item.summary ?? conditionMeta.summary;
 
                   return (
@@ -156,13 +205,13 @@ export function GameOverModal({
                       entering={
                         reduceMotion
                           ? undefined
-                          : FadeInUp.delay(index * 150).springify()
+                          : FadeInUp.delay(index * 120).springify()
                       }
                       style={[
                         styles.revealItem,
                         {
                           backgroundColor: isOwn
-                            ? `${palette.secondary}14`
+                            ? palette.secondaryBg
                             : palette.surfaceAlt,
                           borderColor: isOwn
                             ? palette.secondaryBorder
@@ -180,19 +229,29 @@ export function GameOverModal({
                         >
                           {playerLabel}
                         </Text>
-                        {isOwn ? (
-                          <View
-                            style={[
-                              styles.ownBadge,
-                              {
-                                backgroundColor: palette.secondary,
-                                borderColor: palette.secondaryBorder,
-                              },
-                            ]}
-                          >
-                            <Text style={styles.ownBadgeText}>VOCÊ</Text>
-                          </View>
-                        ) : null}
+                        <View style={styles.badgesWrap}>
+                          {isWinner ? (
+                            <InfoPill
+                              text="🏆 Corrida"
+                              tone="warning"
+                              palette={palette}
+                            />
+                          ) : null}
+                          {item.destaqueQuiz ? (
+                            <InfoPill
+                              text="⭐ Destaque Quiz"
+                              tone="purple"
+                              palette={palette}
+                            />
+                          ) : null}
+                          {isOwn ? (
+                            <InfoPill
+                              text="VOCÊ"
+                              tone="secondary"
+                              palette={palette}
+                            />
+                          ) : null}
+                        </View>
                       </View>
 
                       <View style={styles.transformRow}>
@@ -251,42 +310,16 @@ export function GameOverModal({
                       </View>
 
                       <View style={styles.chipsRow}>
-                        <View
-                          style={[
-                            styles.chip,
-                            {
-                              backgroundColor: palette.cardBg,
-                              borderColor: palette.cardBorder,
-                            },
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.chipText,
-                              { color: palette.textMain },
-                            ]}
-                          >
-                            Pos: {item.position}/{FINISH_HOUSE}
-                          </Text>
-                        </View>
-                        <View
-                          style={[
-                            styles.chip,
-                            {
-                              backgroundColor: palette.warningBg,
-                              borderColor: palette.warningBorder,
-                            },
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.chipText,
-                              { color: palette.textMain },
-                            ]}
-                          >
-                            ⭐ {item.quizPoints}
-                          </Text>
-                        </View>
+                        <InfoPill
+                          text={`Casa ${item.position}/${FINISH_HOUSE}`}
+                          tone="neutral"
+                          palette={palette}
+                        />
+                        <InfoPill
+                          text={`⭐ ${item.quizPoints} pts`}
+                          tone="warning"
+                          palette={palette}
+                        />
                       </View>
 
                       {item.stats ? (
@@ -332,6 +365,26 @@ export function GameOverModal({
                                 ]}
                               >
                                 🚀 Impulsos: {item.stats.bonusTriggered}
+                              </Text>
+                            </View>
+                          ) : null}
+                          {(item.stats.quizBonusMoves ?? 0) > 0 ? (
+                            <View
+                              style={[
+                                styles.metricChip,
+                                {
+                                  backgroundColor: palette.purpleBg,
+                                  borderColor: palette.purpleBorder,
+                                },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.metricText,
+                                  { color: palette.textMain },
+                                ]}
+                              >
+                                ⚡ +{item.stats.quizBonusMoves} casa(s) quiz
                               </Text>
                             </View>
                           ) : null}
@@ -403,40 +456,37 @@ export function GameOverModal({
 
           {/* SEÇÃO DE REFLEXÃO */}
           <DuoCard palette={palette} variant="warning" padding={16}>
-            <Text
-              style={[styles.reflectionTitle, { color: palette.textMain }]}
-            >
-              💭 Momento de Reflexão
+            <Text style={[styles.reflectionTitle, { color: palette.textMain }]}>
+              💭 Momento de Reflexão (Debate em Grupo)
             </Text>
             {groupMetrics.hasStats ? (
               <Text
                 style={[styles.reflectionSummary, { color: palette.textMain }]}
               >
-                Nesta partida: {groupMetrics.totalObstacles} obstáculo(s)
-                ativado(s) · {groupMetrics.totalBonuses} impulso(s) ·{" "}
-                {groupMetrics.totalCorrect}/{groupMetrics.totalAnswered} respostas
-                corretas nos quizzes.
+                Nesta partida: {groupMetrics.totalObstacles} obstáculo(s) ·{" "}
+                {groupMetrics.totalBonuses} impulso(s) ·{" "}
+                {groupMetrics.totalQuizBonusMoves} avanço(s) por equidade ·{" "}
+                {groupMetrics.totalCorrect}/{groupMetrics.totalAnswered} acertos
+                nos quizzes.
               </Text>
             ) : null}
-            <Text
-              style={[styles.reflectionLine, { color: palette.textMain }]}
-            >
-              • Como a sorte nos dados e os impulsos influenciaram o resultado?
+            <Text style={[styles.reflectionLine, { color: palette.textMain }]}>
+              • Como a sorte nos dados, os impulsos e o avanço +1 do quiz
+              influenciaram a corrida?
+            </Text>
+            <Text style={[styles.reflectionLine, { color: palette.textMain }]}>
+              • Os níveis estruturais (N1–N3) diante dos mesmos obstáculos
+              pesaram de forma diferente para cada papel?
+            </Text>
+            <Text style={[styles.reflectionLine, { color: palette.textMain }]}>
+              • O desempenho individual explica tudo, ou equidade depende também
+              de remover barreiras ambientais?
             </Text>
             <Text
-              style={[styles.reflectionLine, { color: palette.textMain }]}
-            >
-              • Os níveis dos desafios diante dos mesmos obstáculos pesaram de
-              forma diferente para cada papel?
-            </Text>
-            <Text
-              style={[styles.reflectionLine, { color: palette.textMain }]}
-            >
-              • O desempenho nos quizzes explica tudo, ou equidade depende
-              também de remover barreiras?
-            </Text>
-            <Text
-              style={[styles.reflectionDisclaimer, { color: palette.textMuted }]}
+              style={[
+                styles.reflectionDisclaimer,
+                { color: palette.textMuted },
+              ]}
             >
               Nota pedagógica: estes indicadores resumem apenas fatos observados
               nesta partida, sem provar causalidade nem representar de forma
@@ -444,32 +494,60 @@ export function GameOverModal({
             </Text>
           </DuoCard>
 
-          {/* RODAPÉ */}
-          <DuoButton
-            title="Criar Nova Sala"
-            icon="➕"
-            variant="primary"
-            size="lg"
-            fullWidth
-            onPress={onBackToHome}
-            palette={palette}
-            accessibilityLabel="Criar nova sala e voltar ao início"
-            accessibilityHint="Fecha a tela de fim de jogo e retorna à tela inicial"
-          />
+          {/* RODAPÉ: REVANCHE INSTANTÂNEA + VOLTAR */}
+          <View style={styles.footerActions}>
+            {canRematch ? (
+              <DuoButton
+                title="Jogar Novamente (Novos Papéis)"
+                subtitle="Mantém a sala e sorteia perspectivas diferentes para todos"
+                icon="🔄"
+                variant="primary"
+                size="lg"
+                fullWidth
+                onPress={onPlayAgain}
+                palette={palette}
+                accessibilityLabel="Iniciar nova partida na mesma sala com rotação de papéis"
+              />
+            ) : !isHost ? (
+              <View
+                style={[
+                  styles.waitRematchBox,
+                  {
+                    backgroundColor: palette.cardBg,
+                    borderColor: palette.cardBorder,
+                  },
+                ]}
+              >
+                <Text
+                  style={[styles.waitRematchText, { color: palette.textMuted }]}
+                >
+                  💡 O anfitrião pode iniciar uma revanche instantânea com novos
+                  papéis nesta mesma sala.
+                </Text>
+              </View>
+            ) : null}
+
+            <DuoButton
+              title="Voltar ao Início"
+              icon="🏠"
+              variant={canRematch ? "ghost" : "primary"}
+              size="md"
+              fullWidth
+              onPress={onBackToHome}
+              palette={palette}
+              accessibilityLabel="Voltar à tela inicial"
+            />
+          </View>
         </View>
       </ScrollView>
     </View>
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Estilos                                                             */
-/* ------------------------------------------------------------------ */
-
 const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.6)",
+    backgroundColor: "rgba(15, 23, 42, 0.72)",
   },
   scrollContent: {
     flexGrow: 1,
@@ -479,44 +557,49 @@ const styles = StyleSheet.create({
   },
   mainWrap: {
     width: "100%",
-    maxWidth: 600,
+    maxWidth: 640,
     gap: 14,
   },
-
-  /* ---- Champion banner ---- */
-  championBanner: {
+  podiumRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 16,
+  },
+  podiumCard: {
+    flexGrow: 1,
+    flexBasis: 220,
     borderRadius: 16,
     borderWidth: 2,
     borderBottomWidth: 5,
-    paddingVertical: 16,
+    paddingVertical: 14,
     paddingHorizontal: 14,
     alignItems: "center",
     gap: 4,
-    marginBottom: 16,
   },
-  championEmoji: {
-    fontSize: 40,
-    lineHeight: 46,
+  podiumEmoji: {
+    fontSize: 34,
+    lineHeight: 40,
   },
-  championTitle: {
-    fontSize: 16,
+  podiumTitle: {
+    fontSize: 15,
     fontWeight: "900",
-    letterSpacing: 0.4,
     textAlign: "center",
   },
-  championNames: {
+  podiumNames: {
     fontSize: 15,
     fontWeight: "800",
-    letterSpacing: 0.3,
     textAlign: "center",
-    lineHeight: 21,
+    lineHeight: 20,
   },
-
-  /* ---- Section title ---- */
+  podiumMeta: {
+    fontSize: 11,
+    fontWeight: "700",
+    textAlign: "center",
+  },
   sectionTitle: {
     fontSize: 15,
     fontWeight: "900",
-    letterSpacing: 0.3,
     marginBottom: 10,
   },
   emptyText: {
@@ -525,49 +608,38 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingVertical: 8,
   },
-
-  /* ---- Reveal list ---- */
   revealList: {
     gap: 12,
   },
   revealItem: {
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 2,
     borderBottomWidth: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    padding: 12,
     gap: 10,
   },
   revealHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 8,
+    flexWrap: "wrap",
+    gap: 6,
   },
   revealName: {
-    flex: 1,
     fontSize: 14,
     fontWeight: "900",
-    letterSpacing: 0.2,
   },
-  ownBadge: {
-    borderRadius: 999,
-    borderWidth: 2,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  ownBadgeText: {
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 0.6,
-    color: "#FFFFFF",
+  badgesWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 5,
   },
   transformRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 12,
-    paddingVertical: 6,
+    paddingVertical: 4,
   },
   transformSide: {
     flex: 1,
@@ -575,46 +647,32 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   transformArrow: {
-    fontSize: 28,
-    lineHeight: 32,
+    fontSize: 26,
+    lineHeight: 30,
     fontWeight: "900",
   },
   transformLabel: {
     fontSize: 11,
     fontWeight: "900",
-    letterSpacing: 0.2,
     textAlign: "center",
   },
   conditionCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     borderWidth: 2,
     borderBottomWidth: 4,
     alignItems: "center",
     justifyContent: "center",
   },
   conditionCircleIcon: {
-    fontSize: 30,
+    fontSize: 28,
   },
-
-  /* ---- Chips ---- */
   chipsRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "center",
     gap: 6,
-  },
-  chip: {
-    borderRadius: 999,
-    borderWidth: 2,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-  },
-  chipText: {
-    fontSize: 11,
-    fontWeight: "900",
-    letterSpacing: 0.3,
   },
   metricsRow: {
     flexDirection: "row",
@@ -635,15 +693,12 @@ const styles = StyleSheet.create({
   conditionSummary: {
     fontSize: 12,
     fontWeight: "700",
-    lineHeight: 18,
+    lineHeight: 17,
     textAlign: "center",
   },
-
-  /* ---- Reflection ---- */
   reflectionTitle: {
     fontSize: 15,
     fontWeight: "900",
-    letterSpacing: 0.3,
     marginBottom: 8,
   },
   reflectionSummary: {
@@ -663,5 +718,19 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     lineHeight: 16,
     marginTop: 8,
+  },
+  footerActions: {
+    gap: 10,
+  },
+  waitRematchBox: {
+    borderRadius: 14,
+    borderWidth: 2,
+    padding: 12,
+  },
+  waitRematchText: {
+    fontSize: 12,
+    fontWeight: "700",
+    textAlign: "center",
+    lineHeight: 18,
   },
 });

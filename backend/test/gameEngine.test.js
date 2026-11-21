@@ -2,6 +2,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const {
+  applyQuizBonusMove,
   completeObstaclePause,
   createGameState,
   getPublicGameState,
@@ -154,8 +155,10 @@ test("publishes only the public game state", () => {
     "quizPoints",
     "currentPlayerId",
     "round",
+    "maxRounds",
     "diceResult",
     "status",
+    "lastEvent",
   ]);
   assert.deepEqual(publicState.quizPoints, {
     p1: 3,
@@ -167,6 +170,7 @@ test("publishes only the public game state", () => {
   assert.equal("obstaclePending" in publicState, false);
   assert.equal("winners" in publicState, false);
   assert.equal("stats" in publicState, false);
+  assert.equal("turnHistory" in publicState, false);
 });
 
 test("tracks observed per-player movement, bonus, obstacle, and quiz stats privately", () => {
@@ -185,6 +189,7 @@ test("tracks observed per-player movement, bonus, obstacle, and quiz stats priva
     obstaclesTriggered: 0,
     quizAnswered: 1,
     quizCorrect: 1,
+    quizBonusMoves: 0,
     quizLevels: { 1: 0, 2: 0, 3: 1 },
   });
   assert.deepEqual(gameState.stats.p2, {
@@ -194,6 +199,43 @@ test("tracks observed per-player movement, bonus, obstacle, and quiz stats priva
     obstaclesTriggered: 1,
     quizAnswered: 1,
     quizCorrect: 0,
+    quizBonusMoves: 0,
     quizLevels: { 1: 1, 2: 0, 3: 0 },
   });
+  assert.equal(gameState.turnHistory.length, 2);
+});
+
+test("applies quiz bonus move (+1 house) without chaining obstacles and finishes if reaching 30", () => {
+  const gameState = createState();
+  gameState.positions.p1 = 6;
+  const stepToObstacle = applyQuizBonusMove(gameState, "p1", 1);
+  assert.equal(stepToObstacle.moved, true);
+  assert.equal(gameState.positions.p1, 7);
+  assert.equal(gameState.status, "active");
+  assert.equal(gameState.stats.p1.quizBonusMoves, 1);
+
+  gameState.positions.p2 = 29;
+  gameState.quizPoints.p3 = 8;
+  const finishOutcome = applyQuizBonusMove(gameState, "p2", 1);
+  assert.equal(finishOutcome.gameOver, true);
+  assert.equal(gameState.positions.p2, 30);
+  assert.equal(gameState.status, "finished");
+  assert.deepEqual(gameState.winners, ["p2"]);
+  assert.deepEqual(gameState.quizHighlights, ["p3"]);
+});
+
+test("supports configurable 6-round quick matches", () => {
+  const gameState = createGameState(
+    ["p1", "p2", "p3", "p4"],
+    (_minimum, maximum) => maximum - 1,
+    { maxRounds: 6 },
+  );
+  assert.equal(gameState.maxRounds, 6);
+  const randomInt = diceSequence(Array(24).fill(1));
+  for (let turn = 0; turn < 24; turn++) {
+    playRoll(gameState, randomInt);
+  }
+  assert.equal(gameState.round, 6);
+  assert.equal(gameState.status, "finished");
+  assert.equal(gameState.endReason, "round_limit");
 });

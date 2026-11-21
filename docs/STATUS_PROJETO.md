@@ -1,12 +1,12 @@
 # Status do Projeto — Ludo Equidade
 
-**Atualizado em:** 2026-11-21
-**Estado:** MVP web v1.0 funcional em produção · Fundação v2.0 (GDD, Banco Analítico/UML e Arquitetura ICE-UFRRJ) concluída e pronta para implementação
+- **Atualizado em:** 2026-11-21
+- **Estado:** Versão institucional **v2.0** implementada de ponta a ponta (GDD, Migrations SQL/Views, Backend v2.0, 88 testes automatizados e Frontend v2.0 com Painel Docente, Perfil e WCAG 2.1 AA) — pronta para aplicar migrações no MySQL e publicar
 
 ## 1. Visão e Contexto Atual
 
-O Ludo Equidade é um jogo de tabuleiro educativo multiplayer sobre matemática,
-inclusão e acessibilidade, em evolução para apresentação institucional ao
+O **Ludo Equidade** é um jogo de tabuleiro educativo multiplayer sobre matemática,
+inclusão e acessibilidade, desenvolvido para apresentação institucional ao
 **Departamento de Matemática do Instituto de Ciências Exatas (ICE — UFRRJ)**
 como produto educacional e potencial projeto de **Iniciação Científica (IC)**.
 
@@ -16,173 +16,66 @@ Processos Estocásticos e Inferência**, preservando rigor ético (LGPD,
 pseudonimização e consentimento explícito) e sem afirmar que papéis de jogo
 representam a experiência universal de pessoas reais.
 
-O ciclo **v1.0 (MVP publicado)** entregou uma partida multiplayer completa e
-validada em produção (Render + Vercel + MySQL/Aiven). Em **2026-11-21**, foi
-concluída a fundação de engenharia da **v2.0** ([GDD](./GDD.md),
-[DATABASE_UML](./DATABASE_UML.md), `database/migrations/001..003` e
-[ARQUITETURA_E_OPERACAO](./ARQUITETURA_E_OPERACAO.md)) para incorporar:
+Em **2026-11-21**, todo o ciclo **v2.0 (Etapas 1 a 5)** foi implementado e validado:
 
-1. melhorias de engajamento e rejogabilidade (*Avanço por Equidade*, duplo pódio, revanche instantânea com rotação de papéis, tempo configurável de quiz e feed de eventos);
-2. contas com **Login Google (OAuth 2.0)** + **Modo Convidado** e papéis RBAC (`jogador`, `professor`, `admin`);
-3. persistência transacional pós-partida (9 tabelas + 5 views analíticas e datasets anonimizados para R/Python);
-4. **Painel de Professores** (gestão/revisão de perguntas, turmas, indicadores empíricos e exportação CSV/JSON).
+1. **Etapa 1 — GDD v2.0** ([GDD.md](./GDD.md)): engajamento, rejogabilidade e alinhamento científico ICE-UFRRJ;
+2. **Etapa 2 — Banco de Dados Analítico & UML** ([DATABASE_UML.md](./DATABASE_UML.md), `database/migrations/001..003`): 9 tabelas normalizadas + 5 views analíticas e datasets anonimizados;
+3. **Etapa 3 — Arquitetura e Contratos** ([ARQUITETURA_E_OPERACAO.md](./ARQUITETURA_E_OPERACAO.md)): especificação completa REST + Socket.IO + OAuth + RBAC;
+4. **Etapa 4 — Backend v2.0 & Testes**: regras v2.0, Google OAuth RS256/JWKS + JWT HS256, RBAC, persistência transacional pós-partida, CRUD docente, turmas, analytics e exportação CSV/JSON anonimizada (**88/88 testes** aprovados);
+5. **Etapa 5 — Frontend Profissional v2.0**: redesign UX/UI responsivo, Login Google + Modo Convidado, consentimento LGPD, configurações de sala (`30/45/60s`, `6/8` rodadas, turma), feed narrativo de turno, pódio duplo + revanche instantânea, Perfil do Jogador (`Perspectivas 4/4` + histórico), Painel Docente completo e acessibilidade WCAG 2.1 AA.
 
 ## 2. O que foi realizado
 
-### Produto e regras
+### Produto, engajamento e regras (v1.0 + v2.0)
 
-- Lobby para salas públicas e privadas.
-- Código de sala de quatro caracteres.
-- Mínimo de 4 e máximo de 8 jogadores.
-- Início manual pelo anfitrião.
-- Transferência do anfitrião quando ele desconecta.
-- Perfil local com nome e avatar.
-- Etapa escolar: Fundamental, Médio ou Superior.
-- Papéis distribuídos de forma que os quatro papéis apareçam em uma partida
-  com pelo menos quatro jogadores.
-- Papel individual privado durante a partida.
-- Revelação do mapa jogador–papel no encerramento.
+- Lobby para salas públicas e privadas com código de 4 caracteres, cópia rápida, listagem pública com badges de configuração e fechamento pelo anfitrião.
+- Partidas de 4 a 8 participantes com escolha obrigatória de etapa escolar (`Fundamental`, `Médio`, `Superior`), tempo configurável de quiz (`30s`, `45s`, `60s`), limite de rodadas (`6` ou `8`) e vínculo opcional a **Código de Turma** docente.
+- Papéis privados de acessibilidade (`cadeirante`, `cego`, `surdo`, `neuroatipico`) garantidos para os 4 primeiros jogadores e mantidos em sigilo até a **Virada da Equidade**.
+- **Avanço por Equidade:** o primeiro jogador conectado a acertar o quiz do obstáculo ganha **+1 casa** no tabuleiro (sem encadear obstáculo e respeitando o limite da casa 30).
+- **Pódio Duplo:** reconhecimento simultâneo de **Vencedor(es) da Corrida** e **Destaque(s) do Quiz**.
+- **Revanche Instantânea (`play_again`):** o anfitrião inicia uma nova partida na mesma sala com **rotação automática de papéis** (derangement matemático para 4 jogadores), estimulando que todos vivenciem as 4 perspectivas.
+- **Feed Narrativo de Turno (`lastEvent`):** destaque em tempo real das rolagens, impulsos (+2), obstáculos e avanços por equidade (+1).
 
-### Motor do jogo
+### Autenticação, Contas e Pesquisa Científica (ICE — UFRRJ)
 
-- Ordem de turnos sorteada pelo servidor.
-- Dado de seis lados.
-- Movimento limitado à casa 30.
-- Impulso (+2) nas casas 5, 10, 15, 20 e 25, limitado à chegada.
-- Obstáculos nas casas 7, 14, 21 e 28.
-- Partida pausada enquanto o quiz simultâneo está aberto.
-- Limite de oito rodadas completas.
-- Desempate por posição, pontos do quiz e, se necessário, campeões
-  compartilhados.
+- **Google OAuth 2.0 (OIDC RS256 via JWKS)** + **JWT HS256** nativos (zero dependências extras no backend) + **Modo Convidado** 100% funcional sem cadastro.
+- Controle de acesso RBAC (`jogador`, `professor`, `admin`) com promoção automática via `BOOTSTRAP_ADMIN_EMAIL` e compatibilidade com `X-Question-Admin-Token` (comparação em tempo constante).
+- Consentimento explícito para pesquisa acadêmica (**LGPD**, `consentimento_pesquisa`, opt-in revogável a qualquer momento tanto para logados quanto para convidados).
+- Persistência transacional pós-partida (`partidas`, `partida_participantes`, `partida_turnos`, `quiz_rodadas`, `quiz_respostas`) com degradação segura se as migrações v2 ainda não tiverem sido aplicadas no banco.
+- **5 Views analíticas MySQL 8:** `vw_desempenho_perguntas`, `vw_equidade_por_condicao`, `vw_matriz_empirica`, `vw_dataset_anonimo_participacoes` e `vw_dataset_anonimo_respostas` (zero PII).
+- **Painel de Professores & Pesquisa** na interface Web:
+  - *Indicadores & LGPD:* KPIs, equidade por condição, matriz empírica obstáculo × condição e download com 1 clique em **CSV/JSON anonimizado** (pronto para R/Python/SPSS);
+  - *Banco de Questões:* busca/filtros, criação/edição, aprovação/arquivamento e diagnóstico psicométrico empírico (`p`, tempo médio, distribuição de distratores A/B/C/D);
+  - *Turmas Pedagógicas:* cadastro de turmas com código e atalho direto para abrir sala vinculada;
+  - *Usuários (Admin):* promoção de docentes para `professor`/`admin`.
 
-### Quiz e banco
+### Confiabilidade, Interface e Acessibilidade
 
-- Pergunta individual para cada participante conectado, evitando repetição de
-  questões dentro da mesma rodada e ao longo da mesma partida (`usedQuestionIds`
-  com fallback automático se o acervo da combinação se esgotar).
-- Prazo comum de 30 segundos controlado pelo servidor.
-- Uma resposta por jogador.
-- Gabarito mantido no backend até a validação.
-- Pontuação dos acertos pela ordem de recebimento no servidor.
-- Erros, prazo expirado e desconexões valem zero.
-- Falha na busca de perguntas não inicia uma rodada parcial.
-- MySQL/Aiven com a tabela `perguntas` limpa e balanceada em produção (`defaultdb`),
-  com **27 perguntas únicas** (3 para cada uma das 9 combinações de etapa escolar
-  e nível estrutural), cobrindo `database/schema_e_seed.sql` e
-  `database/perguntas_expansao.sql` (idempotente contra duplicações e com gabarito
-  da sequência `4, 11, 18, 25...` corrigido para `C`).
-- API REST dedicada (`backend/api.js`) com `GET /api/status`, `GET /api/perguntas`
-  (sem gabarito) e `POST /api/perguntas` protegido por `X-Question-Admin-Token`.
-
-### Confiabilidade e operação no backend
-
-- Reconexão temporária de sessão por até 60 segundos (`sessionToken` +
-  `resume_room`/`room_resumed`), incluindo remapeamento de perguntas e aceite de
-  respostas durante rodadas ativas de quiz.
-- Expiração automática de salas de espera inativas após 30 minutos.
-- Limites de frequência (rate limiting) por socket nos eventos críticos.
-- Exigência de `CLIENT_ORIGIN` explícito (sem `*`) quando `NODE_ENV=production`
-  (validado no Render em produção com `https://jogoinclusaoufrrj.vercel.app`,
-  `QUESTION_ADMIN_TOKEN` ativo e serviço operacional na porta 10000).
-- Encerramento gracioso ao receber `SIGTERM`/`SIGINT`, sinalizando
-  indisponibilidade em `/api/status` antes de fechar Socket.IO, HTTP e pool MySQL.
-
-### Interface e publicação
-
-- Frontend Expo/React Native (React Compiler ativo) exportado para web.
-- Lobby responsivo com criação de sala pública ou privada, lista pública, entrada
-  por código, botão para copiar código da sala e opção de fechar sala (`close_room`)
-  com confirmação para o anfitrião.
-- Sessão Socket.IO, reconexão (`AppState` + `resume_room`) e timer de quiz
-  isolados no hook dedicado `frontend/src/hooks/useGameSession.ts`.
-- Tema claro/escuro (com contraste ajustado em superfícies de destaque/alerta),
-  modo daltônico, respeito à redução de movimento (`useReducedMotion`), área
-  segura (`useSafeAreaInsets`), rolagem única no mobile (`ScrollView` sem
-  aninhamento) e tentativa de reconexão ao retornar ao primeiro plano (`AppState`).
-- Tabuleiro sinuoso exato de 0 a 30 (`BoardTrack`), ranking ao vivo, dado com
-  gesto e indicador de rodada (`Rodada X/8`), modal de quiz com leitura do
-  resultado/explicação até o clique em "Continuar" (`QuizModal`), tela final de
-  revelação com **métricas observadas da partida** (média de dado, impulsos,
-  acertos e níveis enfrentados N1/N2/N3), síntese do grupo, nota pedagógica e
-  retorno limpo à tela inicial (`GameOverModal`).
-- Backend Node.js/Express/Socket.IO publicado no Render.
-- Frontend publicado na Vercel em:
-  <https://jogoinclusaoufrrj.vercel.app/>
-- Comunicação real entre navegador e backend por Socket.IO.
-- Feedback de conexão, erros de sala, quiz, pausa e fim de partida.
+- Logger estruturado (`backend/utils/logger.js`) com redação recursiva de segredos e PII.
+- Reconexão temporária de sessão por até 60 segundos (`resume_room`), expiração de salas inativas em 30 minutos, rate limiting por evento e encerramento gracioso (`SIGTERM`/`SIGINT`).
+- Interface Expo / React Native (React Compiler ativo) sem `shadow*` no `StyleSheet`, com tema claro/escuro, modo daltônico, respeito à redução de movimento (`useReducedMotion`), foco visível na Web (`:focus-visible`) e **atalhos de teclado no Quiz** (`A–D`, `Enter`, `Esc`).
+- Compatibilidade total com produção atual (Render + Vercel + Aiven MySQL `defaultdb` com 27 perguntas únicas balanceadas) mesmo antes de aplicar as migrações `002` e `003`.
 
 ## 3. Evidências de validação
 
-Em 2026-11-20, a suíte automatizada foi validada com **76/76 testes aprovados**
-no backend (`node --test`), além de aprovação sem erros em:
+Em **2026-11-21**, a validação automatizada completa passou sem erros:
 
-- `npx tsc --noEmit` no frontend;
-- `npm run lint` no frontend;
-- `npm run build:web` no frontend (validado no ciclo de publicação);
-- validação manual multiplayer no Expo Web e em produção (Render + Vercel) com quatro jogadores;
-- validação no Safari em iPhone físico após publicação das correções de rolagem e reconexão;
-- perguntas privadas sem repetição na partida, respostas, prazo, pausa e retomada do turno;
-- autorização da rolagem somente para o jogador correto;
-- encerramento e revelação do resultado com métricas observadas.
+- **Backend:** **88/88 testes** aprovados (`node --test`), cobrindo `gameEngine`, `lobby`, `quizService`, `questionRepository`, `api` (v1 + v2 RBAC/OAuth/Analytics/Export), `authService` (JWT + Google RS256 JWKS), `matchRepository` (transação + rollback + fallback), `logger` e integração real Socket.IO;
+- **Frontend:** `npx tsc --noEmit`, `npm run lint` (ESLint Expo + React Compiler) e `npm run build:web` aprovados sem erros;
+- **Qualidade de diff:** `git diff --check` aprovado sem problemas de formatação.
 
-O fluxo publicado foi exercitado com quatro sessões independentes e funcionou
-adequadamente para o cenário de piloto.
+## 4. Próximos Passos Operacionais e Pedagógicos
 
-## 4. Onde estamos agora
+1. **Aplicar migrações SQL no MySQL ativo (`defaultdb`):** executar `database/migrations/001`, `002` e `003` no MySQL Workbench conforme [`database/README.md`](../database/README.md).
+2. **Configurar variáveis opcionais de OAuth (Render + Vercel):** definir `GOOGLE_CLIENT_ID`, `JWT_SECRET` e `BOOTSTRAP_ADMIN_EMAIL` no Render e `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` na Vercel quando desejar ativar o login Google em produção (o Modo Convidado e o acesso docente por `QUESTION_ADMIN_TOKEN` já funcionam de imediato).
+3. **Expansão pedagógica do acervo:** expandir o banco de **27** para **54–90 questões únicas balanceadas** com `area_tematica` e revisão junto aos docentes do Departamento de Matemática (ICE — UFRRJ) e pessoas com deficiência.
+4. **Validação multiplataforma pós-deploy:** testar o fluxo v2.0 em produção (desktop, Safari iPhone, navegador Android e Expo Go).
+5. **Migração futura de provedor MySQL:** planejar migração antes do encerramento do **Aiven Free Tier em 2026-12-21** utilizando backup lógico + scripts portáveis em `database/migrations/`.
 
-O sistema está adequado para demonstrações, testes com pequenos grupos e
-validação pedagógica inicial. O servidor é a fonte de verdade durante uma
-partida, mas as salas e o estado do jogo ficam em memória no processo Node.js.
-
-Consequências e riscos operacionais conhecidos:
-
-- reinício ou novo deploy do Render encerra as partidas ativas;
-- quedas transitórias podem ser retomadas por até 60 segundos;
-- reinício ou novo deploy não pode ser retomado porque o estado permanece em memória;
-- salas de espera inativas são encerradas automaticamente após 30 minutos;
-- múltiplas instâncias do backend não devem ser usadas sem estado compartilhado;
-- **Aiven MySQL Free Tier encerra em 2026-12-21** (backup local já salvo;
-  planejar migração de hospedagem MySQL antes dessa data);
-- as melhorias mais recentes de Prioridade 3 (`useGameSession`, perguntas sem
-  repetição, métricas observadas no `GameOverModal`, botão de copiar código e
-  indicador de rodada) já foram enviadas ao repositório (`main`) e aguardam
-  validação visual em produção (desktop, Safari iPhone e navegador Android);
-- a validação nativa em Expo Go e em navegador Android ainda precisa ser feita;
-- a matriz de obstáculos e papéis ainda precisa de validação com pessoas com
-  deficiência e educadores.
-
-## 5. Para onde queremos ir (Próximas Etapas)
-
-### Etapa 4 — Backend v2.0, Persistência Analítica, OAuth e Testes (próximo passo)
-
-- Aplicar as migrações `database/migrations/001..003` no banco ativo (`defaultdb`).
-- Implementar gameplay v2.0 (Avanço por Equidade +1 casa no 1º acerto, duplo pódio, revanche na mesma sala com rotação de papéis, tempo de quiz `30/45/60s`, feed de turno e medição de `tempo_resposta_ms`).
-- Implementar Google OAuth + JWT + RBAC (`jogador`/`professor`/`admin`) mantendo o Modo Convidado sem atrito.
-- Implementar persistência transacional pós-partida, histórico pessoal, CRUD docente de perguntas, turmas e endpoints analíticos/exportação anonimizada CSV/JSON.
-- Adicionar logger estruturado e expandir a suíte de testes automatizados (`npm test`).
-
-### Expansão Pedagógica do Banco de Perguntas
-
-- Expandir o acervo de 27 para 54–90 questões únicas balanceadas com `area_tematica` preenchida e revisão pedagógica junto ao Departamento de Matemática (ICE-UFRRJ).
-
-### Etapa 5 — Frontend Profissional (UX/UI, Painel Docente e WCAG)
-
-- Evoluir a interface com foco em engajamento, clareza visual, narrativa viva do turno e acessibilidade WCAG 2.1 AA (navegação por teclado na Web, leitor de tela e contraste validado).
-- Integrar tela de Login Google / Convidado, perfil com histórico pessoal, fluxo de revanche e **Painel de Professores** com métricas empíricas e exportação anonimizada.
-- Validar em desktop, Safari iPhone, navegador Android e Expo Go nativo.
-
-### Operação Contínua
-
-- Migrar hospedagem MySQL antes do encerramento do Aiven Free Tier (**2026-12-21**) usando os scripts portáveis versionados.
-- Criar credencial de banco específica para a aplicação com privilégios mínimos e monitorar `/api/status`.
-- Avaliar Redis/Socket.IO Adapter quando houver necessidade de múltiplas instâncias.
-
-## 6. Documentos relacionados
+## 5. Documentos relacionados
 
 - [README](../README.md): instalação, execução, testes e deploy.
-- [GDD](./GDD.md): visão do jogo, regras e princípios pedagógicos.
-- [Arquitetura e operação](./ARQUITETURA_E_OPERACAO.md): funcionamento técnico
-  e limites do ambiente atual.
-- [Roadmap](./ROADMAP.md): próximos incrementos organizados por prioridade.
-- [Banco de dados](./DATABASE_UML.md): modelo, decisões e integração MySQL.
-
+- [GDD](./GDD.md): visão do jogo, regras v2.0 e princípios pedagógicos.
+- [Arquitetura e operação](./ARQUITETURA_E_OPERACAO.md): contratos REST/Socket.IO, segurança e operação.
+- [Roadmap](./ROADMAP.md): fases concluídas e próximos incrementos.
+- [Banco de dados e UML](./DATABASE_UML.md): modelo relacional, views estatísticas e diagramas.

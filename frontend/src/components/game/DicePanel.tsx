@@ -1,8 +1,7 @@
 // frontend/src/components/game/DicePanel.tsx
-// Painel do dado animado do "Ludo Equidade (UFRRJ)".
-// Compatível com React Compiler. Sem shadow* no StyleSheet.
+// Painel do dado animado + feed narrativo de eventos de turno v2.0.
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
@@ -16,17 +15,25 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-import { DICE_FACES, type ThemePalette } from "../../constants/duoTheme";
+import {
+  DICE_FACES,
+  formatTurnEvent,
+  type PlayerProfile,
+  type ThemePalette,
+  type TurnEvent,
+} from "../../constants/duoTheme";
 import { DuoButton, DuoCard } from "../ui/DuoComponents";
-
-const MAX_ROUNDS = 8;
 
 export interface DicePanelProps {
   diceResult: number | null;
   round?: number;
+  maxRounds?: number;
   status?: "active" | "paused" | "finished";
   isMyTurn: boolean;
   currentPlayerName: string;
+  lastEvent?: TurnEvent | null;
+  players?: PlayerProfile[];
+  ownPlayerId?: string;
   onRollDice: () => void;
   palette: ThemePalette;
 }
@@ -34,9 +41,13 @@ export interface DicePanelProps {
 export function DicePanel({
   diceResult,
   round,
+  maxRounds = 8,
   status = "active",
   isMyTurn,
   currentPlayerName,
+  lastEvent,
+  players = [],
+  ownPlayerId,
   onRollDice,
   palette,
 }: DicePanelProps) {
@@ -52,18 +63,18 @@ export function DicePanel({
     }
     rotation.value = 0;
     scale.value = 1;
-    translateY.value = reduceMotion ? 0 : -300;
+    translateY.value = reduceMotion ? 0 : -140;
     if (reduceMotion) {
       return;
     }
     rotation.value = withTiming(360, {
-      duration: 600,
+      duration: 520,
       easing: Easing.out(Easing.cubic),
     });
-    translateY.value = withSpring(0, { damping: 5, stiffness: 100 });
+    translateY.value = withSpring(0, { damping: 6, stiffness: 120 });
     scale.value = withSequence(
-      withTiming(1.2, { duration: 200, easing: Easing.out(Easing.quad) }),
-      withSpring(1, { damping: 6, stiffness: 120 }),
+      withTiming(1.18, { duration: 180, easing: Easing.out(Easing.quad) }),
+      withSpring(1, { damping: 7, stiffness: 120 }),
     );
   }, [diceResult, reduceMotion, rotation, scale, translateY]);
 
@@ -74,7 +85,7 @@ export function DicePanel({
       translateY.value = event.translationY;
     })
     .onEnd((event) => {
-      if (event.translationY < -50) {
+      if (event.translationY < -45) {
         runOnJS(onRollDice)();
       }
       translateX.value = reduceMotion ? 0 : withSpring(0);
@@ -90,39 +101,74 @@ export function DicePanel({
     ],
   }));
 
-  const face =
-    diceResult !== null ? DICE_FACES[diceResult] || "🎲" : "🎲";
+  const playerIds = useMemo(
+    () => players.map((p) => p.playerId),
+    [players],
+  );
+  const formattedEvent = useMemo(
+    () => formatTurnEvent(lastEvent, playerIds, ownPlayerId, players),
+    [lastEvent, playerIds, ownPlayerId, players],
+  );
 
-  const cardStyle = isMyTurn
-    ? { borderColor: palette.primaryBorder }
-    : undefined;
+  const face = diceResult !== null ? DICE_FACES[diceResult] || "🎲" : "🎲";
+
+  const eventBg =
+    formattedEvent?.tone === "success"
+      ? palette.primaryBg
+      : formattedEvent?.tone === "warning"
+        ? palette.warningBg
+        : formattedEvent?.tone === "purple"
+          ? palette.purpleBg
+          : palette.surfaceAlt;
+  const eventBorder =
+    formattedEvent?.tone === "success"
+      ? palette.primaryBorder
+      : formattedEvent?.tone === "warning"
+        ? palette.warningBorder
+        : formattedEvent?.tone === "purple"
+          ? palette.purpleBorder
+          : palette.cardBorder;
 
   return (
     <DuoCard
       palette={palette}
       variant={isMyTurn ? "highlight" : "default"}
-      padding={18}
-      style={cardStyle}
+      padding={16}
+      style={isMyTurn ? { borderColor: palette.primaryBorder } : undefined}
     >
-      {typeof round === "number" ? (
-        <View style={styles.roundRow}>
+      <View style={styles.topRow}>
+        <Text
+          style={[
+            styles.turnIndicator,
+            { color: isMyTurn ? palette.primaryText : palette.textMuted },
+          ]}
+        >
+          {isMyTurn
+            ? "🎯 SUA VEZ DE JOGAR!"
+            : status === "paused"
+              ? "🚧 Obstáculo ativo — Quiz em andamento"
+              : status === "finished"
+                ? "🏆 Partida concluída"
+                : `⏳ Turno de ${currentPlayerName}`}
+        </Text>
+        {typeof round === "number" ? (
           <View
             style={[
               styles.roundPill,
               {
-                backgroundColor: palette.surfaceAlt,
+                backgroundColor: palette.cardBg,
                 borderColor: palette.cardBorder,
               },
             ]}
           >
             <Text style={[styles.roundText, { color: palette.textMain }]}>
-              🏁 Rodada {round}/{MAX_ROUNDS}
+              🏁 Rodada {round}/{maxRounds}
             </Text>
           </View>
-        </View>
-      ) : null}
+        ) : null}
+      </View>
 
-      <View style={styles.diceCenter}>
+      <View style={styles.diceRow}>
         <GestureDetector gesture={pan}>
           <Animated.View
             style={[
@@ -141,57 +187,73 @@ export function DicePanel({
             </Text>
           </Animated.View>
         </GestureDetector>
+
+        <View style={styles.actionSide}>
+          {isMyTurn ? (
+            <DuoButton
+              title="Rolar o Dado"
+              subtitle="Clique ou arraste o dado para cima"
+              icon="🎲"
+              variant="primary"
+              size="lg"
+              fullWidth
+              onPress={onRollDice}
+              palette={palette}
+              accessibilityLabel="Rolar o dado"
+              accessibilityHint="Rola o dado para avançar no tabuleiro"
+            />
+          ) : (
+            <DuoButton
+              title={
+                status === "paused"
+                  ? "Quiz em andamento..."
+                  : status === "finished"
+                    ? "Partida encerrada"
+                    : `Aguardando ${currentPlayerName}...`
+              }
+              icon="🎲"
+              variant="ghost"
+              size="lg"
+              fullWidth
+              disabled
+              palette={palette}
+              accessibilityLabel="Aguardando seu turno para rolar o dado"
+            />
+          )}
+        </View>
       </View>
 
-      {isMyTurn ? (
-        <View style={styles.statusWrap}>
-          <Text style={[styles.myTurnBadge, { color: palette.primary }]}>
-            🎯 SUA VEZ DE JOGAR!
+      {formattedEvent ? (
+        <View
+          accessibilityLiveRegion="polite"
+          style={[
+            styles.eventBanner,
+            { backgroundColor: eventBg, borderColor: eventBorder },
+          ]}
+        >
+          <Text style={styles.eventIcon}>{formattedEvent.icon}</Text>
+          <Text style={[styles.eventText, { color: palette.textMain }]}>
+            {formattedEvent.text}
           </Text>
-          <DuoButton
-            title="Arraste o dado para cima para jogar!"
-            icon="🎲"
-            variant="primary"
-            size="lg"
-            fullWidth
-            onPress={onRollDice}
-            palette={palette}
-            accessibilityLabel="Rolar o dado"
-            accessibilityHint="Rola o dado para avançar no tabuleiro"
-          />
         </View>
-      ) : (
-        <View style={styles.statusWrap}>
-          <Text
-            style={[styles.waitingText, { color: palette.textMuted }]}
-            numberOfLines={2}
-          >
-            {status === "paused"
-              ? "🚧 Partida pausada no obstáculo..."
-              : status === "finished"
-                ? "🏆 Partida encerrada!"
-                : `⏳ Aguardando o turno de ${currentPlayerName}...`}
-          </Text>
-          <DuoButton
-            title="Rolar dado"
-            icon="🎲"
-            variant="ghost"
-            size="lg"
-            fullWidth
-            disabled
-            palette={palette}
-            accessibilityLabel="Aguardando seu turno para rolar o dado"
-          />
-        </View>
-      )}
+      ) : null}
     </DuoCard>
   );
 }
 
 const styles = StyleSheet.create({
-  roundRow: {
+  topRow: {
     flexDirection: "row",
-    justifyContent: "flex-end",
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 12,
+  },
+  turnIndicator: {
+    fontSize: 14,
+    fontWeight: "900",
+    letterSpacing: 0.3,
   },
   roundPill: {
     borderRadius: 999,
@@ -204,40 +266,47 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: 0.3,
   },
-  diceCenter: {
+  diceRow: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
+    gap: 14,
+    flexWrap: "wrap",
   },
   diceFace: {
-    width: 96,
-    height: 96,
-    borderRadius: 22,
+    width: 82,
+    height: 82,
+    borderRadius: 20,
     borderWidth: 2,
     borderBottomWidth: 6,
     alignItems: "center",
     justifyContent: "center",
   },
   diceEmoji: {
-    fontSize: 60,
-    lineHeight: 68,
+    fontSize: 52,
+    lineHeight: 58,
     textAlign: "center",
   },
-  statusWrap: {
+  actionSide: {
+    flex: 1,
+    minWidth: 190,
+  },
+  eventBanner: {
     marginTop: 12,
-    gap: 10,
+    borderRadius: 12,
+    borderWidth: 2,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexDirection: "row",
     alignItems: "center",
+    gap: 8,
   },
-  myTurnBadge: {
-    fontSize: 14,
-    fontWeight: "900",
-    letterSpacing: 0.5,
-    textAlign: "center",
+  eventIcon: {
+    fontSize: 16,
   },
-  waitingText: {
-    fontSize: 13,
-    fontWeight: "700",
-    textAlign: "center",
-    lineHeight: 18,
+  eventText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: "800",
+    lineHeight: 17,
   },
 });

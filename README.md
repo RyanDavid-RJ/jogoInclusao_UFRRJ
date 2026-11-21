@@ -4,26 +4,20 @@ Jogo multiplayer de tabuleiro educativo sobre inclusão, acessibilidade e
 matemática, desenvolvido com Expo/React Native no frontend e Node.js, Express,
 Socket.IO e MySQL no backend.
 
-## Funcionalidades
+## Funcionalidades (v2.0 — ICE • UFRRJ)
 
-- Criação de salas públicas e privadas, listagem pública, entrada por código de 4 caracteres e botão de cópia rápida do código.
-- Partidas para 4 a 8 participantes, com um anfitrião que escolhe a etapa escolar e inicia manualmente.
-- Tabuleiro compartilhado com posições de 0 a 30, turnos, indicador de rodadas (`Rodada X/8`) e lançamento de dado (botão ou gesto).
-- Casas bônus de Impulso (+2 casas) nas posições 5, 10, 15, 20 e 25, com chegada limitada à casa 30.
-- Condição atribuída individualmente a cada participante, mantida em sigilo até a revelação final com métricas observadas da partida e perguntas de reflexão.
-- Pausa coletiva quando alguém para nas casas-obstáculo 7, 14, 21 ou 28, disparando quiz simultâneo de 30 segundos.
-- Reconexão automática de sessão por até 60 segundos em quedas transitórias e expiração de salas de espera inativas após 30 minutos.
-- Interface responsiva com tema claro/escuro, modo daltônico, respeito à redução de movimento, feedback de conexão e mensagens de erro acessíveis.
+- **Lobby e Configurações da Partida:** salas públicas e privadas, código de 4 caracteres com cópia rápida, 4 a 8 participantes, etapa escolar (`Fundamental`, `Médio`, `Superior`), tempo de quiz configurável (`30s`, `45s`, `60s`), limite de rodadas (`6` ou `8`) e vínculo opcional a **Código de Turma**.
+- **Tabuleiro e Rejogabilidade:** trilha compartilhada de 0 a 30 com legenda, destaque do jogador ativo, feed narrativo de eventos de turno, casas bônus de Impulso (`+2`), obstáculos (`7`, `14`, `21`, `28`), **Avanço por Equidade** (`+1` casa para o 1º acerto mais rápido no quiz), **Pódio Duplo** (Corrida + Destaque do Quiz) e **Revanche Instantânea** com rotação automática de papéis.
+- **Contas, LGPD e Perfil:** **Login com Google (OAuth 2.0)** + **Modo Convidado** sem atrito, consentimento explícito para pesquisa acadêmica (opt-in), histórico pessoal de partidas e coleção de perspectivas vivenciadas (`4/4`).
+- **Painel de Professores & Pesquisa Científica:** indicadores empíricos por condição e matriz obstáculo × condição, CRUD e curadoria do banco de questões com diagnóstico de distratores, gestão de turmas, papéis RBAC (`jogador`, `professor`, `admin`) e exportação com 1 clique de datasets 100% anonimizados em **CSV / JSON** (prontos para R/Python/SPSS).
+- **Confiabilidade e Acessibilidade (WCAG 2.1 AA):** reconexão automática de sessão por até 60 segundos, tema claro/escuro, modo daltônico, redução de movimento (`useReducedMotion`), foco visível na Web e atalhos de teclado no quiz (`A–D`, `Enter`, `Esc`).
 
-**Estado atual (2026-11-21):** o MVP web v1.0 está publicado (Render + Vercel) e
-validado com quatro jogadores (desktop e Safari no iPhone físico), com **76/76
-testes backend**, TypeScript e lint aprovados e **27 perguntas únicas
-balanceadas** no MySQL (`defaultdb`). A especificação e a base de dados da
-**v2.0 institucional (ICE — UFRRJ)** já estão versionadas em `docs/` e
-`database/migrations/` (rejogabilidade aprimorada, Login Google + Convidado,
-persistência transacional pós-partida, Painel de Professores e views analíticas
-anonimizadas para Estatística/Probabilidade/Inferência), prontas para
-implementação no backend (Etapa 4) e frontend (Etapa 5). Consulte
+**Estado atual (2026-11-21):** a versão institucional **v2.0** está implementada
+de ponta a ponta e validada com **88/88 testes backend**, `npx tsc --noEmit`,
+`npm run lint` e `npm run build:web` aprovados. O banco de produção (`defaultdb`)
+opera com **27 perguntas únicas balanceadas** e as migrações `001..003` estão
+prontas em [`database/migrations/`](database/README.md) para habilitar
+persistência analítica, contas Google, turmas e views estatísticas. Consulte
 [`docs/STATUS_PROJETO.md`](docs/STATUS_PROJETO.md) e
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
@@ -204,6 +198,14 @@ explícito e rejeitar o curinga `*`.
 
 O valor de `CLIENT_ORIGIN` pode conter uma lista separada por vírgulas quando houver mais de um domínio autorizado.
 
+Variáveis opcionais para ativar Login Google e Painel Docente via OAuth (v2.0):
+
+```text
+GOOGLE_CLIENT_ID=...apps.googleusercontent.com
+JWT_SECRET=...chave-secreta-forte...
+BOOTSTRAP_ADMIN_EMAIL=seu-email@gmail.com
+```
+
 ### Vercel
 
 Configure o projeto com:
@@ -212,10 +214,12 @@ Configure o projeto com:
 - **Build Command:** `npm run build:web`
 - **Output Directory:** `dist`
 
-Variável obrigatória:
+Variáveis:
 
 ```text
 EXPO_PUBLIC_SERVER_URL=https://SEU-BACKEND.onrender.com
+# Opcional — ativa o botão oficial de Login com Google na Web:
+EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=...apps.googleusercontent.com
 ```
 
 Depois do deploy, valide `/api/status` no domínio do Render e faça uma partida
@@ -251,13 +255,11 @@ analíticas anonimizadas) estão documentadas em
 
 ## Limitações e próximos passos
 
-Os próximos focos do projeto seguem o plano v2.0 voltado ao **ICE — UFRRJ**:
-aplicar as migrações de banco `001..003`, implementar o Backend v2.0 (regras de
-rejogabilidade, Google OAuth + Convidado, persistência pós-partida, Painel de
-Professores e exportação anonimizada CSV/JSON), expandir e revisar o acervo de
-perguntas e evoluir o Frontend com UX/UI profissional e conformidade WCAG 2.1 AA.
-A migração de provedor MySQL antes do encerramento do Aiven Free Tier
-(`2026-12-21`) e eventual escala horizontal com Redis ficam planejadas para a
-fase operacional.
+A versão **v2.0 institucional (ICE — UFRRJ)** está implementada e validada. Os
+próximos passos são: aplicar `database/migrations/001..003` no MySQL ativo
+(`defaultdb`), publicar o novo backend/frontend (Render + Vercel), expandir e
+revisar o acervo de perguntas de **27** para **54–90 questões** junto aos
+docentes do Departamento de Matemática (ICE — UFRRJ) e planejar a migração de
+provedor MySQL antes do encerramento do Aiven Free Tier (`2026-12-21`).
 
 Consulte [`docs/ROADMAP.md`](docs/ROADMAP.md) para a sequência completa.

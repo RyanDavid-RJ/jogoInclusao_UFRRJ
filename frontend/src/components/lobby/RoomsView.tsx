@@ -1,14 +1,27 @@
+// frontend/src/components/lobby/RoomsView.tsx
+// Salas públicas, entrada por código e sala de espera v2.0 com configurações do anfitrião.
+
 import { useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import Animated, { FadeIn, useReducedMotion } from "react-native-reanimated";
+
 import {
-  PublicRoomSummary,
-  PlayerProfile,
-  SchoolStage,
+  MAX_ROUNDS_OPTIONS,
+  QUIZ_DURATIONS,
   SCHOOL_STAGES,
-  ThemePalette,
+  type MaxRoundsOption,
+  type PlayerProfile,
+  type PublicRoomSummary,
+  type QuizDurationSec,
+  type SchoolStage,
+  type ThemePalette,
 } from "../../constants/duoTheme";
-import { AvatarMedallion, DuoButton, DuoCard } from "../ui/DuoComponents";
+import {
+  AvatarMedallion,
+  DuoButton,
+  DuoCard,
+  InfoPill,
+} from "../ui/DuoComponents";
 
 export interface RoomsViewProps {
   viewState: "public_list" | "private_join" | "waiting_room";
@@ -19,7 +32,15 @@ export interface RoomsViewProps {
   hostId: string;
   ownPlayerId: string;
   schoolStage: SchoolStage | null;
+  quizDurationSec: QuizDurationSec;
+  maxRounds: MaxRoundsOption;
+  turmaCodigo: string | null;
   onSetSchoolStage: (stage: SchoolStage) => void;
+  onUpdateRoomSettings: (settings: {
+    quizDurationSec?: QuizDurationSec;
+    maxRounds?: MaxRoundsOption;
+    turmaCodigo?: string;
+  }) => void;
   onStartGame: () => void;
   onLeaveRoom: () => void;
   onCloseRoom?: () => void;
@@ -37,7 +58,11 @@ export function RoomsView({
   hostId,
   ownPlayerId,
   schoolStage,
+  quizDurationSec,
+  maxRounds,
+  turmaCodigo,
   onSetSchoolStage,
+  onUpdateRoomSettings,
   onStartGame,
   onLeaveRoom,
   onCloseRoom,
@@ -47,9 +72,14 @@ export function RoomsView({
 }: RoomsViewProps) {
   const reduceMotion = useReducedMotion();
   const [code, setCode] = useState("");
+  const [classCodeInput, setClassCodeInput] = useState(turmaCodigo ?? "");
   const [confirmingClose, setConfirmingClose] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setClassCodeInput(turmaCodigo ?? "");
+  }, [turmaCodigo]);
 
   useEffect(() => {
     return () => {
@@ -62,22 +92,31 @@ export function RoomsView({
   const handleCopyCode = () => {
     const clipboard = (
       globalThis as {
-        navigator?: { clipboard?: { writeText?: (text: string) => Promise<void> } };
+        navigator?: {
+          clipboard?: { writeText?: (text: string) => Promise<void> };
+        };
       }
     ).navigator?.clipboard;
     if (!roomCode || typeof clipboard?.writeText !== "function") {
       return;
     }
-    void clipboard.writeText(roomCode).then(() => {
-      setCopiedCode(true);
-      if (copyTimerRef.current) {
-        clearTimeout(copyTimerRef.current);
-      }
-      copyTimerRef.current = setTimeout(() => {
-        setCopiedCode(false);
-      }, 2000);
-    }).catch(() => {});
+    void clipboard
+      .writeText(roomCode)
+      .then(() => {
+        setCopiedCode(true);
+        if (copyTimerRef.current) {
+          clearTimeout(copyTimerRef.current);
+        }
+        copyTimerRef.current = setTimeout(() => {
+          setCopiedCode(false);
+        }, 2000);
+      })
+      .catch(() => {});
   };
+
+  const isHost = ownPlayerId === hostId;
+  const missingPlayers = Math.max(0, 4 - players.length);
+  const canStart = players.length >= 4 && Boolean(schoolStage);
 
   return (
     <ScrollView
@@ -88,53 +127,142 @@ export function RoomsView({
       keyboardShouldPersistTaps="handled"
     >
       <Animated.View
-        entering={reduceMotion ? undefined : FadeIn.duration(400)}
+        entering={reduceMotion ? undefined : FadeIn.duration(320)}
         style={styles.wrap}
       >
-        {viewState === "public_list" && (
+        {/* LISTA DE SALAS PÚBLICAS */}
+        {viewState === "public_list" ? (
           <DuoCard palette={palette} padding={20}>
-            <DuoButton title="Voltar" variant="ghost" onPress={onBackToHome} palette={palette} />
-            <Text style={[styles.title, { color: palette.textMain }]}>Salas Públicas</Text>
+            <View style={styles.topActionRow}>
+              <DuoButton
+                title="← Voltar"
+                variant="ghost"
+                size="sm"
+                fullWidth={false}
+                onPress={onBackToHome}
+                palette={palette}
+              />
+              <InfoPill
+                text={`${publicRooms.length} sala(s) aberta(s)`}
+                tone="secondary"
+                palette={palette}
+              />
+            </View>
+            <Text style={[styles.title, { color: palette.textMain }]}>
+              Salas Públicas
+            </Text>
             {publicRooms.length === 0 ? (
-              <Text style={[styles.emptyText, { color: palette.textMuted }]}>
-                Nenhuma sala pública aberta no momento.
-              </Text>
+              <View
+                style={[
+                  styles.emptyBox,
+                  {
+                    backgroundColor: palette.surfaceAlt,
+                    borderColor: palette.cardBorder,
+                  },
+                ]}
+              >
+                <Text style={[styles.emptyTitle, { color: palette.textMain }]}>
+                  Nenhuma sala pública aberta agora
+                </Text>
+                <Text style={[styles.emptyText, { color: palette.textMuted }]}>
+                  Volte à tela inicial para criar uma nova sala e convidar seus
+                  colegas.
+                </Text>
+              </View>
             ) : (
-              publicRooms.map((room) => (
-                <View
-                  key={room.roomCode}
-                  style={[
-                    styles.roomRow,
-                    {
-                      backgroundColor: palette.surfaceAlt,
-                      borderColor: palette.cardBorder,
-                    },
-                  ]}
-                >
-                  <View style={styles.roomInfo}>
-                    <Text style={[styles.roomHost, { color: palette.textMain }]}>
-                      {room.hostName}
-                    </Text>
-                    <Text style={[styles.roomMeta, { color: palette.textMuted }]}>
-                      Sala {room.roomCode} · {room.playerCount}/8 jogadores
-                    </Text>
+              <View style={styles.roomsList}>
+                {publicRooms.map((room) => (
+                  <View
+                    key={room.roomCode}
+                    style={[
+                      styles.roomRow,
+                      {
+                        backgroundColor: palette.surfaceAlt,
+                        borderColor: palette.cardBorder,
+                      },
+                    ]}
+                  >
+                    <AvatarMedallion
+                      avatarId={room.hostAvatarId}
+                      size="sm"
+                      isHost
+                      palette={palette}
+                    />
+                    <View style={styles.roomInfo}>
+                      <Text
+                        style={[styles.roomHost, { color: palette.textMain }]}
+                        numberOfLines={1}
+                      >
+                        Sala de {room.hostName}
+                      </Text>
+                      <View style={styles.roomBadgesRow}>
+                        <InfoPill
+                          text={`#${room.roomCode}`}
+                          tone="secondary"
+                          palette={palette}
+                        />
+                        <InfoPill
+                          text={`👥 ${room.playerCount}/8`}
+                          tone="neutral"
+                          palette={palette}
+                        />
+                        {room.schoolStage ? (
+                          <InfoPill
+                            text={room.schoolStage}
+                            tone="primary"
+                            palette={palette}
+                          />
+                        ) : null}
+                        {room.quizDurationSec ? (
+                          <InfoPill
+                            text={`⏱️ ${room.quizDurationSec}s`}
+                            tone="neutral"
+                            palette={palette}
+                          />
+                        ) : null}
+                        {room.turmaCodigo ? (
+                          <InfoPill
+                            text={`🎓 ${room.turmaCodigo}`}
+                            tone="purple"
+                            palette={palette}
+                          />
+                        ) : null}
+                      </View>
+                    </View>
+                    <DuoButton
+                      title="Entrar"
+                      onPress={() => onJoinSpecificRoom(room.roomCode)}
+                      palette={palette}
+                      size="sm"
+                      fullWidth={false}
+                    />
                   </View>
-                  <DuoButton
-                    title="Entrar"
-                    onPress={() => onJoinSpecificRoom(room.roomCode)}
-                    palette={palette}
-                    size="sm"
-                    fullWidth={false}
-                  />
-                </View>
-              ))
+                ))}
+              </View>
             )}
           </DuoCard>
-        )}
-        {viewState === "private_join" && (
+        ) : null}
+
+        {/* ENTRAR EM SALA PRIVADA */}
+        {viewState === "private_join" ? (
           <DuoCard palette={palette} padding={20}>
-            <DuoButton title="Voltar" variant="ghost" onPress={onBackToHome} palette={palette} />
-            <Text style={[styles.title, { color: palette.textMain }]}>Sala Privada</Text>
+            <View style={styles.topActionRow}>
+              <DuoButton
+                title="← Voltar"
+                variant="ghost"
+                size="sm"
+                fullWidth={false}
+                onPress={onBackToHome}
+                palette={palette}
+              />
+            </View>
+            <Text style={[styles.title, { color: palette.textMain }]}>
+              Entrar com Código
+            </Text>
+            <Text style={[styles.subtitle, { color: palette.textMuted }]}>
+              Informe o código de 4 caracteres compartilhado pelo anfitrião da
+              sala.
+            </Text>
             <TextInput
               style={[
                 styles.input,
@@ -146,22 +274,41 @@ export function RoomsView({
               ]}
               value={code}
               onChangeText={(value) => setCode(value.toUpperCase())}
-              placeholder="Ex.: A1B2"
+              onSubmitEditing={() => {
+                if (code.trim().length === 4) onJoinSpecificRoom(code);
+              }}
+              placeholder="A1B2"
               placeholderTextColor={palette.textMuted}
               maxLength={4}
               autoCapitalize="characters"
               autoCorrect={false}
+              returnKeyType="go"
               accessibilityLabel="Código da sala"
             />
-            <DuoButton title="Entrar" onPress={() => onJoinSpecificRoom(code)} palette={palette} />
+            <DuoButton
+              title="Entrar na Sala"
+              icon="🔑"
+              size="lg"
+              disabled={code.trim().length !== 4}
+              onPress={() => onJoinSpecificRoom(code)}
+              palette={palette}
+            />
           </DuoCard>
-        )}
-        {viewState === "waiting_room" && (
+        ) : null}
+
+        {/* SALA DE ESPERA */}
+        {viewState === "waiting_room" ? (
           <DuoCard palette={palette} padding={20}>
-            <Text style={[styles.title, { color: palette.textMain }]}>Sala: {roomCode}</Text>
-            <View style={styles.copyCodeRow}>
+            <View style={styles.waitingHeader}>
+              <Text style={[styles.codeLabel, { color: palette.textMuted }]}>
+                CÓDIGO DA SALA
+              </Text>
+              <Text style={[styles.codeHero, { color: palette.textMain }]}>
+                {roomCode}
+              </Text>
               <DuoButton
-                title={copiedCode ? "✅ Código copiado!" : "📋 Copiar código"}
+                title={copiedCode ? "Código copiado!" : "Copiar código"}
+                icon={copiedCode ? "✅" : "📋"}
                 variant={copiedCode ? "primary" : "ghost"}
                 size="sm"
                 fullWidth={false}
@@ -170,64 +317,233 @@ export function RoomsView({
                 accessibilityLabel={`Copiar código da sala ${roomCode}`}
               />
             </View>
+
             <View style={styles.roomMetaRow}>
-              <View
-                style={[
-                  styles.metaPill,
-                  {
-                    backgroundColor: palette.surfaceAlt,
-                    borderColor: palette.cardBorder,
-                  },
-                ]}
-              >
-                <Text style={[styles.metaPillText, { color: palette.textMain }]}>
-                  {isPrivateRoom ? "🔒 Privada" : "🌐 Pública"}
-                </Text>
-              </View>
-              <View
-                style={[
-                  styles.metaPill,
-                  {
-                    backgroundColor: palette.surfaceAlt,
-                    borderColor: palette.cardBorder,
-                  },
-                ]}
-              >
-                <Text style={[styles.metaPillText, { color: palette.textMain }]}>
-                  👥 {players.length}/8 jogadores
-                </Text>
-              </View>
+              <InfoPill
+                text={isPrivateRoom ? "🔒 Privada" : "🌐 Pública"}
+                tone="neutral"
+                palette={palette}
+              />
+              <InfoPill
+                text={`👥 ${players.length}/8 jogadores`}
+                tone={players.length >= 4 ? "primary" : "warning"}
+                palette={palette}
+              />
+              <InfoPill
+                text={`⏱️ Quiz ${quizDurationSec}s`}
+                tone="secondary"
+                palette={palette}
+              />
+              <InfoPill
+                text={`🏁 ${maxRounds} rodadas`}
+                tone="neutral"
+                palette={palette}
+              />
+              {turmaCodigo ? (
+                <InfoPill
+                  text={`🎓 Turma ${turmaCodigo}`}
+                  tone="purple"
+                  palette={palette}
+                />
+              ) : null}
             </View>
+
+            {/* Grade de 8 jogadores */}
             <View style={styles.grid}>
               {Array.from({ length: 8 }).map((_, i) => {
                 const p = players[i];
+                const isSelf = p?.playerId === ownPlayerId;
                 return p ? (
                   <View key={p.playerId} style={styles.slot}>
-                    <AvatarMedallion avatarId={p.avatarId} isHost={p.playerId === hostId} palette={palette} size="md" />
-                    <Text style={{color: palette.textMain, fontSize: 11, fontWeight: "bold", marginTop: 4}} numberOfLines={1}>{p.name}</Text>
+                    <AvatarMedallion
+                      avatarId={p.avatarId}
+                      isHost={p.playerId === hostId}
+                      selected={isSelf}
+                      palette={palette}
+                      size="md"
+                    />
+                    <Text
+                      style={[
+                        styles.slotName,
+                        { color: isSelf ? palette.secondaryBorder : palette.textMain },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {isSelf ? `${p.name} (Você)` : p.name}
+                    </Text>
                   </View>
                 ) : (
-                  <View key={i} style={styles.emptySlot}><Text style={{color: palette.textMuted, fontSize: 10}}>Livre</Text></View>
+                  <View
+                    key={`empty-${i}`}
+                    style={[
+                      styles.emptySlot,
+                      {
+                        borderColor: palette.cardBorder,
+                        backgroundColor: palette.surfaceAlt,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[styles.emptySlotText, { color: palette.textMuted }]}
+                    >
+                      Livre
+                    </Text>
+                  </View>
                 );
               })}
             </View>
-            {ownPlayerId === hostId ? (
-              <>
-                <Text style={{textAlign: "center", color: palette.textMain, fontWeight: "bold", marginBottom: 10}}>Escolha a etapa escolar:</Text>
-                <View style={styles.stageWrap}>
-                  {SCHOOL_STAGES.map(s => (
-                    <DuoButton key={s} title={s} variant={schoolStage === s ? "primary" : "ghost"} onPress={() => onSetSchoolStage(s)} palette={palette} size="sm" fullWidth={false} />
+
+            {/* Configurações do Anfitrião */}
+            {isHost ? (
+              <View
+                style={[
+                  styles.configPanel,
+                  {
+                    backgroundColor: palette.surfaceAlt,
+                    borderColor: palette.cardBorder,
+                  },
+                ]}
+              >
+                <Text style={[styles.configTitle, { color: palette.textMain }]}>
+                  ⚙️ Configurações da Partida (Anfitrião)
+                </Text>
+
+                <Text style={[styles.configLabel, { color: palette.textMuted }]}>
+                  Etapa Escolar (obrigatório)
+                </Text>
+                <View style={styles.optionRow}>
+                  {SCHOOL_STAGES.map((stage) => (
+                    <DuoButton
+                      key={stage}
+                      title={stage}
+                      variant={schoolStage === stage ? "primary" : "ghost"}
+                      selected={schoolStage === stage}
+                      onPress={() => onSetSchoolStage(stage)}
+                      palette={palette}
+                      size="sm"
+                      fullWidth={false}
+                      style={styles.flexOne}
+                    />
                   ))}
                 </View>
-                <DuoButton title="Iniciar Partida" onPress={onStartGame} disabled={players.length < 4 || !schoolStage} palette={palette} />
-              </>
+
+                <Text style={[styles.configLabel, { color: palette.textMuted }]}>
+                  Tempo por Quiz
+                </Text>
+                <View style={styles.optionRow}>
+                  {QUIZ_DURATIONS.map((sec) => (
+                    <DuoButton
+                      key={sec}
+                      title={`${sec}s`}
+                      variant={quizDurationSec === sec ? "secondary" : "ghost"}
+                      selected={quizDurationSec === sec}
+                      onPress={() => onUpdateRoomSettings({ quizDurationSec: sec })}
+                      palette={palette}
+                      size="sm"
+                      fullWidth={false}
+                      style={styles.flexOne}
+                    />
+                  ))}
+                </View>
+
+                <Text style={[styles.configLabel, { color: palette.textMuted }]}>
+                  Limite de Rodadas
+                </Text>
+                <View style={styles.optionRow}>
+                  {MAX_ROUNDS_OPTIONS.map((rounds) => (
+                    <DuoButton
+                      key={rounds}
+                      title={
+                        rounds === 6 ? "6 rodadas (Rápida)" : "8 rodadas (Padrão)"
+                      }
+                      variant={maxRounds === rounds ? "secondary" : "ghost"}
+                      selected={maxRounds === rounds}
+                      onPress={() => onUpdateRoomSettings({ maxRounds: rounds })}
+                      palette={palette}
+                      size="sm"
+                      fullWidth={false}
+                      style={styles.flexOne}
+                    />
+                  ))}
+                </View>
+
+                <Text style={[styles.configLabel, { color: palette.textMuted }]}>
+                  Vincular Turma Docente (opcional)
+                </Text>
+                <View style={styles.classBindRow}>
+                  <TextInput
+                    value={classCodeInput}
+                    onChangeText={(v) => setClassCodeInput(v.toUpperCase())}
+                    placeholder="Ex.: MAT101-2026A"
+                    placeholderTextColor={palette.textMuted}
+                    maxLength={16}
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                    style={[
+                      styles.classInput,
+                      {
+                        backgroundColor: palette.inputBg,
+                        borderColor: palette.inputBorder,
+                        color: palette.textMain,
+                      },
+                    ]}
+                  />
+                  <DuoButton
+                    title="Aplicar"
+                    variant="purple"
+                    size="sm"
+                    fullWidth={false}
+                    onPress={() =>
+                      onUpdateRoomSettings({
+                        turmaCodigo: classCodeInput.trim().toUpperCase(),
+                      })
+                    }
+                    palette={palette}
+                  />
+                </View>
+
+                <View style={styles.startWrap}>
+                  <DuoButton
+                    title="Iniciar Partida"
+                    icon="🎲"
+                    subtitle={
+                      missingPlayers > 0
+                        ? `Aguardando mais ${missingPlayers} jogador(es) (mínimo 4)`
+                        : !schoolStage
+                          ? "Selecione a etapa escolar acima"
+                          : "Tudo pronto! Papéis secretos serão sorteados."
+                    }
+                    onPress={onStartGame}
+                    disabled={!canStart}
+                    size="lg"
+                    palette={palette}
+                  />
+                </View>
+              </View>
             ) : (
-              <Text style={{color: palette.textMuted, textAlign: "center", marginBottom: 16}}>
-                {schoolStage ? `Etapa: ${schoolStage} · Aguardando anfitrião...` : "Aguardando anfitrião..."}
-              </Text>
+              <View
+                style={[
+                  styles.guestWaitBox,
+                  {
+                    backgroundColor: palette.surfaceAlt,
+                    borderColor: palette.cardBorder,
+                  },
+                ]}
+              >
+                <Text style={[styles.guestWaitTitle, { color: palette.textMain }]}>
+                  ⏳ Aguardando o anfitrião iniciar a partida
+                </Text>
+                <Text style={[styles.guestWaitSub, { color: palette.textMuted }]}>
+                  {schoolStage
+                    ? `Etapa: ${schoolStage} · Quiz ${quizDurationSec}s · ${maxRounds} rodadas`
+                    : "O anfitrião ainda está escolhendo a etapa escolar."}
+                </Text>
+              </View>
             )}
+
+            {/* Ações da Sala */}
             <View style={styles.roomActions}>
-              {ownPlayerId === hostId && onCloseRoom ? (
+              {isHost && onCloseRoom ? (
                 confirmingClose ? (
                   <View
                     style={[
@@ -252,7 +568,7 @@ export function RoomsView({
                         variant="ghost"
                         size="sm"
                         fullWidth={false}
-                        style={styles.confirmBtn}
+                        style={styles.flexOne}
                         onPress={() => setConfirmingClose(false)}
                         palette={palette}
                       />
@@ -261,7 +577,7 @@ export function RoomsView({
                         variant="danger"
                         size="sm"
                         fullWidth={false}
-                        style={styles.confirmBtn}
+                        style={styles.flexOne}
                         onPress={() => {
                           setConfirmingClose(false);
                           onCloseRoom();
@@ -272,7 +588,7 @@ export function RoomsView({
                   </View>
                 ) : (
                   <DuoButton
-                    title="Fechar Sala"
+                    title="Fechar Sala para Todos"
                     variant="danger"
                     size="sm"
                     onPress={() => setConfirmingClose(true)}
@@ -283,7 +599,8 @@ export function RoomsView({
               ) : null}
               <DuoButton
                 title="Sair da Sala"
-                variant={ownPlayerId === hostId && onCloseRoom ? "ghost" : "danger"}
+                variant={isHost && onCloseRoom ? "ghost" : "danger"}
+                size="md"
                 onPress={() => {
                   setConfirmingClose(false);
                   onLeaveRoom();
@@ -292,33 +609,152 @@ export function RoomsView({
               />
             </View>
           </DuoCard>
-        )}
+        ) : null}
       </Animated.View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { flexGrow: 1, alignItems: "center", padding: 20 },
-  wrap: { width: "100%", maxWidth: 500 },
-  title: { fontSize: 24, fontWeight: "900", marginBottom: 16, textAlign: "center" },
-  roomRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12, borderWidth: 2, borderRadius: 14, padding: 10, marginBottom: 10 },
-  roomInfo: { flex: 1, gap: 4 },
+  content: { flexGrow: 1, alignItems: "center", padding: 16 },
+  wrap: { width: "100%", maxWidth: 620 },
+  topActionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "900",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  subtitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    textAlign: "center",
+    marginBottom: 16,
+    lineHeight: 19,
+  },
+  emptyBox: {
+    borderRadius: 16,
+    borderWidth: 2,
+    padding: 20,
+    alignItems: "center",
+    gap: 6,
+  },
+  emptyTitle: { fontSize: 15, fontWeight: "900", textAlign: "center" },
+  emptyText: { fontSize: 13, fontWeight: "700", textAlign: "center", lineHeight: 18 },
+  roomsList: { gap: 10 },
+  roomRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderWidth: 2,
+    borderBottomWidth: 4,
+    borderRadius: 16,
+    padding: 12,
+  },
+  roomInfo: { flex: 1, gap: 6, minWidth: 0 },
   roomHost: { fontSize: 14, fontWeight: "900" },
-  roomMeta: { fontSize: 12, fontWeight: "700" },
-  emptyText: { fontSize: 13, fontWeight: "700", textAlign: "center", paddingVertical: 12 },
-  input: { borderWidth: 2, borderRadius: 12, padding: 12, marginBottom: 16, textAlign: "center", fontSize: 20, fontWeight: "bold" },
-  grid: { flexDirection: "row", flexWrap: "wrap", gap: 10, justifyContent: "center", marginBottom: 24 },
-  slot: { alignItems: "center", width: "22%" },
-  emptySlot: { width: 64, height: 64, borderRadius: 32, borderWidth: 2, borderStyle: "dashed", borderColor: "#CCC", alignItems: "center", justifyContent: "center" },
-  stageWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center", marginBottom: 20 },
-  roomMetaRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 8, marginBottom: 16 },
-  copyCodeRow: { alignItems: "center", marginBottom: 12 },
-  metaPill: { borderRadius: 999, borderWidth: 2, paddingHorizontal: 10, paddingVertical: 4 },
-  metaPillText: { fontSize: 12, fontWeight: "800" },
-  roomActions: { marginTop: 12, gap: 10 },
-  confirmCloseBox: { borderRadius: 14, borderWidth: 2, borderBottomWidth: 4, padding: 12, gap: 10 },
+  roomBadgesRow: { flexDirection: "row", flexWrap: "wrap", gap: 5 },
+  input: {
+    borderWidth: 2,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 16,
+    textAlign: "center",
+    fontSize: 26,
+    fontWeight: "900",
+    letterSpacing: 6,
+  },
+  waitingHeader: {
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 14,
+  },
+  codeLabel: {
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 1.2,
+  },
+  codeHero: {
+    fontSize: 34,
+    fontWeight: "900",
+    letterSpacing: 6,
+  },
+  roomMetaRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 6,
+    marginBottom: 18,
+  },
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    justifyContent: "center",
+    marginBottom: 20,
+  },
+  slot: { alignItems: "center", width: "22%", minWidth: 68 },
+  slotName: { fontSize: 11, fontWeight: "800", marginTop: 6, textAlign: "center" },
+  emptySlot: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 2,
+    borderStyle: "dashed",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptySlotText: { fontSize: 10, fontWeight: "800" },
+  configPanel: {
+    borderRadius: 16,
+    borderWidth: 2,
+    padding: 14,
+    gap: 10,
+  },
+  configTitle: { fontSize: 14, fontWeight: "900" },
+  configLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    marginTop: 2,
+  },
+  optionRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  flexOne: { flex: 1 },
+  classBindRow: { flexDirection: "row", gap: 8, alignItems: "center" },
+  classInput: {
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 2,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    fontSize: 14,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
+  startWrap: { marginTop: 8 },
+  guestWaitBox: {
+    borderRadius: 14,
+    borderWidth: 2,
+    padding: 14,
+    alignItems: "center",
+    gap: 4,
+  },
+  guestWaitTitle: { fontSize: 14, fontWeight: "900", textAlign: "center" },
+  guestWaitSub: { fontSize: 12, fontWeight: "700", textAlign: "center" },
+  roomActions: { marginTop: 14, gap: 10 },
+  confirmCloseBox: {
+    borderRadius: 14,
+    borderWidth: 2,
+    borderBottomWidth: 4,
+    padding: 12,
+    gap: 10,
+  },
   confirmCloseText: { fontSize: 13, fontWeight: "800", textAlign: "center" },
   confirmCloseRow: { flexDirection: "row", gap: 8 },
-  confirmBtn: { flex: 1 }
 });

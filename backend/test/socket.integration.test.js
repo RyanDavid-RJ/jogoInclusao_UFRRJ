@@ -408,7 +408,7 @@ test("runs a private quiz round over real Socket.IO clients", async (t) => {
     });
     assert.deepEqual(
       Object.keys(question[0]).sort(),
-      ["alternativas", "deadlineAt", "enunciado", "quizId"],
+      ["alternativas", "deadlineAt", "durationSec", "enunciado", "quizId"],
     );
   }
   assert.equal(questionsReceived.get(outsider.id).length, 0);
@@ -479,7 +479,15 @@ test("runs a private quiz round over real Socket.IO clients", async (t) => {
     false,
   );
   assert.equal(finalStates.every((state) => state.status === "active"), true);
-  assert.equal(finalStates[0].positions[currentPlayer.id], 7);
+  assert.equal(
+    finalStates[0].positions[currentPlayer.id],
+    currentPlayer.id === players[0].id ? 8 : 7,
+  );
+  assert.equal(
+    finalStates[0].positions[players[0].id],
+    currentPlayer.id === players[0].id ? 8 : 1,
+  );
+  assert.equal(roundEnded.fastestCorrectPlayerId, players[0].id);
   assert.equal(finalStates[0].currentPlayerId, nextPlayer.id);
   assert.equal(rooms.get(roomCode).gameState.status, "active");
 });
@@ -508,6 +516,7 @@ test("keeps roles private during play and reveals them only after game over", as
 
   for (const result of results) {
     assert.deepEqual(Object.keys(result).sort(), [
+      "quizHighlights",
       "reason",
       "reveal",
       "roles",

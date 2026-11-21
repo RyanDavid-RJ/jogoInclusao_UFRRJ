@@ -1,5 +1,6 @@
-import { Stack } from 'expo-router';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import "../global.css";
+import { Stack } from "expo-router";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 export default function RootLayout() {
   return (
@@ -9,7 +10,7 @@ export default function RootLayout() {
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: '#F7F9FA' },
+          contentStyle: { backgroundColor: "#F4F7FA" },
         }}
       />
     </GestureHandlerRootView>
