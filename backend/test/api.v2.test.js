@@ -25,6 +25,7 @@ async function httpRequest(server, path, options = {}) {
 async function createV2ApiFixture(t) {
   const authService = createAuthService({
     jwtSecret: "test-jwt-secret-with-at-least-32-chars",
+    googleClientIds: "test-web-client-id.apps.googleusercontent.com",
     verifyGoogleTokenOverride: async (token) => {
       if (token === "valid-google-token") {
         return {
@@ -226,6 +227,14 @@ async function createV2ApiFixture(t) {
 
 test("POST /api/auth/google issues JWT and GET/PATCH /api/auth/me + /api/me/partidas work", async (t) => {
   const fx = await createV2ApiFixture(t);
+
+  const status = await httpRequest(fx.server, "/api/status");
+  assert.equal(status.status, 200);
+  assert.equal(status.body.googleAuthEnabled, true);
+  assert.equal(
+    status.body.googleClientId,
+    "test-web-client-id.apps.googleusercontent.com",
+  );
 
   const login = await httpRequest(fx.server, "/api/auth/google", {
     method: "POST",

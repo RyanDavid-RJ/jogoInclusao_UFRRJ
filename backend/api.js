@@ -73,10 +73,15 @@ const createApiApp = ({
 
     try {
       await pool.query("SELECT 1");
+      const googleAuthEnabled = Boolean(authService?.isGoogleConfigured?.());
+      const googleClientId = googleAuthEnabled
+        ? (authService?.getPrimaryGoogleClientId?.() ?? null)
+        : null;
       res.json({
         ok: true,
         db: "ok",
-        googleAuthEnabled: Boolean(authService?.isGoogleConfigured?.()),
+        googleAuthEnabled,
+        ...(googleClientId ? { googleClientId } : {}),
       });
     } catch (error) {
       logError("db", "Database status check failed.", error);

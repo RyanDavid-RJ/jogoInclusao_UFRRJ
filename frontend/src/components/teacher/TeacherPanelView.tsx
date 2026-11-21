@@ -54,6 +54,7 @@ export interface TeacherPanelViewProps {
   isTeacherAccess: boolean;
   isAdmin: boolean;
   serverGoogleEnabled: boolean;
+  googleClientId?: string;
   isLoadingAuth?: boolean;
   isCheckingAuthStatus?: boolean;
   onGoogleCredential: (idToken: string) => unknown;
@@ -86,6 +87,7 @@ export function TeacherPanelView({
   isTeacherAccess,
   isAdmin,
   serverGoogleEnabled,
+  googleClientId,
   isLoadingAuth = false,
   isCheckingAuthStatus = false,
   onGoogleCredential,
@@ -447,6 +449,7 @@ export function TeacherPanelView({
                 <GoogleSignInButton
                   onCredential={onGoogleCredential}
                   serverGoogleEnabled={serverGoogleEnabled}
+                  googleClientId={googleClientId}
                   isLoading={isLoadingAuth}
                   isCheckingStatus={isCheckingAuthStatus}
                   palette={palette}

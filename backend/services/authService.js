@@ -93,6 +93,13 @@ function createAuthService({
   const isGoogleConfigured = () =>
     Boolean(verifyGoogleTokenOverride) ||
     (isJwtConfigured() && allowedAudiences.size > 0);
+  const getPrimaryGoogleClientId = () => {
+    if (!isGoogleConfigured()) {
+      return null;
+    }
+    const first = allowedAudiences.values().next().value;
+    return first || null;
+  };
 
   function signAppToken(user) {
     if (!isJwtConfigured()) {
@@ -311,6 +318,7 @@ function createAuthService({
   return {
     isJwtConfigured,
     isGoogleConfigured,
+    getPrimaryGoogleClientId,
     signAppToken,
     verifyAppToken,
     verifyGoogleIdToken,

@@ -198,6 +198,7 @@ export default function IndexScreen() {
           isTeacherAccess={auth.isTeacherAccess}
           isAdmin={auth.isAdmin}
           serverGoogleEnabled={auth.serverGoogleEnabled}
+          googleClientId={auth.googleClientId}
           isLoadingAuth={auth.isLoadingUser}
           isCheckingAuthStatus={auth.isCheckingStatus}
           onGoogleCredential={auth.signInWithGoogleCredential}
@@ -216,6 +217,7 @@ export default function IndexScreen() {
           publicRoomsCount={session.publicRooms.length}
           authUser={auth.user}
           serverGoogleEnabled={auth.serverGoogleEnabled}
+          googleClientId={auth.googleClientId}
           isLoadingAuth={auth.isLoadingUser}
           isCheckingAuthStatus={auth.isCheckingStatus}
           consentResearch={auth.effectiveConsentResearch}

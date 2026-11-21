@@ -377,6 +377,7 @@ export interface ApiStatusResponse {
   ok: boolean;
   db: string;
   googleAuthEnabled?: boolean;
+  googleClientId?: string | null;
 }
 
 export interface UserMatchHistoryItem {

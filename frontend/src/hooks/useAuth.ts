@@ -45,10 +45,11 @@ export function useAuth() {
   const [adminToken, setAdminToken] = useState<string>("");
   const [isLoadingUser, setIsLoadingUser] = useState<boolean>(false);
   const [isCheckingStatus, setIsCheckingStatus] = useState<boolean>(
-    Boolean(GOOGLE_WEB_CLIENT_ID),
+    Platform.OS === "web",
   );
   const [authError, setAuthError] = useState<string>("");
   const [serverGoogleEnabled, setServerGoogleEnabled] = useState<boolean>(false);
+  const [serverGoogleClientId, setServerGoogleClientId] = useState<string>("");
   const [guestConsentResearch, setGuestConsentResearchState] = useState<boolean>(
     () => readWebStorage(STORAGE_GUEST_CONSENT_KEY) === "1",
   );
@@ -57,6 +58,9 @@ export function useAuth() {
     try {
       const status = await apiClient.getServerStatus();
       setServerGoogleEnabled(Boolean(status.googleAuthEnabled));
+      if (typeof status.googleClientId === "string" && status.googleClientId.trim()) {
+        setServerGoogleClientId(status.googleClientId.trim());
+      }
     } catch {
       // server might still be waking up on Render; retried on socket connect
     } finally {
@@ -95,7 +99,7 @@ export function useAuth() {
 
   // Recarrega /api/status e sessão salva automaticamente após acordar o Render (cold start)
   const refreshOnReconnect = useCallback(() => {
-    if (!serverGoogleEnabled) {
+    if (!serverGoogleEnabled || !serverGoogleClientId) {
       void checkServerStatus();
     }
     if (authToken && !user && !isLoadingUser) {
@@ -103,6 +107,7 @@ export function useAuth() {
     }
   }, [
     serverGoogleEnabled,
+    serverGoogleClientId,
     checkServerStatus,
     authToken,
     user,
@@ -197,6 +202,7 @@ export function useAuth() {
     setAuthError("");
   }, []);
 
+  const googleClientId = GOOGLE_WEB_CLIENT_ID || serverGoogleClientId;
   const isTeacherAccess =
     Boolean(adminToken.trim()) ||
     user?.role === "professor" ||
@@ -207,9 +213,7 @@ export function useAuth() {
     ? user.consentimentoPesquisa
     : guestConsentResearch;
   const googleSignInReady =
-    Platform.OS === "web" &&
-    Boolean(GOOGLE_WEB_CLIENT_ID) &&
-    serverGoogleEnabled;
+    Platform.OS === "web" && Boolean(googleClientId) && serverGoogleEnabled;
 
   return {
     authToken,
@@ -220,6 +224,7 @@ export function useAuth() {
     authError,
     dismissAuthError: () => setAuthError(""),
     serverGoogleEnabled,
+    googleClientId,
     googleSignInReady,
     guestConsentResearch,
     effectiveConsentResearch,
