@@ -1,11 +1,12 @@
 // frontend/src/components/game/QuizModal.tsx
-// Overlay de quiz/obstáculo v2.0 com tempo dinâmico (30/45/60s),
-// atalhos de teclado (A–D, Enter, Esc) na Web e feedback de Avanço por Equidade (+1 casa).
+// Overlay de quiz/obstáculo v2.1 com cartões táteis de alternativa alinhados à esquerda,
+// tempo dinâmico (30/45/60s), atalhos de teclado (A–D, Enter, Esc) e feedback +1 casa.
 
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -28,6 +29,7 @@ import {
   type QuizResult,
   type ThemePalette,
 } from "../../constants/duoTheme";
+import { playSound } from "../../utils/soundEffects";
 import { DuoButton, DuoCard, InfoPill } from "../ui/DuoComponents";
 
 export interface QuizModalProps {
@@ -62,7 +64,11 @@ export function QuizModal({
     setIsSubmitting(false);
   }, [activeQuizId]);
 
-  // Acessibilidade por teclado na Web (A-D seleciona, Enter confirma/fecha, Esc fecha feedback)
+  useEffect(() => {
+    if (!result) return;
+    playSound(result.correta ? "quiz_correct" : "quiz_wrong");
+  }, [result]);
+
   useEffect(() => {
     if (Platform.OS !== "web" || typeof window === "undefined") {
       return;
@@ -86,6 +92,7 @@ export function QuizModal({
         const key = event.key.toUpperCase();
         if (key === "A" || key === "B" || key === "C" || key === "D") {
           event.preventDefault();
+          playSound("click");
           setSelectedAnswer(key);
         } else if (event.key === "Enter" && selectedAnswer) {
           event.preventDefault();
@@ -145,7 +152,7 @@ export function QuizModal({
           exiting={reduceMotion ? undefined : FadeOutDown}
           style={styles.modalWrap}
         >
-          <DuoCard palette={palette} variant="default" padding={18}>
+          <DuoCard palette={palette} variant="default" padding={20}>
             {/* Cabeçalho do obstáculo */}
             {obstacle ? (
               <View
@@ -221,31 +228,88 @@ export function QuizModal({
                   />
                 </View>
 
-                <Text style={[styles.questionText, { color: palette.textMain }]}>
-                  {question.enunciado}
-                </Text>
+                <View
+                  style={[
+                    styles.questionCard,
+                    {
+                      backgroundColor: palette.surfaceAlt,
+                      borderColor: palette.cardBorder,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.questionText, { color: palette.textMain }]}>
+                    {question.enunciado}
+                  </Text>
+                </View>
 
+                {/* Cartões táteis de alternativa com badge [A/B/C/D] */}
                 <View style={styles.answersWrap}>
                   {QUIZ_ANSWERS.map((key) => {
                     const isSelected = selectedAnswer === key;
                     const alternativeText = question.alternativas[key];
                     return (
-                      <DuoButton
+                      <Pressable
                         key={key}
-                        title={`${key}) ${alternativeText}`}
-                        variant={isSelected ? "primary" : "ghost"}
-                        size="md"
-                        fullWidth
-                        selected={isSelected}
-                        onPress={
-                          isSubmitting
-                            ? undefined
-                            : () => setSelectedAnswer(key)
-                        }
                         disabled={isSubmitting}
-                        palette={palette}
+                        onPress={() => {
+                          playSound("click");
+                          setSelectedAnswer(key);
+                        }}
+                        accessibilityRole="button"
+                        accessibilityState={{
+                          selected: isSelected,
+                          disabled: isSubmitting,
+                        }}
                         accessibilityLabel={`Alternativa ${key}: ${alternativeText}`}
-                      />
+                        style={({ pressed }) => [
+                          styles.optionCard,
+                          {
+                            backgroundColor: isSelected
+                              ? palette.primaryBg
+                              : palette.cardBg,
+                            borderColor: isSelected
+                              ? palette.primaryBorder
+                              : palette.cardBorder,
+                          },
+                          pressed && !isSubmitting && styles.optionPressed,
+                          isSubmitting && styles.optionDisabled,
+                        ]}
+                      >
+                        <View
+                          style={[
+                            styles.optionBadge,
+                            {
+                              backgroundColor: isSelected
+                                ? palette.primary
+                                : palette.surfaceAlt,
+                              borderColor: isSelected
+                                ? palette.primaryBorder
+                                : palette.cardBorder,
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.optionBadgeText,
+                              {
+                                color: isSelected
+                                  ? "#FFFFFF"
+                                  : palette.textMain,
+                              },
+                            ]}
+                          >
+                            {key}
+                          </Text>
+                        </View>
+                        <Text
+                          style={[
+                            styles.optionText,
+                            { color: palette.textMain },
+                          ]}
+                        >
+                          {alternativeText}
+                        </Text>
+                      </Pressable>
                     );
                   })}
                 </View>
@@ -298,19 +362,36 @@ export function QuizModal({
             {/* ESTADO: RESULTADO */}
             {result ? (
               <View style={styles.section}>
-                <Text
+                <View
                   style={[
-                    styles.resultTitle,
+                    styles.resultBanner,
                     {
-                      color: result.correta
-                        ? palette.primaryText
-                        : palette.danger,
+                      backgroundColor: result.correta
+                        ? palette.primaryBg
+                        : palette.dangerBg,
+                      borderColor: result.correta
+                        ? palette.primaryBorder
+                        : palette.dangerBorder,
                     },
                   ]}
-                  accessibilityLiveRegion="polite"
                 >
-                  {result.correta ? "✅ Resposta Correta!" : "❌ Resposta Incorreta"}
-                </Text>
+                  <Text style={styles.resultEmoji}>
+                    {result.correta ? "🎉" : "💡"}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.resultTitle,
+                      {
+                        color: result.correta
+                          ? palette.primaryText
+                          : palette.danger,
+                      },
+                    ]}
+                    accessibilityLiveRegion="polite"
+                  >
+                    {result.correta ? "Resposta Correta!" : "Resposta Incorreta"}
+                  </Text>
+                </View>
 
                 {result.bonusMove && result.bonusMove > 0 ? (
                   <View
@@ -446,7 +527,8 @@ export function QuizModal({
 const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(15, 23, 42, 0.68)",
+    backgroundColor: "rgba(15, 23, 42, 0.72)",
+    zIndex: 40,
   },
   scrollCenter: {
     flexGrow: 1,
@@ -456,7 +538,7 @@ const styles = StyleSheet.create({
   },
   modalWrap: {
     width: "100%",
-    maxWidth: 540,
+    maxWidth: 560,
   },
   section: {
     gap: 12,
@@ -497,14 +579,53 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderRightWidth: 2,
   },
+  questionCard: {
+    borderRadius: 14,
+    borderWidth: 2,
+    padding: 14,
+  },
   questionText: {
     fontSize: 16,
     fontWeight: "800",
-    lineHeight: 23,
-    marginVertical: 4,
+    lineHeight: 24,
   },
   answersWrap: {
     gap: 8,
+  },
+  optionCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderBottomWidth: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    minHeight: 52,
+  },
+  optionPressed: {
+    transform: [{ translateY: 2 }],
+  },
+  optionDisabled: {
+    opacity: 0.6,
+  },
+  optionBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  optionBadgeText: {
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  optionText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "800",
+    lineHeight: 20,
   },
   keyboardHint: {
     fontSize: 11,
@@ -538,8 +659,19 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     textAlign: "center",
   },
+  resultBanner: {
+    borderRadius: 16,
+    borderWidth: 2,
+    borderBottomWidth: 4,
+    padding: 14,
+    alignItems: "center",
+    gap: 4,
+  },
+  resultEmoji: {
+    fontSize: 32,
+  },
   resultTitle: {
-    fontSize: 21,
+    fontSize: 20,
     fontWeight: "900",
     textAlign: "center",
   },

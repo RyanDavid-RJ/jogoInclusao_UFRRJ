@@ -589,8 +589,11 @@ export interface TopHeaderProps {
   isTeacherAccess?: boolean;
   themeMode: ThemeMode;
   isDaltonico: boolean;
+  isSoundEnabled?: boolean;
   onToggleTheme: () => void;
   onToggleDaltonico: () => void;
+  onToggleSound?: () => void;
+  onOpenHelp?: () => void;
   palette: ThemePalette;
 }
 
@@ -604,8 +607,11 @@ export function TopHeader({
   isTeacherAccess = false,
   themeMode,
   isDaltonico,
+  isSoundEnabled = true,
   onToggleTheme,
   onToggleDaltonico,
+  onToggleSound,
+  onOpenHelp,
   palette,
 }: TopHeaderProps) {
   const connectionBg = isConnected ? palette.primaryBg : palette.dangerBg;
@@ -808,6 +814,52 @@ export function TopHeader({
                 Sala {roomCode}
               </Text>
             </View>
+          ) : null}
+
+          {onOpenHelp ? (
+            <Pressable
+              onPress={onOpenHelp}
+              accessibilityRole="button"
+              accessibilityLabel="Abrir guia rápido de regras"
+              style={({ pressed }) => [
+                styles.daltonicoToggle,
+                {
+                  backgroundColor: palette.surfaceAlt,
+                  borderColor: palette.cardBorder,
+                },
+                pressed && styles.togglePressed,
+              ]}
+            >
+              <Text
+                style={[styles.daltonicoText, { color: palette.textMain }]}
+                numberOfLines={1}
+              >
+                ❓ Regras
+              </Text>
+            </Pressable>
+          ) : null}
+
+          {onToggleSound ? (
+            <Pressable
+              onPress={onToggleSound}
+              accessibilityRole="button"
+              accessibilityLabel={
+                isSoundEnabled ? "Silenciar efeitos sonoros" : "Ativar efeitos sonoros"
+              }
+              accessibilityState={{ selected: isSoundEnabled }}
+              style={({ pressed }) => [
+                styles.iconToggle,
+                {
+                  backgroundColor: palette.surfaceAlt,
+                  borderColor: palette.cardBorder,
+                },
+                pressed && styles.togglePressed,
+              ]}
+            >
+              <Text style={styles.iconToggleText}>
+                {isSoundEnabled ? "🔊" : "🔇"}
+              </Text>
+            </Pressable>
           ) : null}
 
           <Pressable

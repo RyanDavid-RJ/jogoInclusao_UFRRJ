@@ -1,5 +1,5 @@
 // frontend/src/components/game/DicePanel.tsx
-// Painel do dado animado + feed narrativo de eventos de turno v2.0.
+// Painel do dado geométrico animado (pips 3x3 de alta nitidez) + barra de rodadas + feed narrativo v2.1.
 
 import { useEffect, useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
@@ -16,7 +16,6 @@ import Animated, {
 } from "react-native-reanimated";
 
 import {
-  DICE_FACES,
   formatTurnEvent,
   type PlayerProfile,
   type ThemePalette,
@@ -36,6 +35,57 @@ export interface DicePanelProps {
   ownPlayerId?: string;
   onRollDice: () => void;
   palette: ThemePalette;
+}
+
+// Grade 3x3 de pontos (índices 0..8) para cada face do dado (1..6)
+const DIE_PIPS: Record<number, number[]> = {
+  1: [4],
+  2: [2, 6],
+  3: [2, 4, 6],
+  4: [0, 2, 6, 8],
+  5: [0, 2, 4, 6, 8],
+  6: [0, 2, 3, 5, 6, 8],
+};
+
+function TactileDieFace({
+  value,
+  isMyTurn,
+  palette,
+}: {
+  value: number | null;
+  isMyTurn: boolean;
+  palette: ThemePalette;
+}) {
+  const pips = value !== null && DIE_PIPS[value] ? DIE_PIPS[value] : null;
+  const pipColor = isMyTurn ? palette.primaryBorder : palette.textMain;
+
+  if (!pips) {
+    return (
+      <View style={styles.dieEmptyInner}>
+        <Text style={styles.dieEmptyIcon}>🎲</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.pipGrid}>
+      {Array.from({ length: 9 }).map((_, idx) => {
+        const active = pips.includes(idx);
+        return (
+          <View key={`pip-${idx}`} style={styles.pipCell}>
+            {active ? (
+              <View
+                style={[
+                  styles.pipDot,
+                  { backgroundColor: pipColor },
+                ]}
+              />
+            ) : null}
+          </View>
+        );
+      })}
+    </View>
+  );
 }
 
 export function DicePanel({
@@ -63,18 +113,18 @@ export function DicePanel({
     }
     rotation.value = 0;
     scale.value = 1;
-    translateY.value = reduceMotion ? 0 : -140;
+    translateY.value = reduceMotion ? 0 : -110;
     if (reduceMotion) {
       return;
     }
     rotation.value = withTiming(360, {
-      duration: 520,
+      duration: 500,
       easing: Easing.out(Easing.cubic),
     });
-    translateY.value = withSpring(0, { damping: 6, stiffness: 120 });
+    translateY.value = withSpring(0, { damping: 7, stiffness: 135 });
     scale.value = withSequence(
-      withTiming(1.18, { duration: 180, easing: Easing.out(Easing.quad) }),
-      withSpring(1, { damping: 7, stiffness: 120 }),
+      withTiming(1.16, { duration: 160, easing: Easing.out(Easing.quad) }),
+      withSpring(1, { damping: 7, stiffness: 130 }),
     );
   }, [diceResult, reduceMotion, rotation, scale, translateY]);
 
@@ -85,7 +135,7 @@ export function DicePanel({
       translateY.value = event.translationY;
     })
     .onEnd((event) => {
-      if (event.translationY < -45) {
+      if (event.translationY < -42) {
         runOnJS(onRollDice)();
       }
       translateX.value = reduceMotion ? 0 : withSpring(0);
@@ -110,8 +160,6 @@ export function DicePanel({
     [lastEvent, playerIds, ownPlayerId, players],
   );
 
-  const face = diceResult !== null ? DICE_FACES[diceResult] || "🎲" : "🎲";
-
   const eventBg =
     formattedEvent?.tone === "success"
       ? palette.primaryBg
@@ -129,6 +177,11 @@ export function DicePanel({
           ? palette.purpleBorder
           : palette.cardBorder;
 
+  const roundProgress =
+    typeof round === "number"
+      ? Math.max(0, Math.min(100, (round / Math.max(1, maxRounds)) * 100))
+      : 0;
+
   return (
     <DuoCard
       palette={palette}
@@ -137,33 +190,53 @@ export function DicePanel({
       style={isMyTurn ? { borderColor: palette.primaryBorder } : undefined}
     >
       <View style={styles.topRow}>
-        <Text
-          style={[
-            styles.turnIndicator,
-            { color: isMyTurn ? palette.primaryText : palette.textMuted },
-          ]}
-        >
-          {isMyTurn
-            ? "🎯 SUA VEZ DE JOGAR!"
-            : status === "paused"
-              ? "🚧 Obstáculo ativo — Quiz em andamento"
-              : status === "finished"
-                ? "🏆 Partida concluída"
-                : `⏳ Turno de ${currentPlayerName}`}
-        </Text>
-        {typeof round === "number" ? (
-          <View
+        <View style={styles.turnWrap}>
+          <Text
             style={[
-              styles.roundPill,
-              {
-                backgroundColor: palette.cardBg,
-                borderColor: palette.cardBorder,
-              },
+              styles.turnIndicator,
+              { color: isMyTurn ? palette.primaryText : palette.textMain },
             ]}
           >
-            <Text style={[styles.roundText, { color: palette.textMain }]}>
-              🏁 Rodada {round}/{maxRounds}
-            </Text>
+            {isMyTurn
+              ? "🎯 SUA VEZ DE JOGAR!"
+              : status === "paused"
+                ? "🚧 Obstáculo ativo — Quiz coletivo"
+                : status === "finished"
+                  ? "🏆 Partida concluída"
+                  : `⏳ Turno de ${currentPlayerName}`}
+          </Text>
+        </View>
+        {typeof round === "number" ? (
+          <View style={styles.roundCluster}>
+            <View
+              style={[
+                styles.roundPill,
+                {
+                  backgroundColor: palette.cardBg,
+                  borderColor: palette.cardBorder,
+                },
+              ]}
+            >
+              <Text style={[styles.roundText, { color: palette.textMain }]}>
+                🏁 Rodada {round}/{maxRounds}
+              </Text>
+            </View>
+            <View
+              style={[
+                styles.roundBarTrack,
+                { backgroundColor: palette.cardBorder },
+              ]}
+            >
+              <View
+                style={[
+                  styles.roundBarFill,
+                  {
+                    width: `${roundProgress}%`,
+                    backgroundColor: palette.secondary,
+                  },
+                ]}
+              />
+            </View>
           </View>
         ) : null}
       </View>
@@ -171,6 +244,12 @@ export function DicePanel({
       <View style={styles.diceRow}>
         <GestureDetector gesture={pan}>
           <Animated.View
+            accessible
+            accessibilityLabel={
+              diceResult !== null
+                ? `Dado mostrando face ${diceResult}`
+                : "Dado pronto para rolar"
+            }
             style={[
               styles.diceFace,
               {
@@ -182,9 +261,11 @@ export function DicePanel({
               diceAnimatedStyle,
             ]}
           >
-            <Text style={styles.diceEmoji} numberOfLines={1}>
-              {face}
-            </Text>
+            <TactileDieFace
+              value={diceResult}
+              isMyTurn={isMyTurn}
+              palette={palette}
+            />
           </Animated.View>
         </GestureDetector>
 
@@ -192,7 +273,7 @@ export function DicePanel({
           {isMyTurn ? (
             <DuoButton
               title="Rolar o Dado"
-              subtitle="Clique ou arraste o dado para cima"
+              subtitle="Clique no botão ou arraste o dado para cima"
               icon="🎲"
               variant="primary"
               size="lg"
@@ -250,10 +331,17 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 12,
   },
+  turnWrap: {
+    flexShrink: 1,
+  },
   turnIndicator: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "900",
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
+  },
+  roundCluster: {
+    alignItems: "flex-end",
+    gap: 4,
   },
   roundPill: {
     borderRadius: 999,
@@ -266,6 +354,16 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: 0.3,
   },
+  roundBarTrack: {
+    width: 104,
+    height: 6,
+    borderRadius: 999,
+    overflow: "hidden",
+  },
+  roundBarFill: {
+    height: "100%",
+    borderRadius: 999,
+  },
   diceRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -273,18 +371,38 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
   },
   diceFace: {
-    width: 82,
-    height: 82,
+    width: 80,
+    height: 80,
     borderRadius: 20,
-    borderWidth: 2,
+    borderWidth: 2.5,
     borderBottomWidth: 6,
+    padding: 10,
     alignItems: "center",
     justifyContent: "center",
   },
-  diceEmoji: {
-    fontSize: 52,
-    lineHeight: 58,
-    textAlign: "center",
+  dieEmptyInner: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dieEmptyIcon: {
+    fontSize: 40,
+  },
+  pipGrid: {
+    width: "100%",
+    height: "100%",
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+  pipCell: {
+    width: "33.33%",
+    height: "33.33%",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pipDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
   },
   actionSide: {
     flex: 1,
@@ -295,13 +413,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 2,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 9,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
   },
   eventIcon: {
-    fontSize: 16,
+    fontSize: 17,
   },
   eventText: {
     flex: 1,

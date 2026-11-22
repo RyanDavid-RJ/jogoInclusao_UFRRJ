@@ -2,7 +2,7 @@
 // "A Virada da Equidade" v2.0 — Pódio Duplo (Corrida + Destaque do Quiz),
 // indicadores observados e revanche instantânea com rotação de papéis.
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import Animated, {
   FadeInUp,
@@ -18,6 +18,7 @@ import {
   type PlayerProfile,
   type ThemePalette,
 } from "../../constants/duoTheme";
+import { playSound } from "../../utils/soundEffects";
 import {
   AvatarMedallion,
   DuoButton,
@@ -47,6 +48,10 @@ export function GameOverModal({
   palette,
 }: GameOverModalProps) {
   const reduceMotion = useReducedMotion();
+
+  useEffect(() => {
+    playSound("victory");
+  }, []);
   const playerIds = useMemo(
     () => playerProfiles.map((profile) => profile.playerId),
     [playerProfiles],

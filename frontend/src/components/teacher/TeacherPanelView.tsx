@@ -44,6 +44,12 @@ import {
   InfoPill,
   StatKpiCard,
 } from "../ui/DuoComponents";
+import {
+  DistractorBars,
+  EmpiricalMatrixHeatmap,
+  EquityComparisonChart,
+  StageDistributionBar,
+} from "./AnalyticsCharts";
 
 type TeacherTab = "analytics" | "questions" | "classes" | "users";
 
@@ -709,6 +715,38 @@ export function TeacherPanelView({
               />
             </View>
 
+            {/* Distribuição por Etapa */}
+            {overview && overview.porEtapa.length > 0 ? (
+              <DuoCard palette={palette} padding={14}>
+                <StageDistributionBar
+                  stages={overview.porEtapa}
+                  palette={palette}
+                />
+              </DuoCard>
+            ) : null}
+
+            {/* Gráfico Comparativo Visual de Equidade por Condição */}
+            <DuoCard palette={palette} padding={16}>
+              <Text style={[styles.sectionTitle, { color: palette.textMain }]}>
+                📊 Análise Visual de Equidade por Perspectiva
+              </Text>
+              <EquityComparisonChart
+                rows={equity?.porCondicao ?? []}
+                palette={palette}
+              />
+            </DuoCard>
+
+            {/* Heatmap Visual 4x4: Obstáculo × Condição */}
+            <DuoCard palette={palette} padding={16}>
+              <Text style={[styles.sectionTitle, { color: palette.textMain }]}>
+                🔥 Heatmap 4×4 — Matriz Obstáculo × Condição
+              </Text>
+              <EmpiricalMatrixHeatmap
+                rows={equity?.matrizEmpirica ?? []}
+                palette={palette}
+              />
+            </DuoCard>
+
             {/* Exportação Científica Anonimizada */}
             <DuoCard palette={palette} variant="purple" padding={16}>
               <Text style={[styles.sectionTitle, { color: palette.textMain }]}>
@@ -1334,28 +1372,11 @@ export function TeacherPanelView({
                     </View>
 
                     {perf && perf.total_aplicacoes > 0 ? (
-                      <View style={styles.pillGroup}>
-                        <InfoPill
-                          text={`Aplicações: ${perf.total_aplicacoes}`}
-                          tone="neutral"
-                          palette={palette}
-                        />
-                        <InfoPill
-                          text={`Facilidade p: ${formatPercent(perf.taxa_acerto_respondidas)}`}
-                          tone="primary"
-                          palette={palette}
-                        />
-                        <InfoPill
-                          text={`Tempo: ${formatSecondsFromMs(perf.tempo_medio_ms)}`}
-                          tone="secondary"
-                          palette={palette}
-                        />
-                        <InfoPill
-                          text={`Distratores A:${perf.escolhas_a} B:${perf.escolhas_b} C:${perf.escolhas_c} D:${perf.escolhas_d}`}
-                          tone="purple"
-                          palette={palette}
-                        />
-                      </View>
+                      <DistractorBars
+                        perf={perf}
+                        correctAnswer={q.resposta_correta}
+                        palette={palette}
+                      />
                     ) : null}
 
                     <View style={styles.itemActionsRow}>

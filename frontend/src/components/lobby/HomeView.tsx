@@ -58,6 +58,9 @@ export interface HomeViewProps {
   onJoinPublicRoom: () => void;
   onJoinPrivateRoom: () => void;
   onCreateRoom: (isPrivate: boolean, options?: CreateRoomOptions) => void;
+  pendingInviteCode?: string | null;
+  onJoinInvitedRoom?: (code: string) => void;
+  onDismissInvite?: () => void;
   palette: ThemePalette;
 }
 
@@ -103,6 +106,9 @@ export function HomeView({
   onJoinPublicRoom,
   onJoinPrivateRoom,
   onCreateRoom,
+  pendingInviteCode,
+  onJoinInvitedRoom,
+  onDismissInvite,
   palette,
 }: HomeViewProps) {
   const { width } = useWindowDimensions();
@@ -166,6 +172,53 @@ export function HomeView({
           convidam a refletir sobre inclusão real.
         </Text>
       </Animated.View>
+
+      {/* BANNER DE CONVITE DIRETO (?sala=XXXX / QR CODE) */}
+      {pendingInviteCode && onJoinInvitedRoom ? (
+        <View style={styles.inviteBannerWrap}>
+          <DuoCard palette={palette} variant="highlight" padding={16}>
+            <View style={styles.inviteRow}>
+              <View style={styles.inviteInfo}>
+                <InfoPill
+                  text="🎟️ Convite por Link / QR Code"
+                  tone="purple"
+                  palette={palette}
+                />
+                <Text style={[styles.inviteTitle, { color: palette.textMain }]}>
+                  Você foi convidado para a Sala {pendingInviteCode}
+                </Text>
+                <Text style={[styles.inviteSub, { color: palette.textMuted }]}>
+                  {canCreate
+                    ? `Pronto para entrar como ${trimmedName}!`
+                    : "Escolha seu avatar e digite um apelido (2–16 letras) abaixo para entrar."}
+                </Text>
+              </View>
+              <View style={styles.inviteActions}>
+                <DuoButton
+                  title={`Entrar na Sala ${pendingInviteCode}`}
+                  icon="🚀"
+                  variant="primary"
+                  size="md"
+                  fullWidth={false}
+                  disabled={!canCreate}
+                  onPress={() => onJoinInvitedRoom(pendingInviteCode)}
+                  palette={palette}
+                />
+                {onDismissInvite ? (
+                  <DuoButton
+                    title="Dispensar"
+                    variant="ghost"
+                    size="sm"
+                    fullWidth={false}
+                    onPress={onDismissInvite}
+                    palette={palette}
+                  />
+                ) : null}
+              </View>
+            </View>
+          </DuoCard>
+        </View>
+      ) : null}
 
       {/* GRID PRINCIPAL */}
       <Animated.View
@@ -650,6 +703,37 @@ const styles = StyleSheet.create({
     gap: 8,
     maxWidth: 760,
     paddingHorizontal: 8,
+  },
+  inviteBannerWrap: {
+    width: "100%",
+    maxWidth: 1080,
+  },
+  inviteRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  inviteInfo: {
+    flex: 1,
+    minWidth: 220,
+    alignItems: "flex-start",
+    gap: 4,
+  },
+  inviteTitle: {
+    fontSize: 16,
+    fontWeight: "900",
+  },
+  inviteSub: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  inviteActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
   },
   heroBadges: {
     flexDirection: "row",

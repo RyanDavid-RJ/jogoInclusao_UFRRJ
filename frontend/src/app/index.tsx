@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Platform, ScrollView, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -17,9 +17,52 @@ import {
   TopHeader,
   type AppSection,
 } from "../components/ui/DuoComponents";
+import { HowToPlayModal } from "../components/ui/HowToPlayModal";
 import { getThemePalette, type ThemeMode } from "../constants/duoTheme";
 import { useAuth } from "../hooks/useAuth";
 import { useGameSession } from "../hooks/useGameSession";
+import { playSound, setSoundMuted } from "../utils/soundEffects";
+
+const STORAGE_SOUND_KEY = "ludo_equidade_sound_v2";
+
+function readInitialInviteCode(): string | null {
+  if (Platform.OS !== "web" || typeof window === "undefined") {
+    return null;
+  }
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const raw = params.get("sala")?.trim().toUpperCase() ?? "";
+    return /^[A-Z0-9]{4}$/.test(raw) ? raw : null;
+  } catch {
+    return null;
+  }
+}
+
+function clearInviteQueryParam() {
+  if (Platform.OS !== "web" || typeof window === "undefined") {
+    return;
+  }
+  try {
+    const url = new URL(window.location.href);
+    if (url.searchParams.has("sala")) {
+      url.searchParams.delete("sala");
+      window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+    }
+  } catch {
+    // ignore history errors
+  }
+}
+
+function readInitialSoundEnabled(): boolean {
+  if (Platform.OS !== "web" || typeof window === "undefined") {
+    return true;
+  }
+  try {
+    return window.localStorage.getItem(STORAGE_SOUND_KEY) !== "0";
+  } catch {
+    return true;
+  }
+}
 
 export default function IndexScreen() {
   const { width } = useWindowDimensions();
@@ -28,6 +71,13 @@ export default function IndexScreen() {
 
   const [themeMode, setThemeMode] = useState<ThemeMode>("light");
   const [isDaltonico, setIsDaltonico] = useState(false);
+  const [isSoundEnabled, setIsSoundEnabled] = useState<boolean>(
+    readInitialSoundEnabled,
+  );
+  const [showHelp, setShowHelp] = useState(false);
+  const [pendingInviteCode, setPendingInviteCode] = useState<string | null>(
+    readInitialInviteCode,
+  );
   const [activeSection, setActiveSection] = useState<AppSection>("play");
   const palette = getThemePalette(themeMode, isDaltonico);
 
@@ -39,6 +89,9 @@ export default function IndexScreen() {
     preferredAvatar: auth.user?.avatarPadrao,
   });
 
+  const lastEventKeyRef = useRef<string>("");
+  const lastTurnIdRef = useRef<string | null>(null);
+
   // Sincroniza classes CSS no <body> na Web para padrão de fundo e anel de foco WCAG
   useEffect(() => {
     if (Platform.OS !== "web" || typeof document === "undefined") {
@@ -48,6 +101,61 @@ export default function IndexScreen() {
     document.body.classList.toggle("daltonico-mode", isDaltonico);
   }, [themeMode, isDaltonico]);
 
+  // Sincroniza mudo dos efeitos sonoros sintetizados
+  useEffect(() => {
+    setSoundMuted(!isSoundEnabled);
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      try {
+        window.localStorage.setItem(
+          STORAGE_SOUND_KEY,
+          isSoundEnabled ? "1" : "0",
+        );
+      } catch {
+        // ignore storage error
+      }
+    }
+  }, [isSoundEnabled]);
+
+  // Feedback sonoro sutil em eventos do tabuleiro
+  const lastEvent = session.gameState?.lastEvent ?? null;
+  useEffect(() => {
+    if (!lastEvent) return;
+    const key = `${lastEvent.round}-${lastEvent.playerId}-${lastEvent.type}-${lastEvent.toPosition}-${lastEvent.diceResult ?? "x"}`;
+    if (key === lastEventKeyRef.current) return;
+    lastEventKeyRef.current = key;
+
+    if (lastEvent.type === "obstacle") {
+      playSound("obstacle");
+    } else if (lastEvent.type === "bonus" || lastEvent.type === "quiz_bonus") {
+      playSound("boost");
+    } else if (lastEvent.type === "roll") {
+      playSound("dice");
+    }
+  }, [lastEvent]);
+
+  // Alerta sonoro suave quando chega a vez do jogador
+  const currentTurnPlayerId = session.gameState?.currentPlayerId ?? null;
+  const gameStatus = session.gameState?.status ?? null;
+  useEffect(() => {
+    if (
+      gameStatus === "active" &&
+      currentTurnPlayerId &&
+      currentTurnPlayerId === session.ownPlayerId &&
+      lastTurnIdRef.current !== currentTurnPlayerId
+    ) {
+      playSound("turn");
+    }
+    lastTurnIdRef.current = currentTurnPlayerId;
+  }, [currentTurnPlayerId, gameStatus, session.ownPlayerId]);
+
+  // Limpa ?sala=XXXX assim que o usuário entra na sala
+  useEffect(() => {
+    if (session.isInRoom && pendingInviteCode) {
+      setPendingInviteCode(null);
+      clearInviteQueryParam();
+    }
+  }, [session.isInRoom, pendingInviteCode]);
+
   // Recarrega /api/status e sessão Google salva assim que o servidor acorda (cold start no Render)
   const { refreshOnReconnect } = auth;
   useEffect(() => {
@@ -56,7 +164,6 @@ export default function IndexScreen() {
     }
   }, [session.isConnected, refreshOnReconnect]);
 
-  // Se o usuário entra em uma sala ou partida, volta automaticamente para a aba "Jogar"
   const effectiveSection: AppSection =
     session.isInRoom || session.gameState
       ? "play"
@@ -85,6 +192,15 @@ export default function IndexScreen() {
     }
     setActiveSection("play");
     session.createRoom(false, { turmaCodigo });
+  };
+
+  const handleJoinInvitedRoom = (code: string) => {
+    session.joinRoom(code);
+  };
+
+  const handleDismissInvite = () => {
+    setPendingInviteCode(null);
+    clearInviteQueryParam();
   };
 
   const gameContent = session.gameState ? (
@@ -132,6 +248,7 @@ export default function IndexScreen() {
           positions={session.gameState.positions}
           ownPlayerId={session.ownPlayerId}
           currentPlayerId={session.gameState.currentPlayerId}
+          lastEvent={session.gameState.lastEvent}
           playerProfiles={session.players}
           palette={palette}
         />
@@ -158,10 +275,13 @@ export default function IndexScreen() {
         isTeacherAccess={auth.isTeacherAccess}
         themeMode={themeMode}
         isDaltonico={isDaltonico}
+        isSoundEnabled={isSoundEnabled}
         onToggleTheme={() =>
           setThemeMode((mode) => (mode === "light" ? "dark" : "light"))
         }
         onToggleDaltonico={() => setIsDaltonico((value) => !value)}
+        onToggleSound={() => setIsSoundEnabled((value) => !value)}
+        onOpenHelp={() => setShowHelp(true)}
         palette={palette}
       />
 
@@ -230,6 +350,9 @@ export default function IndexScreen() {
           onJoinPublicRoom={session.openPublicRooms}
           onJoinPrivateRoom={session.openPrivateJoin}
           onCreateRoom={session.createRoom}
+          pendingInviteCode={pendingInviteCode}
+          onJoinInvitedRoom={handleJoinInvitedRoom}
+          onDismissInvite={handleDismissInvite}
           palette={palette}
         />
       ) : !session.gameState ? (
@@ -293,6 +416,12 @@ export default function IndexScreen() {
           ) : null}
         </View>
       )}
+
+      <HowToPlayModal
+        visible={showHelp}
+        onClose={() => setShowHelp(false)}
+        palette={palette}
+      />
     </View>
   );
 }

@@ -1,8 +1,8 @@
 // frontend/src/components/lobby/RoomsView.tsx
 // Salas públicas, entrada por código e sala de espera v2.0 com configurações do anfitrião.
 
-import { useEffect, useRef, useState } from "react";
-import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import Animated, { FadeIn, useReducedMotion } from "react-native-reanimated";
 
 import {
@@ -22,6 +22,7 @@ import {
   DuoCard,
   InfoPill,
 } from "../ui/DuoComponents";
+import { RoomQrCode } from "../ui/RoomQrCode";
 
 export interface RoomsViewProps {
   viewState: "public_list" | "private_join" | "waiting_room";
@@ -75,44 +76,58 @@ export function RoomsView({
   const [classCodeInput, setClassCodeInput] = useState(turmaCodigo ?? "");
   const [confirmingClose, setConfirmingClose] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
-  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [showQrCode, setShowQrCode] = useState(false);
+
+  const inviteUrl = useMemo(() => {
+    if (!roomCode) return "";
+    const base =
+      Platform.OS === "web" &&
+      typeof window !== "undefined" &&
+      window.location?.origin
+        ? window.location.origin
+        : "https://jogoinclusaoufrrj.vercel.app";
+    return `${base}/?sala=${encodeURIComponent(roomCode)}`;
+  }, [roomCode]);
 
   useEffect(() => {
     setClassCodeInput(turmaCodigo ?? "");
   }, [turmaCodigo]);
 
   useEffect(() => {
-    return () => {
-      if (copyTimerRef.current) {
-        clearTimeout(copyTimerRef.current);
-      }
-    };
-  }, []);
+    if (!copiedCode) return;
+    const timer = setTimeout(() => setCopiedCode(false), 2200);
+    return () => clearTimeout(timer);
+  }, [copiedCode]);
 
-  const handleCopyCode = () => {
+  useEffect(() => {
+    if (!copiedLink) return;
+    const timer = setTimeout(() => setCopiedLink(false), 2200);
+    return () => clearTimeout(timer);
+  }, [copiedLink]);
+
+  const copyToClipboard = (text: string, onCopied: () => void) => {
     const clipboard = (
       globalThis as {
         navigator?: {
-          clipboard?: { writeText?: (text: string) => Promise<void> };
+          clipboard?: { writeText?: (value: string) => Promise<void> };
         };
       }
     ).navigator?.clipboard;
-    if (!roomCode || typeof clipboard?.writeText !== "function") {
+    if (!text || typeof clipboard?.writeText !== "function") {
       return;
     }
     void clipboard
-      .writeText(roomCode)
+      .writeText(text)
       .then(() => {
-        setCopiedCode(true);
-        if (copyTimerRef.current) {
-          clearTimeout(copyTimerRef.current);
-        }
-        copyTimerRef.current = setTimeout(() => {
-          setCopiedCode(false);
-        }, 2000);
+        onCopied();
       })
       .catch(() => {});
   };
+
+  const handleCopyCode = () => copyToClipboard(roomCode, () => setCopiedCode(true));
+
+  const handleCopyLink = () => copyToClipboard(inviteUrl, () => setCopiedLink(true));
 
   const isHost = ownPlayerId === hostId;
   const missingPlayers = Math.max(0, 4 - players.length);
@@ -306,16 +321,78 @@ export function RoomsView({
               <Text style={[styles.codeHero, { color: palette.textMain }]}>
                 {roomCode}
               </Text>
-              <DuoButton
-                title={copiedCode ? "Código copiado!" : "Copiar código"}
-                icon={copiedCode ? "✅" : "📋"}
-                variant={copiedCode ? "primary" : "ghost"}
-                size="sm"
-                fullWidth={false}
-                onPress={handleCopyCode}
-                palette={palette}
-                accessibilityLabel={`Copiar código da sala ${roomCode}`}
-              />
+              <View style={styles.inviteButtonsRow}>
+                <DuoButton
+                  title={copiedCode ? "Código copiado!" : "Copiar código"}
+                  icon={copiedCode ? "✅" : "📋"}
+                  variant={copiedCode ? "primary" : "ghost"}
+                  size="sm"
+                  fullWidth={false}
+                  onPress={handleCopyCode}
+                  palette={palette}
+                  accessibilityLabel={`Copiar código da sala ${roomCode}`}
+                />
+                <DuoButton
+                  title={copiedLink ? "Link copiado!" : "Copiar link"}
+                  icon={copiedLink ? "✅" : "🔗"}
+                  variant={copiedLink ? "primary" : "secondary"}
+                  size="sm"
+                  fullWidth={false}
+                  onPress={handleCopyLink}
+                  palette={palette}
+                  accessibilityLabel="Copiar link direto de convite da sala"
+                />
+                <DuoButton
+                  title={showQrCode ? "Ocultar QR" : "QR Code"}
+                  icon="📱"
+                  variant={showQrCode ? "purple" : "ghost"}
+                  size="sm"
+                  fullWidth={false}
+                  onPress={() => setShowQrCode((v) => !v)}
+                  palette={palette}
+                  accessibilityLabel="Mostrar ou ocultar QR Code de convite"
+                />
+              </View>
+              {showQrCode && inviteUrl ? (
+                <View style={styles.qrWrap}>
+                  <RoomQrCode
+                    value={inviteUrl}
+                    caption={`Aponte a câmera do celular para entrar direto na Sala ${roomCode}`}
+                    palette={palette}
+                  />
+                </View>
+              ) : null}
+            </View>
+
+            {/* Barra de prontidão da sala */}
+            <View style={styles.readinessWrap}>
+              <View style={styles.readinessLabelRow}>
+                <Text style={[styles.readinessText, { color: palette.textMuted }]}>
+                  {players.length >= 4
+                    ? "✅ Quórum atingido — pronto para jogar!"
+                    : `👥 Faltam ${missingPlayers} jogador(es) para o mínimo de 4`}
+                </Text>
+                <Text style={[styles.readinessCount, { color: palette.textMain }]}>
+                  {players.length}/8
+                </Text>
+              </View>
+              <View
+                style={[
+                  styles.readinessTrack,
+                  { backgroundColor: palette.cardBorder },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.readinessFill,
+                    {
+                      width: `${Math.min(100, (players.length / 4) * 100)}%`,
+                      backgroundColor:
+                        players.length >= 4 ? palette.primary : palette.secondary,
+                    },
+                  ]}
+                />
+              </View>
             </View>
 
             <View style={styles.roomMetaRow}>
@@ -671,8 +748,45 @@ const styles = StyleSheet.create({
   },
   waitingHeader: {
     alignItems: "center",
-    gap: 6,
+    gap: 8,
     marginBottom: 14,
+  },
+  inviteButtonsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 8,
+  },
+  qrWrap: {
+    marginTop: 8,
+    alignItems: "center",
+  },
+  readinessWrap: {
+    gap: 5,
+    marginBottom: 14,
+  },
+  readinessLabelRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+  },
+  readinessText: {
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  readinessCount: {
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  readinessTrack: {
+    height: 8,
+    borderRadius: 999,
+    overflow: "hidden",
+  },
+  readinessFill: {
+    height: "100%",
+    borderRadius: 999,
   },
   codeLabel: {
     fontSize: 11,
