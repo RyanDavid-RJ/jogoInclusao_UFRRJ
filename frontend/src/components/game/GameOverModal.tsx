@@ -104,7 +104,21 @@ export function GameOverModal({
   }, [reveal]);
 
   const isHost = ownPlayerId === hostId;
-  const canRematch = isHost && playerProfiles.length >= 4;
+  const isAbandoned = gameOver.reason === "abandoned";
+  const canRematch = isHost && !isAbandoned && playerProfiles.length >= 4;
+
+  const CONFETTI_DOTS = [
+    "#58CC02",
+    "#1CB0F6",
+    "#FFC800",
+    "#A559D9",
+    "#FF4B4B",
+    "#00CD9C",
+    "#FF9600",
+    "#1CB0F6",
+    "#58CC02",
+    "#FFC800",
+  ];
 
   return (
     <View style={styles.overlay} accessibilityViewIsModal>
@@ -114,7 +128,29 @@ export function GameOverModal({
       >
         <View style={styles.mainWrap}>
           <DuoCard palette={palette} variant="default" padding={20}>
-            {/* PÓDIO DUPLO: CORRIDA + DESTAQUE DO QUIZ */}
+            {!isAbandoned ? (
+              <Animated.View
+                entering={reduceMotion ? undefined : SlideInDown.duration(360)}
+                style={styles.confettiRibbon}
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+              >
+                {CONFETTI_DOTS.map((color, idx) => (
+                  <View
+                    key={`conf-${idx}`}
+                    style={[
+                      styles.confettiDot,
+                      {
+                        backgroundColor: color,
+                        marginTop: idx % 2 === 0 ? 0 : 6,
+                      },
+                    ]}
+                  />
+                ))}
+              </Animated.View>
+            ) : null}
+
+            {/* PÓDIO DUPLO (OU ENCERRAMENTO POR ABANDONO) */}
             <Animated.View
               entering={reduceMotion ? undefined : SlideInDown.springify()}
               style={styles.podiumRow}
@@ -123,35 +159,47 @@ export function GameOverModal({
                 style={[
                   styles.podiumCard,
                   {
-                    backgroundColor: palette.warningBg,
-                    borderColor: palette.warningBorder,
+                    backgroundColor: isAbandoned
+                      ? palette.surfaceAlt
+                      : palette.warningBg,
+                    borderColor: isAbandoned
+                      ? palette.cardBorder
+                      : palette.warningBorder,
                   },
                 ]}
               >
-                <Text style={styles.podiumEmoji}>🏆</Text>
+                <Text style={styles.podiumEmoji}>
+                  {isAbandoned ? "🚪" : "🏆"}
+                </Text>
                 <Text
                   style={[styles.podiumTitle, { color: palette.textMain }]}
                 >
-                  {winnerNames.length > 1
-                    ? "Vencedores da Corrida"
-                    : "Vencedor da Corrida"}
+                  {isAbandoned
+                    ? "Partida Encerrada"
+                    : winnerNames.length > 1
+                      ? "Vencedores da Corrida"
+                      : "Vencedor da Corrida"}
                 </Text>
                 <Text
                   style={[styles.podiumNames, { color: palette.textMain }]}
                   numberOfLines={3}
                 >
-                  {winnerNames.length > 0
-                    ? winnerNames.join(" • ")
-                    : "Nenhum vencedor registrado"}
+                  {isAbandoned
+                    ? "Os demais participantes saíram da sala"
+                    : winnerNames.length > 0
+                      ? winnerNames.join(" • ")
+                      : "Nenhum vencedor registrado"}
                 </Text>
                 <Text style={[styles.podiumMeta, { color: palette.textMuted }]}>
-                  {gameOver.reason === "finish"
-                    ? "Chegou à casa 30"
-                    : "Critério de desempate ao final das rodadas"}
+                  {isAbandoned
+                    ? "Esta partida foi encerrada automaticamente para que você não fique sozinho."
+                    : gameOver.reason === "finish"
+                      ? "Chegou à casa 30"
+                      : "Critério de desempate ao final das rodadas"}
                 </Text>
               </View>
 
-              {quizHighlightNames.length > 0 ? (
+              {!isAbandoned && quizHighlightNames.length > 0 ? (
                 <View
                   style={[
                     styles.podiumCard,
@@ -235,7 +283,14 @@ export function GameOverModal({
                           {playerLabel}
                         </Text>
                         <View style={styles.badgesWrap}>
-                          {isWinner ? (
+                          {item.disconnected ? (
+                            <InfoPill
+                              text="📡 Saiu da sala"
+                              tone="danger"
+                              palette={palette}
+                            />
+                          ) : null}
+                          {!isAbandoned && isWinner ? (
                             <InfoPill
                               text="🏆 Corrida"
                               tone="warning"
@@ -324,6 +379,23 @@ export function GameOverModal({
                           text={`⭐ ${item.quizPoints} pts`}
                           tone="warning"
                           palette={palette}
+                        />
+                      </View>
+
+                      <View
+                        style={[
+                          styles.revealProgressTrack,
+                          { backgroundColor: palette.cardBorder },
+                        ]}
+                      >
+                        <View
+                          style={[
+                            styles.revealProgressFill,
+                            {
+                              width: `${Math.min(100, Math.max(0, (item.position / FINISH_HOUSE) * 100))}%`,
+                              backgroundColor: conditionMeta.color,
+                            },
+                          ]}
                         />
                       </View>
 
@@ -564,6 +636,27 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 640,
     gap: 14,
+  },
+  confettiRibbon: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    marginBottom: 10,
+  },
+  confettiDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  revealProgressTrack: {
+    height: 8,
+    borderRadius: 999,
+    overflow: "hidden",
+  },
+  revealProgressFill: {
+    height: "100%",
+    borderRadius: 999,
   },
   podiumRow: {
     flexDirection: "row",

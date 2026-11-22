@@ -2,18 +2,20 @@
 // Painel lateral responsivo v2.1 com ranking ao vivo (#1/#2/#3), destaque do turno
 // e botão "Ocultar papel" para privacidade em laboratório/projeção.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import {
   getConditionMeta,
   type PlayerProfile,
+  type ReconnectingPlayer,
   type ThemePalette,
 } from "../../constants/duoTheme";
 import { AvatarMedallion, DuoCard, InfoPill } from "../ui/DuoComponents";
 
 export interface PlayersSidebarProps {
   players: PlayerProfile[];
+  reconnectingPlayers?: ReconnectingPlayer[];
   positions: Record<string, number>;
   quizPoints: Record<string, number>;
   myCondition: string | null;
@@ -28,6 +30,7 @@ const RANK_MEDALS = ["🥇", "🥈", "🥉"];
 
 export function PlayersSidebar({
   players,
+  reconnectingPlayers = [],
   positions,
   quizPoints,
   myCondition,
@@ -37,6 +40,14 @@ export function PlayersSidebar({
   scrollable = true,
 }: PlayersSidebarProps) {
   const [hideRole, setHideRole] = useState(false);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (reconnectingPlayers.length === 0) return;
+    setNowMs(Date.now());
+    const timer = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [reconnectingPlayers.length]);
 
   const hasCondition =
     myCondition !== null && myCondition.trim().length > 0;
@@ -275,6 +286,77 @@ export function PlayersSidebar({
                 </View>
               );
             })}
+
+            {reconnectingPlayers.map((player) => {
+              const secLeft = player.reconnectDeadlineAt
+                ? Math.max(
+                    0,
+                    Math.ceil((player.reconnectDeadlineAt - nowMs) / 1000),
+                  )
+                : null;
+              return (
+                <View
+                  key={`reconn-${player.playerId}`}
+                  style={[
+                    styles.playerRow,
+                    {
+                      backgroundColor: palette.warningBg,
+                      borderColor: palette.warningBorder,
+                      opacity: 0.88,
+                    },
+                  ]}
+                >
+                  <AvatarMedallion
+                    avatarId={player.avatarId}
+                    size="sm"
+                    palette={palette}
+                  />
+                  <View style={styles.playerMain}>
+                    <View style={styles.playerTopRow}>
+                      <Text
+                        style={[styles.playerName, { color: palette.textMain }]}
+                        numberOfLines={1}
+                      >
+                        {player.name}
+                      </Text>
+                      <InfoPill
+                        text={
+                          secLeft !== null
+                            ? `📡 ${secLeft}s`
+                            : "📡 Reconectando"
+                        }
+                        tone="warning"
+                        palette={palette}
+                      />
+                    </View>
+                    <Text
+                      style={[styles.reconnSub, { color: palette.textMuted }]}
+                    >
+                      Conexão oscilou — aguardando retorno à sala...
+                    </Text>
+                  </View>
+                </View>
+              );
+            })}
+
+            {players.length <= 1 && reconnectingPlayers.length > 0 ? (
+              <View
+                style={[
+                  styles.soloNotice,
+                  {
+                    backgroundColor: palette.dangerBg,
+                    borderColor: palette.dangerBorder,
+                  },
+                ]}
+              >
+                <Text
+                  style={[styles.soloNoticeText, { color: palette.textMain }]}
+                >
+                  ⚠️ Demais jogadores desconectados. A partida encerrará
+                  automaticamente se ninguém retornar — ou use 🚪 Sair no topo.
+                </Text>
+              </View>
+            ) : null}
           </View>
         )}
       </DuoCard>
@@ -435,5 +517,19 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: 10,
     fontWeight: "900",
+  },
+  reconnSub: {
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  soloNotice: {
+    borderRadius: 12,
+    borderWidth: 2,
+    padding: 10,
+  },
+  soloNoticeText: {
+    fontSize: 11,
+    fontWeight: "800",
+    lineHeight: 16,
   },
 });

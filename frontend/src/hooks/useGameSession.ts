@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { AppState } from "react-native";
+import { AppState, Platform } from "react-native";
 import { io, Socket } from "socket.io-client";
 
 import type {
@@ -15,11 +15,63 @@ import type {
   QuizQuestion,
   QuizResult,
   QuizRoundEnded,
+  ReconnectingPlayer,
   SchoolStage,
 } from "../constants/duoTheme";
 import { SERVER_URL } from "../services/apiClient";
 
 export type ViewState = "home" | "public_list" | "private_join" | "waiting_room";
+
+const SESSION_STORAGE_KEY = "ludo_equidade_active_room_v2";
+
+type PersistedRoomSession = {
+  roomCode: string;
+  sessionToken: string;
+  playerName?: string;
+  avatarId?: string;
+};
+
+function readPersistedRoomSession(): PersistedRoomSession | null {
+  if (Platform.OS !== "web" || typeof window === "undefined") {
+    return null;
+  }
+  try {
+    const raw = window.sessionStorage.getItem(SESSION_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<PersistedRoomSession>;
+    if (
+      typeof parsed?.roomCode === "string" &&
+      parsed.roomCode.length === 4 &&
+      typeof parsed?.sessionToken === "string" &&
+      parsed.sessionToken.length >= 16
+    ) {
+      return {
+        roomCode: parsed.roomCode.toUpperCase(),
+        sessionToken: parsed.sessionToken,
+        playerName: typeof parsed.playerName === "string" ? parsed.playerName : undefined,
+        avatarId: typeof parsed.avatarId === "string" ? parsed.avatarId : undefined,
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function writePersistedRoomSession(data: PersistedRoomSession | null) {
+  if (Platform.OS !== "web" || typeof window === "undefined") {
+    return;
+  }
+  try {
+    if (!data) {
+      window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
+    } else {
+      window.sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(data));
+    }
+  } catch {
+    // ignore private browsing quota errors
+  }
+}
 
 type RoomEvent = {
   roomCode: string;
@@ -33,6 +85,7 @@ type RoomEvent = {
   condition?: string | null;
   started?: boolean;
   players?: PlayerProfile[];
+  reconnectingPlayers?: ReconnectingPlayer[];
 };
 
 export interface UseGameSessionOptions {
@@ -50,7 +103,7 @@ export interface CreateRoomOptions {
 
 const createSessionToken = () =>
   globalThis.crypto?.randomUUID?.() ??
-  `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
 
 export function useGameSession(options: UseGameSessionOptions = {}) {
   const {
@@ -60,14 +113,23 @@ export function useGameSession(options: UseGameSessionOptions = {}) {
     preferredAvatar,
   } = options;
 
+  const initialPersistedRef = useRef<PersistedRoomSession | null>(
+    readPersistedRoomSession(),
+  );
   const socketRef = useRef<Socket | null>(null);
   const quizLockRef = useRef(false);
-  const roomCodeRef = useRef("");
-  const sessionTokenRef = useRef<string>(createSessionToken());
+  const roomCodeRef = useRef(initialPersistedRef.current?.roomCode ?? "");
+  const sessionTokenRef = useRef<string>(
+    initialPersistedRef.current?.sessionToken ?? createSessionToken(),
+  );
   const resumeRequestedRef = useRef(false);
   const authTokenRef = useRef<string | null>(authToken);
   const consentResearchRef = useRef<boolean>(consentResearch);
-  const userEditedProfileRef = useRef(false);
+  const userEditedProfileRef = useRef(
+    Boolean(initialPersistedRef.current?.playerName),
+  );
+  const playerNameRef = useRef(initialPersistedRef.current?.playerName ?? "");
+  const avatarIdRef = useRef(initialPersistedRef.current?.avatarId ?? "coelho");
 
   const [isLoaded, setIsLoaded] = useState(false);
   const [connectionWaitTime, setConnectionWaitTime] = useState(0);
@@ -78,9 +140,16 @@ export function useGameSession(options: UseGameSessionOptions = {}) {
   const [viewState, setViewState] = useState<ViewState>("home");
   const [roomCode, setRoomCode] = useState("");
   const [isPrivateRoom, setIsPrivateRoom] = useState(false);
-  const [playerName, setPlayerNameState] = useState("");
-  const [avatarId, setAvatarIdState] = useState("coelho");
+  const [playerName, setPlayerNameState] = useState(
+    () => readPersistedRoomSession()?.playerName ?? "",
+  );
+  const [avatarId, setAvatarIdState] = useState(
+    () => readPersistedRoomSession()?.avatarId ?? "coelho",
+  );
   const [players, setPlayers] = useState<PlayerProfile[]>([]);
+  const [reconnectingPlayers, setReconnectingPlayers] = useState<
+    ReconnectingPlayer[]
+  >([]);
   const [hostId, setHostId] = useState("");
   const [schoolStage, setSchoolStage] = useState<SchoolStage | null>(null);
   const [quizDurationSec, setQuizDurationSec] = useState<QuizDurationSec>(30);
@@ -108,23 +177,28 @@ export function useGameSession(options: UseGameSessionOptions = {}) {
 
   useEffect(() => {
     if (!userEditedProfileRef.current && preferredName) {
-      setPlayerNameState(preferredName.slice(0, 16));
+      const next = preferredName.slice(0, 16);
+      playerNameRef.current = next;
+      setPlayerNameState(next);
     }
   }, [preferredName]);
 
   useEffect(() => {
     if (!userEditedProfileRef.current && preferredAvatar) {
+      avatarIdRef.current = preferredAvatar;
       setAvatarIdState(preferredAvatar);
     }
   }, [preferredAvatar]);
 
   const setPlayerName = (name: string) => {
     userEditedProfileRef.current = true;
+    playerNameRef.current = name;
     setPlayerNameState(name);
   };
 
   const setAvatarId = (id: string) => {
     userEditedProfileRef.current = true;
+    avatarIdRef.current = id;
     setAvatarIdState(id);
   };
 
@@ -149,6 +223,15 @@ export function useGameSession(options: UseGameSessionOptions = {}) {
     });
     socketRef.current = socket;
 
+    const persistCurrentRoom = (code: string, token: string) => {
+      writePersistedRoomSession({
+        roomCode: code,
+        sessionToken: token,
+        playerName: playerNameRef.current || undefined,
+        avatarId: avatarIdRef.current || undefined,
+      });
+    };
+
     const clearGame = () => {
       setMyCondition(null);
       setGameState(null);
@@ -158,12 +241,14 @@ export function useGameSession(options: UseGameSessionOptions = {}) {
       setQuizResult(null);
       setQuizError(null);
       setFastestCorrectPlayerId(null);
+      setReconnectingPlayers([]);
       quizLockRef.current = false;
     };
 
     const clearRoom = () => {
       resumeRequestedRef.current = false;
       roomCodeRef.current = "";
+      writePersistedRoomSession(null);
       setIsInRoom(false);
       setViewState("home");
       setRoomCode("");
@@ -178,7 +263,11 @@ export function useGameSession(options: UseGameSessionOptions = {}) {
     };
 
     const applyRoomSettings = (data: RoomEvent) => {
-      if (data.quizDurationSec === 30 || data.quizDurationSec === 45 || data.quizDurationSec === 60) {
+      if (
+        data.quizDurationSec === 30 ||
+        data.quizDurationSec === 45 ||
+        data.quizDurationSec === 60
+      ) {
         setQuizDurationSec(data.quizDurationSec);
       }
       if (data.maxRounds === 6 || data.maxRounds === 8) {
@@ -186,6 +275,9 @@ export function useGameSession(options: UseGameSessionOptions = {}) {
       }
       if (data.turmaCodigo !== undefined) {
         setTurmaCodigo(data.turmaCodigo ?? null);
+      }
+      if (Array.isArray(data.reconnectingPlayers)) {
+        setReconnectingPlayers(data.reconnectingPlayers);
       }
     };
 
@@ -207,7 +299,7 @@ export function useGameSession(options: UseGameSessionOptions = {}) {
       setIsConnected(false);
       setErrorMessage(
         roomCodeRef.current
-          ? "Conexão perdida. Tentando retomar sua sessão..."
+          ? "Conexão perdida. Tentando retomar sua sessão automaticamente..."
           : "Conexão perdida com o servidor. Tentando reconectar...",
       );
     });
@@ -236,6 +328,7 @@ export function useGameSession(options: UseGameSessionOptions = {}) {
       setViewState("waiting_room");
       roomCodeRef.current = data.roomCode;
       if (data.sessionToken) sessionTokenRef.current = data.sessionToken;
+      persistCurrentRoom(data.roomCode, sessionTokenRef.current);
       setRoomCode(data.roomCode);
       setIsPrivateRoom(data.isPrivate === true);
       setHostId(data.hostId);
@@ -249,6 +342,7 @@ export function useGameSession(options: UseGameSessionOptions = {}) {
       setViewState("waiting_room");
       roomCodeRef.current = data.roomCode;
       if (data.sessionToken) sessionTokenRef.current = data.sessionToken;
+      persistCurrentRoom(data.roomCode, sessionTokenRef.current);
       setRoomCode(data.roomCode);
       setIsPrivateRoom(data.isPrivate === true);
       setHostId(data.hostId);
@@ -262,6 +356,7 @@ export function useGameSession(options: UseGameSessionOptions = {}) {
       setIsInRoom(true);
       setViewState("waiting_room");
       roomCodeRef.current = data.roomCode;
+      persistCurrentRoom(data.roomCode, sessionTokenRef.current);
       setRoomCode(data.roomCode);
       if (typeof data.isPrivate === "boolean") setIsPrivateRoom(data.isPrivate);
       setHostId(data.hostId);
@@ -287,8 +382,17 @@ export function useGameSession(options: UseGameSessionOptions = {}) {
       setErrorMessage("A sala foi encerrada pelo anfitrião.");
     });
     socket.on("room_error", ({ message }: { message: string }) => {
-      if (resumeRequestedRef.current) {
+      const wasResumeAttempt = resumeRequestedRef.current;
+      if (wasResumeAttempt) {
         clearRoom();
+        // Se foi tentativa silenciosa de retomar após F5 de uma sala já expirada, não assusta o usuário
+        if (!initialPersistedRef.current) {
+          setErrorMessage(
+            message || "Não foi possível retomar a sessão anterior.",
+          );
+        }
+        initialPersistedRef.current = null;
+        return;
       }
       setErrorMessage(
         message || "Não foi possível concluir a operação da sala.",
@@ -302,7 +406,11 @@ export function useGameSession(options: UseGameSessionOptions = {}) {
       setQuizResult(null);
       setQuizError(null);
       setFastestCorrectPlayerId(null);
+      setReconnectingPlayers([]);
       quizLockRef.current = false;
+      if (roomCodeRef.current) {
+        persistCurrentRoom(roomCodeRef.current, sessionTokenRef.current);
+      }
     });
     socket.on("game_state_updated", (state: PublicGameState) => {
       setGameState(state);
@@ -341,6 +449,8 @@ export function useGameSession(options: UseGameSessionOptions = {}) {
       setQuizQuestion(null);
       setQuizResult(null);
       setQuizError(null);
+      setReconnectingPlayers([]);
+      writePersistedRoomSession(null);
       quizLockRef.current = true;
       setGameOver(result);
     });
@@ -350,11 +460,14 @@ export function useGameSession(options: UseGameSessionOptions = {}) {
     };
   }, []);
 
-  // Re-authenticate socket handshake smoothly when user signs in/out while outside a room
   useEffect(() => {
     const previousToken = authTokenRef.current;
     authTokenRef.current = authToken;
-    if (previousToken !== authToken && !roomCodeRef.current && socketRef.current) {
+    if (
+      previousToken !== authToken &&
+      !roomCodeRef.current &&
+      socketRef.current
+    ) {
       socketRef.current.disconnect();
       socketRef.current.connect();
     }
@@ -395,6 +508,7 @@ export function useGameSession(options: UseGameSessionOptions = {}) {
     }
     resumeRequestedRef.current = false;
     roomCodeRef.current = "";
+    writePersistedRoomSession(null);
     quizLockRef.current = false;
     setIsInRoom(false);
     setViewState("home");
@@ -406,6 +520,7 @@ export function useGameSession(options: UseGameSessionOptions = {}) {
     setMaxRounds(8);
     setTurmaCodigo(null);
     setPlayers([]);
+    setReconnectingPlayers([]);
     setErrorMessage("");
     setMyCondition(null);
     setGameState(null);
@@ -528,6 +643,7 @@ export function useGameSession(options: UseGameSessionOptions = {}) {
     avatarId,
     setAvatarId,
     players,
+    reconnectingPlayers,
     hostId,
     schoolStage,
     quizDurationSec,

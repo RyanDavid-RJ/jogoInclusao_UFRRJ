@@ -5,6 +5,7 @@ const {
   applyQuizBonusMove,
   completeObstaclePause,
   createGameState,
+  finishByAbandonment,
   getPublicGameState,
   recordQuizOutcome,
   rollDice,
@@ -238,4 +239,16 @@ test("supports configurable 6-round quick matches", () => {
   assert.equal(gameState.round, 6);
   assert.equal(gameState.status, "finished");
   assert.equal(gameState.endReason, "round_limit");
+});
+
+test("finishByAbandonment ends the game cleanly for the sole remaining player", () => {
+  const gameState = createState();
+  gameState.turnOrder = ["p1"];
+  gameState.quizPoints = { p1: 5 };
+  assert.equal(finishByAbandonment(gameState), true);
+  assert.equal(gameState.status, "finished");
+  assert.equal(gameState.endReason, "abandoned");
+  assert.deepEqual(gameState.winners, ["p1"]);
+  assert.deepEqual(gameState.quizHighlights, ["p1"]);
+  assert.equal(finishByAbandonment(gameState), false);
 });

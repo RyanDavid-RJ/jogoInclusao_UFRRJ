@@ -13,9 +13,16 @@ import {
   View,
 } from "react-native";
 import Animated, {
+  Easing,
   FadeInDown,
   FadeOutDown,
+  cancelAnimation,
+  useAnimatedStyle,
   useReducedMotion,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
 } from "react-native-reanimated";
 
 import {
@@ -56,13 +63,36 @@ export function QuizModal({
   const reduceMotion = useReducedMotion();
   const [selectedAnswer, setSelectedAnswer] = useState<QuizAnswer | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const timerPulse = useSharedValue(1);
 
   const activeQuizId = question?.quizId ?? null;
+  const isUrgent = Boolean(question && !result && !error && remainingSeconds > 0 && remainingSeconds <= 5);
 
   useEffect(() => {
     setSelectedAnswer(null);
     setIsSubmitting(false);
   }, [activeQuizId]);
+
+  useEffect(() => {
+    if (!isUrgent || reduceMotion) {
+      cancelAnimation(timerPulse);
+      timerPulse.value = 1;
+      return;
+    }
+    timerPulse.value = withRepeat(
+      withSequence(
+        withTiming(1.12, { duration: 260, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 260, easing: Easing.inOut(Easing.ease) }),
+      ),
+      -1,
+      true,
+    );
+    return () => cancelAnimation(timerPulse);
+  }, [isUrgent, reduceMotion, timerPulse]);
+
+  const timerAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: timerPulse.value }],
+  }));
 
   useEffect(() => {
     if (!result) return;
@@ -195,7 +225,7 @@ export function QuizModal({
                     tone="purple"
                     palette={palette}
                   />
-                  <Text
+                  <Animated.Text
                     style={[
                       styles.timerLabel,
                       {
@@ -204,10 +234,11 @@ export function QuizModal({
                             ? palette.danger
                             : palette.textMain,
                       },
+                      timerAnimatedStyle,
                     ]}
                   >
                     ⏱️ {clampedSeconds}s / {totalSeconds}s
-                  </Text>
+                  </Animated.Text>
                 </View>
 
                 <View

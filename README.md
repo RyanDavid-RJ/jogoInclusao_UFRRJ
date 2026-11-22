@@ -4,20 +4,19 @@ Jogo multiplayer de tabuleiro educativo sobre inclusão, acessibilidade e
 matemática, desenvolvido com Expo/React Native no frontend e Node.js, Express,
 Socket.IO e MySQL no backend.
 
-## Funcionalidades (v2.0 — ICE • UFRRJ)
+## Funcionalidades (v2.1 — ICE • UFRRJ)
 
-- **Lobby e Configurações da Partida:** salas públicas e privadas, código de 4 caracteres com cópia rápida, 4 a 8 participantes, etapa escolar (`Fundamental`, `Médio`, `Superior`), tempo de quiz configurável (`30s`, `45s`, `60s`), limite de rodadas (`6` ou `8`) e vínculo opcional a **Código de Turma**.
-- **Tabuleiro e Rejogabilidade:** trilha compartilhada de 0 a 30 com legenda, destaque do jogador ativo, feed narrativo de eventos de turno, casas bônus de Impulso (`+2`), obstáculos (`7`, `14`, `21`, `28`), **Avanço por Equidade** (`+1` casa para o 1º acerto mais rápido no quiz), **Pódio Duplo** (Corrida + Destaque do Quiz) e **Revanche Instantânea** com rotação automática de papéis.
-- **Contas, LGPD e Perfil:** **Login com Google (OAuth 2.0)** + **Modo Convidado** sem atrito, consentimento explícito para pesquisa acadêmica (opt-in), histórico pessoal de partidas e coleção de perspectivas vivenciadas (`4/4`).
-- **Painel de Professores & Pesquisa Científica:** indicadores empíricos por condição e matriz obstáculo × condição, CRUD e curadoria do banco de questões com diagnóstico de distratores, gestão de turmas, papéis RBAC (`jogador`, `professor`, `admin`) e exportação com 1 clique de datasets 100% anonimizados em **CSV / JSON** (prontos para R/Python/SPSS).
-- **Confiabilidade e Acessibilidade (WCAG 2.1 AA):** reconexão automática de sessão por até 60 segundos, tema claro/escuro, modo daltônico, redução de movimento (`useReducedMotion`), foco visível na Web e atalhos de teclado no quiz (`A–D`, `Enter`, `Esc`).
+- **Lobby e Experiência de Sala de Aula:** salas públicas e privadas, código de 4 caracteres, **link direto de convite (`?sala=XXXX`)**, **QR Code nativo** para projeção/celular, barra de prontidão (4 a 8 participantes), etapa escolar (`Fundamental`, `Médio`, `Superior`), tempo de quiz configurável (`30s`, `45s`, `60s`), limite de rodadas (`6` ou `8`) e vínculo opcional a **Código de Turma**.
+- **Tabuleiro Animado e Rejogabilidade:** mini-trilha panorâmica `0 ─── 30`, grade sinuosa responsiva (5 colunas no desktop / 3 no mobile), **dado geométrico 3×3 animado** (com pulso no seu turno e drag-up), peões com animação de pouso, feed narrativo de eventos, Impulso (`+2`), obstáculos (`7`, `14`, `21`, `28`), **Avanço por Equidade** (`+1` casa para o 1º acerto), **Pódio Duplo** (Corrida + Destaque do Quiz), **Revanche Instantânea** com rotação automática de papéis, modo `🙈 Ocultar` papel secreto, Guia Rápido (`❓ Regras`) e efeitos sonoros sintetizados com mudo (`🔊/🔇`).
+- **Resiliência a Quedas e Abandono:** retomada automática da sala/quiz por até 60 segundos inclusive após recarregar a aba (`sessionStorage`), contagem regressiva visível de jogadores `📡 Reconectando`, finalização imediata do quiz se quem faltava responder cair, encerramento automático limpo (`abandoned`) quando sobra apenas 1 jogador e botão `🚪 Sair` com confirmação durante a partida.
+- **Contas, LGPD e Perfil:** **Login com Google (OAuth 2.0)** + **Modo Convidado** sem atrito, consentimento explícito para pesquisa acadêmica (opt-in), páginas institucionais `/privacidade` e `/termos`, histórico pessoal e coleção de perspectivas vivenciadas (`4/4`).
+- **Painel de Professores & Pesquisa Científica:** gráficos comparativos por condição (com linhas de referência `25%` e `E[X] = 3,50`), **Heatmap visual 4×4** (Empírico e Teórico N1–N3), CRUD/curadoria de questões com barras de distratores A/B/C/D, gestão de turmas, papéis RBAC (`jogador`, `professor`, `admin`) e exportação com 1 clique de datasets 100% anonimizados em **CSV / JSON** (prontos para R/Python/SPSS).
+- **Acessibilidade (WCAG 2.1 AA):** tema claro/escuro, modo daltônico, respeito à redução de movimento (`useReducedMotion`), foco visível na Web (`:focus-visible`), cartões táteis `[A/B/C/D]` e atalhos de teclado no quiz (`A–D`, `Enter`, `Esc`).
 
-**Estado atual (2026-11-21):** a versão institucional **v2.0** está implementada
-de ponta a ponta e validada com **88/88 testes backend**, `npx tsc --noEmit`,
-`npm run lint` e `npm run build:web` aprovados. O banco de produção (`defaultdb`)
-opera com **27 perguntas únicas balanceadas** e as migrações `001..003` estão
-prontas em [`database/migrations/`](database/README.md) para habilitar
-persistência analítica, contas Google, turmas e views estatísticas. Consulte
+**Estado atual (2026-11-22):** a versão institucional **v2.1** está validada e
+em produção (Render + Vercel + MySQL 8 no Aiven com migrações `001..003`
+aplicadas e Google OAuth ativo), com **93/93 testes backend**, `npx tsc --noEmit`,
+`npm run lint` e `npm run build:web` aprovados sem erros ou warnings. Consulte
 [`docs/STATUS_PROJETO.md`](docs/STATUS_PROJETO.md) e
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
@@ -255,11 +254,12 @@ analíticas anonimizadas) estão documentadas em
 
 ## Limitações e próximos passos
 
-A versão **v2.0 institucional (ICE — UFRRJ)** está implementada e validada. Os
-próximos passos são: aplicar `database/migrations/001..003` no MySQL ativo
-(`defaultdb`), publicar o novo backend/frontend (Render + Vercel), expandir e
-revisar o acervo de perguntas de **27** para **54–90 questões** junto aos
-docentes do Departamento de Matemática (ICE — UFRRJ) e planejar a migração de
-provedor MySQL antes do encerramento do Aiven Free Tier (`2026-12-21`).
+A versão **v2.1 institucional (ICE — UFRRJ)** está em produção com Google OAuth,
+migrações `001..003` aplicadas, gráficos/heatmap no Painel Docente, QR Code de
+convite e resiliência contra quedas/abandono. Os próximos passos são expandir o
+acervo de perguntas de **27** para **81–90 questões** junto aos docentes do
+Departamento de Matemática (ICE — UFRRJ), criar scripts exemplo em R/Python para
+os datasets exportados e planejar a migração de provedor MySQL antes do
+encerramento do Aiven Free Tier (`2026-12-21`).
 
 Consulte [`docs/ROADMAP.md`](docs/ROADMAP.md) para a sequência completa.

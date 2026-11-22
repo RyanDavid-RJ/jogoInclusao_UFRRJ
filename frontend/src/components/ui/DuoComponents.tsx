@@ -2,7 +2,7 @@
 // Design System tátil do "Ludo Equidade (UFRRJ)" v2.0.
 // Sem shadow* (deprecados no RN Web) — profundidade via borderBottomWidth.
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
   Pressable,
   StyleSheet,
@@ -594,6 +594,7 @@ export interface TopHeaderProps {
   onToggleDaltonico: () => void;
   onToggleSound?: () => void;
   onOpenHelp?: () => void;
+  onLeaveMatch?: () => void;
   palette: ThemePalette;
 }
 
@@ -612,8 +613,10 @@ export function TopHeader({
   onToggleDaltonico,
   onToggleSound,
   onOpenHelp,
+  onLeaveMatch,
   palette,
 }: TopHeaderProps) {
+  const [confirmingLeave, setConfirmingLeave] = useState(false);
   const connectionBg = isConnected ? palette.primaryBg : palette.dangerBg;
   const connectionBorder = isConnected
     ? palette.primaryBorder
@@ -814,6 +817,72 @@ export function TopHeader({
                 Sala {roomCode}
               </Text>
             </View>
+          ) : null}
+
+          {inActiveMatch && onLeaveMatch ? (
+            confirmingLeave ? (
+              <View style={styles.confirmLeaveRow}>
+                <Pressable
+                  onPress={() => setConfirmingLeave(false)}
+                  accessibilityRole="button"
+                  style={[
+                    styles.daltonicoToggle,
+                    {
+                      backgroundColor: palette.surfaceAlt,
+                      borderColor: palette.cardBorder,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[styles.daltonicoText, { color: palette.textMain }]}
+                  >
+                    Cancelar
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    setConfirmingLeave(false);
+                    onLeaveMatch();
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Confirmar saída da partida"
+                  style={[
+                    styles.daltonicoToggle,
+                    {
+                      backgroundColor: palette.danger,
+                      borderColor: palette.dangerBorder,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.daltonicoText, { color: "#FFFFFF" }]}>
+                    Confirmar saída
+                  </Text>
+                </Pressable>
+              </View>
+            ) : (
+              <Pressable
+                onPress={() => setConfirmingLeave(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Sair da partida atual"
+                style={({ pressed }) => [
+                  styles.daltonicoToggle,
+                  {
+                    backgroundColor: palette.dangerBg,
+                    borderColor: palette.dangerBorder,
+                  },
+                  pressed && styles.togglePressed,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.daltonicoText,
+                    { color: palette.isDark ? "#FCA5A5" : palette.dangerBorder },
+                  ]}
+                >
+                  🚪 Sair
+                </Text>
+              </Pressable>
+            )
           ) : null}
 
           {onOpenHelp ? (
@@ -1202,5 +1271,10 @@ const styles = StyleSheet.create({
   togglePressed: {
     transform: [{ translateY: 1 }],
     opacity: 0.9,
+  },
+  confirmLeaveRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
   },
 });

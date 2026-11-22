@@ -1417,3 +1417,64 @@ test("supports configurable quizDurationSec, maxRounds, rematch play_again with 
     );
   }
 });
+
+test("emits reconnectingPlayers metadata and completes quiz immediately when the last unanswered player disconnects", async () => {
+  const lobby = await startLobbyAtObstacle(7);
+  const room = lobby.room;
+  const { quizId, participants } = room.quizRound;
+  const [lastPlayerId, ...firstThree] = participants;
+
+  for (const pid of firstThree) {
+    assert.deepEqual(submitAnswer(lobby.io.sockets.get(pid), quizId, "A"), {
+      success: true,
+    });
+  }
+  assert.equal(room.quizRound.status, "active");
+
+  lobby.io.sockets.get(lastPlayerId).clientEmit("disconnect");
+
+  // room_updated deve trazer reconnectingPlayers antes de encerrar o quiz
+  const updatesWithReconnecting = lobby.io.emissions.filter(
+    ({ eventName, payload }) =>
+      eventName === "room_updated" &&
+      Array.isArray(payload.reconnectingPlayers) &&
+      payload.reconnectingPlayers.some((p) => p.playerId === lastPlayerId),
+  );
+  assert.equal(updatesWithReconnecting.length >= 1, true);
+  assert.equal(
+    typeof updatesWithReconnecting[0].payload.reconnectingPlayers[0]
+      .reconnectDeadlineAt,
+    "number",
+  );
+
+  // Quiz deve encerrar imediatamente pois os 3 conectados já responderam
+  assert.equal(room.quizRound, null);
+  assert.equal(room.gameState.status, "active");
+});
+
+test("ends the match automatically as abandoned when only one player remains", () => {
+  const lobby = startLobbyGame((_minimum, maximum) => maximum - 1);
+  const room = lobby.rooms.get(lobby.roomCode);
+  const [stayingId, ...departingIds] = [...room.players];
+
+  for (const pid of departingIds) {
+    lobby.io.sockets.get(pid).clientEmit("leave_room");
+  }
+
+  assert.equal(room.players.length, 1);
+  assert.equal(room.players[0], stayingId);
+  assert.equal(room.gameState.status, "finished");
+  assert.equal(room.gameState.endReason, "abandoned");
+
+  const gameOverEvent = lobby.io.emissions.find(
+    ({ eventName }) => eventName === "game_over",
+  );
+  assert.ok(gameOverEvent);
+  assert.equal(gameOverEvent.payload.reason, "abandoned");
+  assert.deepEqual(gameOverEvent.payload.winners, [stayingId]);
+  assert.equal(gameOverEvent.payload.reveal.length, 4);
+  assert.equal(
+    gameOverEvent.payload.reveal.filter((item) => item.disconnected).length,
+    3,
+  );
+});

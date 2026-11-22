@@ -4,7 +4,7 @@
 
 import { useMemo } from "react";
 import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
-import Animated, { FadeIn, useReducedMotion } from "react-native-reanimated";
+import Animated, { FadeIn, ZoomIn, useReducedMotion } from "react-native-reanimated";
 
 import {
   BONUS_META,
@@ -373,21 +373,67 @@ export function BoardTrack({
                   ) : null}
                 </View>
 
+                {isRecentHere && lastEvent ? (
+                  <Animated.View
+                    entering={reduceMotion ? undefined : ZoomIn.springify()}
+                    style={[
+                      styles.eventCallout,
+                      {
+                        backgroundColor:
+                          lastEvent.type === "quiz_bonus"
+                            ? palette.purple
+                            : lastEvent.type === "bonus" ||
+                                lastEvent.type === "finish"
+                              ? palette.primary
+                              : lastEvent.type === "obstacle"
+                                ? palette.warning
+                                : palette.secondary,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.eventCalloutText,
+                        {
+                          color:
+                            lastEvent.type === "obstacle"
+                              ? "#1F2937"
+                              : "#FFFFFF",
+                        },
+                      ]}
+                    >
+                      {lastEvent.type === "quiz_bonus"
+                        ? "⚡ +1 QUIZ"
+                        : lastEvent.type === "bonus"
+                          ? "🚀 +2!"
+                          : lastEvent.type === "obstacle"
+                            ? "🚧 QUIZ!"
+                            : lastEvent.type === "finish"
+                              ? "🏆 FIM!"
+                              : `🎲 +${lastEvent.diceResult ?? ""}`}
+                    </Text>
+                  </Animated.View>
+                ) : null}
+
                 {playersHere.length > 0 ? (
                   <View style={styles.playersRow}>
                     {playersHere.map((profile) => (
-                      <AvatarMedallion
-                        key={profile.playerId}
-                        avatarId={profile.avatarId}
-                        size="sm"
-                        selected={profile.playerId === currentPlayerId}
-                        markerText={getPlayerMarker(
-                          profile.playerId,
-                          playerIds,
-                          ownPlayerId,
-                        )}
-                        palette={palette}
-                      />
+                      <Animated.View
+                        key={`${profile.playerId}-${cell.house}`}
+                        entering={reduceMotion ? undefined : ZoomIn.springify()}
+                      >
+                        <AvatarMedallion
+                          avatarId={profile.avatarId}
+                          size="sm"
+                          selected={profile.playerId === currentPlayerId}
+                          markerText={getPlayerMarker(
+                            profile.playerId,
+                            playerIds,
+                            ownPlayerId,
+                          )}
+                          palette={palette}
+                        />
+                      </Animated.View>
                     ))}
                   </View>
                 ) : null}
@@ -563,5 +609,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 4,
     marginTop: 3,
+  },
+  eventCallout: {
+    alignSelf: "center",
+    borderRadius: 999,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    marginBottom: 2,
+  },
+  eventCalloutText: {
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 0.3,
   },
 });

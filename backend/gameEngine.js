@@ -101,6 +101,14 @@ const finishByTieBreak = (gameState) => {
   finishGame(gameState, winners, "round_limit");
 };
 
+const finishByAbandonment = (gameState) => {
+  if (gameState.status === "finished") {
+    return false;
+  }
+  finishGame(gameState, [...gameState.turnOrder], "abandoned");
+  return true;
+};
+
 const advanceTurn = (gameState) => {
   if (gameState.currentTurnIndex < gameState.turnOrder.length - 1) {
     gameState.currentTurnIndex++;
@@ -398,6 +406,7 @@ module.exports = {
   completeObstaclePause,
   computeQuizHighlights,
   createGameState,
+  finishByAbandonment,
   getPublicGameState,
   recordQuizOutcome,
   removePlayerFromGame,

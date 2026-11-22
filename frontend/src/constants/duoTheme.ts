@@ -271,6 +271,10 @@ export interface PlayerProfile {
   avatarId: string;
 }
 
+export interface ReconnectingPlayer extends PlayerProfile {
+  reconnectDeadlineAt?: number | null;
+}
+
 export interface PublicRoomSummary {
   roomCode: string;
   playerCount: number;
@@ -323,6 +327,7 @@ export interface GameOverRevealItem {
   position: number;
   quizPoints: number;
   destaqueQuiz?: boolean;
+  disconnected?: boolean;
   summary?: string;
   stats?: PlayerMatchStats;
 }
@@ -330,7 +335,7 @@ export interface GameOverRevealItem {
 export interface GameOver {
   winners: string[];
   quizHighlights?: string[];
-  reason: "finish" | "round_limit";
+  reason: "finish" | "round_limit" | "abandoned";
   roles: { playerId: string; condition: string }[];
   reveal?: GameOverRevealItem[];
 }

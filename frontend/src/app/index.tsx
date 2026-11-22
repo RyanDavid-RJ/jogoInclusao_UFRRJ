@@ -213,6 +213,7 @@ export default function IndexScreen() {
       >
         <PlayersSidebar
           players={session.players}
+          reconnectingPlayers={session.reconnectingPlayers}
           positions={session.gameState.positions}
           quizPoints={session.gameState.quizPoints ?? {}}
           myCondition={session.myCondition}
@@ -232,12 +233,14 @@ export default function IndexScreen() {
             session.gameState.status === "active" &&
             session.gameState.currentPlayerId === session.ownPlayerId
           }
+          currentPlayerId={session.gameState.currentPlayerId}
           currentPlayerName={
             session.players.find(
               (player) =>
                 player.playerId === session.gameState?.currentPlayerId,
             )?.name ?? ""
           }
+          reconnectingPlayers={session.reconnectingPlayers}
           lastEvent={session.gameState.lastEvent}
           players={session.players}
           ownPlayerId={session.ownPlayerId}
@@ -282,6 +285,7 @@ export default function IndexScreen() {
         onToggleDaltonico={() => setIsDaltonico((value) => !value)}
         onToggleSound={() => setIsSoundEnabled((value) => !value)}
         onOpenHelp={() => setShowHelp(true)}
+        onLeaveMatch={session.leaveAndResetSession}
         palette={palette}
       />
 
